@@ -6,10 +6,19 @@
  * Playwright E2E target (walk / collide / dialogue / save / reload-restore)
  * and as a manual dev preview. Exposes the game on `window.__game` for E2E
  * assertions.
+ *
+ * Optional URL query parameters (used by the two-context multiplayer smoke
+ * test, P4): `?server=ws://host:port/ws&room=<id>&name=<player>`. When
+ * `server` is absent the demo runs single-player (the default P1c scenario).
  */
 import { boot, Logger } from "@agenticrpg/runtime";
 
 import demoMap from "./fixtures/demo.map.json";
+
+const params = new URLSearchParams(window.location.search);
+const serverUrl = params.get("server") ?? undefined;
+const roomId = params.get("room") ?? undefined;
+const playerName = params.get("name") ?? "Aria";
 
 const canvas = document.getElementById("game-canvas") as HTMLCanvasElement;
 const root = document.getElementById("root") as HTMLElement;
@@ -24,13 +33,19 @@ canvas.height = Math.max(1, Math.round(rect.height * dpr));
 const logger = new Logger({ level: "info" });
 
 async function start(): Promise<void> {
-  logger.info("demo: booting");
+  logger.info("demo: booting", {
+    server: serverUrl ?? null,
+    room: roomId ?? "default",
+    playerName,
+  });
   const game = await boot({
     canvas,
     root,
     mapData: demoMap as never,
     logger,
-    playerName: "Aria",
+    serverUrl,
+    roomId,
+    playerName,
     playerPosition: { x: 1, y: 2 },
     playerDirection: "down",
   });

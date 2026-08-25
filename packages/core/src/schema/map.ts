@@ -83,8 +83,7 @@ export const mapSchema = baseMapSchema.refine(
     m.layers.every(
       (layer) =>
         layer.type !== "tile" ||
-        (layer.data.length === m.height &&
-          layer.data.every((row) => row.length === m.width)),
+        (layer.data.length === m.height && layer.data.every((row) => row.length === m.width)),
     ),
   {
     message: "tile layer data must have exactly height rows of width tile indices",

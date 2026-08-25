@@ -25,7 +25,11 @@ export interface BootOptions {
   /** Optional multiplayer server URL (ws:// or wss://); omitted = offline. */
   serverUrl?: string;
   /** Logging callback; structured JSON entries (03-wal-process.md §2). */
-  log?: (entry: { level: "trace" | "debug" | "info" | "warn" | "error"; message: string; data?: unknown }) => void;
+  log?: (entry: {
+    level: "trace" | "debug" | "info" | "warn" | "error";
+    message: string;
+    data?: unknown;
+  }) => void;
 }
 
 /** Handle returned by `boot()`; the owner can stop the game loop cleanly. */
@@ -39,9 +43,7 @@ export interface RuntimeHandle {
  * here (at call time, not import time) makes the seam explicit and testable.
  */
 export function boot(_options: BootOptions): RuntimeHandle {
-  throw new Error(
-    "packages/runtime boot is not implemented yet (P1c). P0 defines the seam only.",
-  );
+  throw new Error("packages/runtime boot is not implemented yet (P1c). P0 defines the seam only.");
 }
 
 /**

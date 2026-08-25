@@ -7,16 +7,16 @@ onboard, read the docs, and run the toolchain without asking a human. Read
 
 ## Repository layout
 
-| Path | Purpose |
-|------|---------|
-| `packages/core` | Shared engine core: data model, event interpreter (later), versioned JSON schemas (ADR-001 / ADR-003). Vanilla TypeScript, **zero DOM/browser dependencies**, runs in Node. |
-| `packages/renderer` | Renderer interface + (P1b) WebGL / Canvas2D backends (ADR-002). Vanilla TypeScript. |
-| `packages/runtime` | Playable game: boot sequence, game loop, scenes, saves, multiplayer client (ADR-001 / ADR-004). Vanilla TypeScript. |
-| `packages/editor` | Web editor (Game Maker): React + TypeScript + Vite (ADR-006). |
-| `server/` | C++20 relay/state-sync server: CMake, standalone Asio, websocketpp, spdlog, Catch2 (ADR-005 / RQ3). |
-| `samples/` | Sample maps / projects exercising the editor → core → runtime → server pipeline. |
-| `docs/` | Single source of truth: vision, decision log, WAL process, architecture, MVP plan, compatibility checklist, ADRs. |
-| `scripts/` | Repo tooling (e.g. `doc-lint.mjs`). |
+| Path                | Purpose                                                                                                                                                                     |
+| ------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `packages/core`     | Shared engine core: data model, event interpreter (later), versioned JSON schemas (ADR-001 / ADR-003). Vanilla TypeScript, **zero DOM/browser dependencies**, runs in Node. |
+| `packages/renderer` | Renderer interface + (P1b) WebGL / Canvas2D backends (ADR-002). Vanilla TypeScript.                                                                                         |
+| `packages/runtime`  | Playable game: boot sequence, game loop, scenes, saves, multiplayer client (ADR-001 / ADR-004). Vanilla TypeScript.                                                         |
+| `packages/editor`   | Web editor (Game Maker): React + TypeScript + Vite (ADR-006).                                                                                                               |
+| `server/`           | C++20 relay/state-sync server: CMake, standalone Asio, websocketpp, spdlog, Catch2 (ADR-005 / RQ3).                                                                         |
+| `samples/`          | Sample maps / projects exercising the editor → core → runtime → server pipeline.                                                                                            |
+| `docs/`             | Single source of truth: vision, decision log, WAL process, architecture, MVP plan, compatibility checklist, ADRs.                                                           |
+| `scripts/`          | Repo tooling (e.g. `doc-lint.mjs`).                                                                                                                                         |
 
 ## How to read the docs
 
@@ -49,15 +49,15 @@ onboard, read the docs, and run the toolchain without asking a human. Read
 Prerequisite: Node.js ≥ 20 and pnpm. If `pnpm` is missing, enable it with
 `corepack enable` (comes with Node).
 
-| Command | What it does |
-|---------|--------------|
-| `pnpm install` | Install all workspace dependencies (pnpm workspaces). |
-| `pnpm build` | Build all TypeScript packages (`core`, `renderer`, `runtime`, `editor`). |
-| `pnpm test` | Run the Vitest unit suites across the web packages. |
-| `pnpm lint` | ESLint over the repo (packages + scripts + configs). |
-| `pnpm format` | Prettier over the repo (`docs/` excluded — docs are owned by the docs workstream). |
-| `pnpm doc:lint` | Check every doc for broken internal links and invalid status fields (ADR-007). |
-| `pnpm typecheck` | Type-check every package without emitting. |
+| Command          | What it does                                                                       |
+| ---------------- | ---------------------------------------------------------------------------------- |
+| `pnpm install`   | Install all workspace dependencies (pnpm workspaces).                              |
+| `pnpm build`     | Build all TypeScript packages (`core`, `renderer`, `runtime`, `editor`).           |
+| `pnpm test`      | Run the Vitest unit suites across the web packages.                                |
+| `pnpm lint`      | ESLint over the repo (packages + scripts + configs).                               |
+| `pnpm format`    | Prettier over the repo (`docs/` excluded — docs are owned by the docs workstream). |
+| `pnpm doc:lint`  | Check every doc for broken internal links and invalid status fields (ADR-007).     |
+| `pnpm typecheck` | Type-check every package without emitting.                                         |
 
 C++ server (run from `server/`):
 

@@ -11,7 +11,13 @@
  */
 import type { z } from "zod";
 
-import { mapSchema, protocolEnvelopeSchema, projectSchema, saveSchema, tilesetSchema } from "./schema/index.js";
+import {
+  mapSchema,
+  protocolEnvelopeSchema,
+  projectSchema,
+  saveSchema,
+  tilesetSchema,
+} from "./schema/index.js";
 import { assertSchemaVersion, SCHEMA_VERSIONS } from "./version.js";
 
 export * from "./version.js";

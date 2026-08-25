@@ -31,7 +31,7 @@ describe("tilesetSchema (v1)", () => {
   });
 
   it("parses a minimal tileset (no optional fields)", () => {
-    const { collisions, animations, ...minimal } = makeTileset();
+    const { collisions: _collisions, animations: _animations, ...minimal } = makeTileset();
     expect(tilesetSchema.safeParse(minimal).success).toBe(true);
   });
 
@@ -50,9 +50,9 @@ describe("tilesetSchema (v1)", () => {
   });
 
   it("rejects a broken animation (empty frames)", () => {
-    expect(tilesetSchema.safeParse(makeTileset({ animations: [{ firstTile: 0, frames: [] }] })).success).toBe(
-      false,
-    );
+    expect(
+      tilesetSchema.safeParse(makeTileset({ animations: [{ firstTile: 0, frames: [] }] })).success,
+    ).toBe(false);
   });
 
   it("round-trips stably", () => {

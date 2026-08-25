@@ -14,7 +14,7 @@
  *
  * Exit code 0 = green, 1 = at least one issue.
  */
-import { readdirSync, readFileSync, statSync } from "node:fs";
+import { readdirSync, readFileSync } from "node:fs";
 import { dirname, extname, join, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -114,7 +114,9 @@ for (const file of walk(docsRoot)) {
       if (!withoutFragment) continue; // pure "#fragment"
       const resolved = resolve(dirname(file), withoutFragment);
       if (!tree.files.has(resolved) && !tree.dirs.has(resolved)) {
-        issues.push(`${fileLabel}: broken link -> ${target} (resolves to ${relative(repoRoot, resolved)})`);
+        issues.push(
+          `${fileLabel}: broken link -> ${target} (resolves to ${relative(repoRoot, resolved)})`,
+        );
       }
     }
   }
@@ -133,10 +135,14 @@ for (const file of walk(docsRoot)) {
 
 if (issues.length > 0) {
   for (const issue of issues) console.error(`doc-lint: ${issue}`);
-  console.error(`doc-lint: FAILED — ${issues.length} issue(s) across ${walk(docsRoot).length} doc file(s).`);
+  console.error(
+    `doc-lint: FAILED — ${issues.length} issue(s) across ${walk(docsRoot).length} doc file(s).`,
+  );
   process.exit(1);
 }
 
 const files = walk(docsRoot).length;
-console.log(`doc-lint: OK — ${files} doc file(s), ${statusFieldsChecked} status field(s) checked, all links resolve.`);
+console.log(
+  `doc-lint: OK — ${files} doc file(s), ${statusFieldsChecked} status field(s) checked, all links resolve.`,
+);
 process.exit(0);

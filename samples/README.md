@@ -6,8 +6,8 @@ the **editor → core → runtime → server** pipeline end to end (architecture
 
 ## Layout
 
-| Path | Purpose |
-|---|---|
+| Path              | Purpose                                                                                                                                            |
+| ----------------- | -------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `maps/*.map.json` | Sample maps in the versioned map format v1 ([ADR-003](../docs/04-adr/ADR-003.md)); used by the `packages/core` schema test suite and later phases. |
 
 `town-square.map.json` is the P0 fixture: a small 8×6 map with two tile layers,

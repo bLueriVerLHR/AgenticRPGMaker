@@ -8,11 +8,13 @@ export function App(): React.JSX.Element {
     <main style={{ fontFamily: "sans-serif", padding: "2rem", maxWidth: "48rem" }}>
       <h1>AgenticRPGMaker — Editor</h1>
       <p>
-        Placeholder shell (P0). The full map/event editor (tile layers, event placement,
-        runtime preview) ships in P2.
+        Placeholder shell (P0). The full map/event editor (tile layers, event placement, runtime
+        preview) ships in P2.
       </p>
       <ul>
-        <li>Packages: <code>@agenticrpg/core</code> (shared data model + schemas)</li>
+        <li>
+          Packages: <code>@agenticrpg/core</code> (shared data model + schemas)
+        </li>
         <li>Stack: React + TypeScript + Vite (ADR-006)</li>
       </ul>
     </main>

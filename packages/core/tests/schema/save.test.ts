@@ -39,9 +39,9 @@ describe("saveSchema (v1)", () => {
   });
 
   it("rejects an invalid direction", () => {
-    expect(saveSchema.safeParse(makeSave({ player: { x: 0, y: 0, direction: "sideways" } })).success).toBe(
-      false,
-    );
+    expect(
+      saveSchema.safeParse(makeSave({ player: { x: 0, y: 0, direction: "sideways" } })).success,
+    ).toBe(false);
   });
 
   it("rejects a malformed savedAt timestamp", () => {

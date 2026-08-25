@@ -36,7 +36,7 @@ describe("projectSchema (v1)", () => {
   });
 
   it("parses a project without editor state (optional)", () => {
-    const { openEditorState, ...rest } = makeProject();
+    const { openEditorState: _openEditorState, ...rest } = makeProject();
     expect(projectSchema.safeParse(rest).success).toBe(true);
   });
 
@@ -51,7 +51,9 @@ describe("projectSchema (v1)", () => {
   });
 
   it("rejects non-positive display dimensions", () => {
-    const input = makeProject({ settings: { display: { width: 0, height: 240 }, initialMap: "m" } });
+    const input = makeProject({
+      settings: { display: { width: 0, height: 240 }, initialMap: "m" },
+    });
     expect(projectSchema.safeParse(input).success).toBe(false);
   });
 

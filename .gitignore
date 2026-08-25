@@ -78,3 +78,20 @@ node_modules/
 # Other team members' git worktrees (design-a/b/c) — scratch areas, not part of this repo
 work/
 
+# TypeScript build output
+dist/
+*.tsbuildinfo
+
+# Test coverage
+coverage/
+
+# Vite cache
+.vite/
+
+# pnpm store relocated into the workspace (sandboxed builds)
+.pnpm-store/
+.npmrc
+
+# Local tooling downloads (e.g. self-hosted CMake used in sandboxed builds)
+.tools/
+

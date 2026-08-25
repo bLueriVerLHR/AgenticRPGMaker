@@ -1,0 +1,14 @@
+packages:
+  - "packages/*"
+
+# pnpm 11 settings (moved from the package.json "pnpm" field / .npmrc into
+# pnpm-workspace.yaml).
+# allowBuilds: allow dependency postinstall scripts (e.g. esbuild's binary
+# installer) that pnpm 11 blocks by default.
+allowBuilds:
+  esbuild: true
+
+# storeDir: relocate the content-addressable store inside the workspace for
+# sandboxed builds (the default ~/.local/share/pnpm store is not writable in
+# the DSH sandbox). Harmless in normal environments.
+storeDir: ./.pnpm-store

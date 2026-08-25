@@ -1,0 +1,14 @@
+# Prettier ignore rules.
+# NOTE: docs/ is intentionally excluded — docs are owned by the docs/design
+# members and must only change in their own changes (WAL). `pnpm format` must
+# never reformat them.
+docs/
+node_modules/
+**/dist/
+**/build/
+**/coverage/
+**/.vite/
+**/.tools/
+work/
+pnpm-lock.yaml
+LICENSE

@@ -5,6 +5,34 @@ Date format: `YYYY-MM-DD`.
 
 ---
 
+## 2026-08-25 — Phase A approved; agentic-operability decisions (D17–D19); ADR-007 accepted
+
+The user approved **Phase A** (design docs) and confirmed **zod**. New Round 3
+decisions recorded: **D17–D19** (all-English, agent-operable scope, docs form);
+**ADR-007** (agentic operability & agent-readable docs) accepted. Design branches
+**design/a** (`634f6f7`), **design/b** (`dfb937a`), **design/c** (`e6c83b0`) are
+complete; the **merge-manager is merging Phase A to main**.
+
+**Details**
+
+- `docs/04-adr/ADR-007.md` created (status: accepted) — all-English engineering
+  rule; `AGENTS.md` onboarding doc + doc structure conventions + link/status lint
+  in CI (baseline tier, IN MVP); editor headless CLI / runtime headless test mode /
+  server control API (upper tiers, designed-now / implemented-later via reserved
+  seams, NOT in MVP).
+- [02-open-questions.md](./02-open-questions.md): new "Round 3 — decided" section
+  with D17/D18/D19 (status=decided, "user decided"); D14 gains a zod confirmation
+  note (validation library = zod, user-confirmed, resolves ADR-003's
+  "choice to be confirmed" flag); history table extended with D17–D19 and the
+  Phase A approval note.
+- [03-wal-process.md](./03-wal-process.md): new sections 7 (ALL-ENGLISH) and 8
+  (AGENT-READABLE DOCS & agent operability) added to the playbook.
+- [01-vision.md](./01-vision.md): engineering rules 5 (all-English) and 6
+  (agent-readable docs + agent-operable baseline) added; header + §6 + footer
+  updated with Phase A approval and D17–D19.
+- zod is the single documented runtime dependency of `packages/core` (or a thin
+  adapter — decide at implementation; ADR-003 flags this).
+
 ## 2026-08-25 — Phase A reorganized: design member stalled, split into 3 parallel members
 
 The original architecture design member (branch `design/architecture`) ran ~2 goal

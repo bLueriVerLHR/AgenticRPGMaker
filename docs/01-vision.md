@@ -3,10 +3,13 @@
 > **status: consensus confirmed (2026-08-25)**
 > This document records the user's stated vision as of kickoff and its evolution
 > through the discussion rounds. **The user signed off on all decisions D1–D16 at
-> the consensus gate** and chose **Phase A — detailed design docs before code** (see
+> the consensus gate**, chose **Phase A — detailed design docs before code**, and
+> **approved the Phase A design docs** (2026-08-25) plus new Round 3 decisions
+> **D17–D19** (agentic operability & all-English — see
 > [02-open-questions.md](./02-open-questions.md)). The vision is agreed at the
 > decision level; Phase A design docs (`06-architecture.md`, `ADR-001..006`,
-> `07-mvp-plan.md`, `08-compatibility-checklist.md`) will refine and finalize it.
+> `07-mvp-plan.md`, `08-compatibility-checklist.md`) are approved and being merged
+> to main by the merge-manager.
 
 ## 1. What it is
 
@@ -114,6 +117,14 @@ These are non-negotiable process requirements, regardless of the open questions:
    a debugging session does not start from zero.
 4. **Tests are mandatory** — before any release, and before any **real-environment
    run**.
+5. **All-English engineering.** All engineering artifacts (docs, code, comments,
+   commit messages, UI strings) are in English; **game content text** (dialogue,
+   item names) is player data and not language-restricted. (Decided: D17.)
+6. **Agent-readable docs + agent-operable system.** `AGENTS.md` at repo root as the
+   agent onboarding doc; doc link/status lint in CI; agent-operable baseline
+   (one-command build/test/lint, doc conventions) **in MVP**; upper-tier seams
+   (editor headless CLI, runtime headless mode, server control API) designed now,
+   implemented later. (Decided: D18/D19.)
 
 ## 6. Out of scope for now
 
@@ -122,11 +133,16 @@ editor, cloud saves, **LLM NPCs**, and **world-state sync** (doors/switches/NPCs
 multiplayer sync covers **players only** in the MVP (see
 [02-open-questions.md](./02-open-questions.md#q6--mvp-scope)). All proposed defaults
 **D12–D16** were **signed off by the user at the consensus gate** (editor storage,
-editor UI, data formats, repo structure, MVP sync scope).
+editor UI, data formats, repo structure, MVP sync scope). Round 3 decisions
+**D17–D19** (all-English, agent-operable scope, docs form) are **in force** and their
+upper-tier seams are explicitly **NOT in MVP** (see
+[ADR-007](./04-adr/ADR-007.md)).
 
 ---
 
 *Status history: created as DRAFT at kickoff (2026-08-25); updated after Round 1 —
 Q1–Q6 resolved (Q1 reinterpreted); updated after Round 2 — RQ1–RQ5 resolved
 (portable target user-confirmed), D12–D16 proposed; **consensus confirmed
-2026-08-25** — user signed off on D1–D16, Phase A (design docs) kicked off.*
+2026-08-25** — user signed off on D1–D16; **Phase A design docs approved
+2026-08-25** — D17–D19 decided (all-English, agent-operable scope, docs form),
+ADR-007 accepted, zod confirmed for D14.*

@@ -197,6 +197,11 @@ history and add a **resolution** note recording what was actually decided.
   protocol**, **versioned**.
 - **resolution:** **user confirmed at consensus gate** — versioned JSON schema with
   shared TS types for maps / events / saves / protocol.
+- **validation library — zod CONFIRMED (user, Round 3):** the validation library is
+  **zod** — a single documented runtime dependency of `packages/core` (or a thin
+  adapter around it; final call at implementation). See
+  [ADR-003](./04-adr/ADR-003.md), which flags this choice; the user's confirmation
+  resolves the "choice to be confirmed by the leader at review" note in ADR-003.
 
 ## D15 — repo structure
 
@@ -220,6 +225,42 @@ history and add a **resolution** note recording what was actually decided.
 
 ---
 
+# Round 3 — decided (agentic operability & all-English)
+
+> **Phase A design docs approved by the user** (2026-08-25); zod confirmed for D14
+> (see note above and ADR-003). The following three decisions were made by the user
+> in Round 3 (recorded in [ADR-007](./04-adr/ADR-007.md)).
+
+## D17 — all-English
+
+- **status:** decided
+- **default:** all **engineering** artifacts (docs, code, comments, commit messages,
+  UI strings) are in **English**; **game content text** (dialogue, item names) is
+  player data and **not** language-restricted.
+- **resolution:** **user decided** — all-English engineering rule for all repo
+  artifacts; game content text unrestricted (player data).
+
+## D18 — agent-operable scope
+
+- **status:** decided
+- **default:** **baseline tier in MVP** (`AGENTS.md` + doc conventions +
+  one-command build/test/lint + doc lint in CI); **upper tiers** (editor headless
+  CLI, runtime headless mode, server control API) **designed now, implemented
+  later**, NOT in MVP — via reserved interfaces.
+- **resolution:** **user decided** — baseline tier in MVP; upper tiers designed-now /
+  implemented-later via reserved seams (see ADR-007 and the seams summary in
+  06-architecture.md).
+
+## D19 — docs form
+
+- **status:** decided
+- **default:** `AGENTS.md` + doc structure conventions + link/status lint in CI.
+- **resolution:** **user decided** — `AGENTS.md` at repo root, doc structure
+  conventions (stable headings, machine-checkable status fields), link/status lint
+  enforced in CI.
+
+---
+
 ## Decision log history
 
 | # | Question | Status | Resolution / decided option | Date |
@@ -237,6 +278,9 @@ history and add a **resolution** note recording what was actually decided.
 | RQ5 | commit attribution | decided | single unified repo-local bot identity for all subagent commits (opt a) | round 2 |
 | D12 | editor project storage | decided | user confirmed at consensus gate: IndexedDB (portable/offline) + import/export to folder; C++ file persistence phase 2 | round 2 |
 | D13 | editor UI | decided | user confirmed at consensus gate: React + TypeScript + Vite (editor only); runtime stays vanilla TS | round 2 |
-| D14 | data formats | decided | user confirmed at consensus gate: versioned JSON schema (shared TS types) for maps/events/saves/protocol | round 2 |
+| D14 | data formats | decided | user confirmed at consensus gate: versioned JSON schema (shared TS types) for maps/events/saves/protocol; **validation lib = zod (user, round 3)** | round 2/3 |
 | D15 | repo structure | decided | user confirmed at consensus gate: monorepo packages/* + server (C++) + samples; pnpm; Vitest + Playwright + Catch2 | round 2 |
 | D16 | MVP sync scope | decided | user confirmed at consensus gate: player-state sync only; world-state sync documented MVP limitation | round 2 |
+| D17 | all-English | decided | engineering fully English (docs/code/comments/commits/UI strings); game content text unrestricted (player data) | round 3 |
+| D18 | agent-operable scope | decided | baseline tier in MVP (AGENTS.md + doc conventions + one-command build/test/lint + doc lint CI); upper tiers designed-now/implemented-later via reserved interfaces | round 3 |
+| D19 | docs form | decided | AGENTS.md + doc structure conventions + link/status lint in CI | round 3 |

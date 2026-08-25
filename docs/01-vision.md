@@ -1,11 +1,12 @@
 # AgenticRPGMaker — Vision
 
-> **status: DRAFT — pending consensus**
+> **status: consensus confirmed (2026-08-25)**
 > This document records the user's stated vision as of kickoff and its evolution
-> through the discussion rounds. **Round 1 (Q1–Q6) and Round 2 (RQ1–RQ5) are
-> resolved**; proposed defaults **D12–D16** are pending the user's sign-off (see
-> [02-open-questions.md](./02-open-questions.md)). Nothing is binding until the
-> leader confirms it.
+> through the discussion rounds. **The user signed off on all decisions D1–D16 at
+> the consensus gate** and chose **Phase A — detailed design docs before code** (see
+> [02-open-questions.md](./02-open-questions.md)). The vision is agreed at the
+> decision level; Phase A design docs (`06-architecture.md`, `ADR-001..006`,
+> `07-mvp-plan.md`, `08-compatibility-checklist.md`) will refine and finalize it.
 
 ## 1. What it is
 
@@ -119,12 +120,13 @@ These are non-negotiable process requirements, regardless of the open questions:
 **Confirmed MVP non-goals (Round 1, Q6 + Round 2, D16):** matchmaking, animation
 editor, cloud saves, **LLM NPCs**, and **world-state sync** (doors/switches/NPCs) —
 multiplayer sync covers **players only** in the MVP (see
-[02-open-questions.md](./02-open-questions.md#q6--mvp-scope)). Proposed defaults
-pending user sign-off: **D12–D16** (editor storage, editor UI, data formats, repo
-structure, MVP sync scope).
+[02-open-questions.md](./02-open-questions.md#q6--mvp-scope)). All proposed defaults
+**D12–D16** were **signed off by the user at the consensus gate** (editor storage,
+editor UI, data formats, repo structure, MVP sync scope).
 
 ---
 
 *Status history: created as DRAFT at kickoff (2026-08-25); updated after Round 1 —
 Q1–Q6 resolved (Q1 reinterpreted); updated after Round 2 — RQ1–RQ5 resolved
-(portable target user-confirmed), D12–D16 proposed defaults pending sign-off.*
+(portable target user-confirmed), D12–D16 proposed; **consensus confirmed
+2026-08-25** — user signed off on D1–D16, Phase A (design docs) kicked off.*

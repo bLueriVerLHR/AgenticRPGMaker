@@ -5,6 +5,31 @@ Date format: `YYYY-MM-DD`.
 
 ---
 
+## 2026-08-25 — Consensus confirmed (D1–D16); Phase A kicked off
+
+Consensus confirmed: the user approved all **D1–D16** at the consensus gate
+("确认共识，先进 Phase A 设计文档") and chose **Phase A** (detailed design docs
+before code). **Architecture design member assigned** (branch `design/architecture`):
+deliverables `docs/06-architecture.md`, `ADR-001..006`,
+`docs/07-mvp-plan.md`, `docs/08-compatibility-checklist.md`, `docs/README.md`
+index update. Awaiting design completion for user review.
+
+**Details**
+
+- D12–D16 flipped from `pending sign-off` to `decided` in
+  [02-open-questions.md](./02-open-questions.md), each marked "user confirmed at
+  consensus gate": D12 IndexedDB project storage (import/export to folder; C++ file
+  persistence phase 2); D13 React + TS + Vite editor (runtime stays vanilla TS);
+  D14 versioned JSON schema (shared TS types) for maps/events/saves/protocol;
+  D15 monorepo packages/core, renderer, runtime, editor + server (C++) + samples,
+  pnpm, Vitest + Playwright + Catch2; D16 MVP sync = player-state only, world-state
+  sync a documented MVP limitation.
+- All 16 decisions (Q1–Q6, RQ1–RQ5, D12–D16) are now `decided`.
+- Phase A kicked off: architecture design member produces the design docs
+  (06-architecture.md, ADR-001..006, 07-mvp-plan.md, 08-compatibility-checklist.md,
+  README index update) on branch `design/architecture`, for user review.
+- [01-vision.md](./01-vision.md) updated: D12–D16 signed-off references refreshed.
+
 ## 2026-08-25 — Round 2 resolved
 
 Round 2 answered (RQ1–RQ5, all decided). Decision summary D1–D16 presented to user;

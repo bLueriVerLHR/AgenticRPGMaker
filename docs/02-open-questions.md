@@ -167,45 +167,56 @@ history and add a **resolution** note recording what was actually decided.
 
 ---
 
-# Proposed defaults pending sign-off (D12–D16)
+# D12–D16 — decided (user sign-off at consensus gate)
 
 > New numbering introduced in the Round 2 summary: **D1–D11** correspond to the
-> already-decided items **Q1–Q6 + RQ1–RQ5** above. **D12–D16** are new proposed
-> defaults — **status: pending sign-off** (leader-approved, awaiting the user's
-> sign-off).
+> already-decided items **Q1–Q6 + RQ1–RQ5** above. **D12–D16** were proposed
+> defaults; the **user signed off on all of them at the consensus gate**
+> ("确认共识，先进 Phase A 设计文档").
 
 ## D12 — editor project storage
 
-- **status:** pending sign-off
+- **status:** decided
 - **default:** browser **IndexedDB** for MVP (portable/offline), with **import/export
   to folder**; **C++ server file persistence deferred to phase 2**.
+- **resolution:** **user confirmed at consensus gate** — IndexedDB project storage
+  (import/export to folder); C++ server file persistence in phase 2.
 
 ## D13 — editor UI
 
-- **status:** pending sign-off
+- **status:** decided
 - **default:** **React + TypeScript + Vite** (editor only); the **game runtime stays
   framework-free vanilla TS** for portability.
+- **resolution:** **user confirmed at consensus gate** — React + TS + Vite editor;
+  game runtime stays framework-free vanilla TS.
 
 ## D14 — data formats
 
-- **status:** pending sign-off
+- **status:** decided
 - **default:** **JSON schema** (shared TS types) for **maps / events / saves /
   protocol**, **versioned**.
+- **resolution:** **user confirmed at consensus gate** — versioned JSON schema with
+  shared TS types for maps / events / saves / protocol.
 
 ## D15 — repo structure
 
-- **status:** pending sign-off
+- **status:** decided
 - **default:** **monorepo**: `packages/core`, `packages/renderer`, `packages/runtime`,
   `packages/editor` + `server` (C++) + `samples`; **pnpm workspaces**; **Vitest +
   Playwright + Catch2**.
+- **resolution:** **user confirmed at consensus gate** — monorepo
+  `packages/core`, `packages/renderer`, `packages/runtime`, `packages/editor` +
+  `server` (C++) + `samples`; pnpm workspaces; Vitest + Playwright + Catch2.
 
 ## D16 — MVP sync scope
 
-- **status:** pending sign-off
+- **status:** decided
 - **default:** sync **ONLY player state** (position / direction / animation,
   join/leave, chat); **world-state sync (doors/switches/NPCs) is a documented MVP
   limitation** (future: host-authoritative world state or embedded-JS authoritative
   server).
+- **resolution:** **user confirmed at consensus gate** — MVP sync = player-state
+  only; world-state sync is a documented MVP limitation.
 
 ---
 
@@ -224,8 +235,8 @@ history and add a **resolution** note recording what was actually decided.
 | RQ3 | C++ server stack | decided | C++20 + Asio + websocketpp (FetchContent) + custom HTTP static hosting + spdlog + Catch2 + CMake (opt a) | round 2 |
 | RQ4 | MVP multiplayer model | decided | 2+ clients → WS → one C++ server (Linux/VPS) relays + broadcasts; no P2P/NAT in MVP (opt a) | round 2 |
 | RQ5 | commit attribution | decided | single unified repo-local bot identity for all subagent commits (opt a) | round 2 |
-| D12 | editor project storage | pending sign-off | IndexedDB (portable/offline) + import/export to folder; C++ file persistence phase 2 | round 2 |
-| D13 | editor UI | pending sign-off | React + TypeScript + Vite (editor only); runtime stays vanilla TS | round 2 |
-| D14 | data formats | pending sign-off | versioned JSON schema (shared TS types) for maps/events/saves/protocol | round 2 |
-| D15 | repo structure | pending sign-off | monorepo packages/* + server (C++) + samples; pnpm; Vitest + Playwright + Catch2 | round 2 |
-| D16 | MVP sync scope | pending sign-off | player-state sync only; world-state sync documented MVP limitation | round 2 |
+| D12 | editor project storage | decided | user confirmed at consensus gate: IndexedDB (portable/offline) + import/export to folder; C++ file persistence phase 2 | round 2 |
+| D13 | editor UI | decided | user confirmed at consensus gate: React + TypeScript + Vite (editor only); runtime stays vanilla TS | round 2 |
+| D14 | data formats | decided | user confirmed at consensus gate: versioned JSON schema (shared TS types) for maps/events/saves/protocol | round 2 |
+| D15 | repo structure | decided | user confirmed at consensus gate: monorepo packages/* + server (C++) + samples; pnpm; Vitest + Playwright + Catch2 | round 2 |
+| D16 | MVP sync scope | decided | user confirmed at consensus gate: player-state sync only; world-state sync documented MVP limitation | round 2 |

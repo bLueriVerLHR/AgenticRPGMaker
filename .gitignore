@@ -75,3 +75,6 @@ logs/
 # Node.js dependencies
 node_modules/
 
+# Other team members' git worktrees (design-a/b/c) — scratch areas, not part of this repo
+work/
+

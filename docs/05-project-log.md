@@ -5,7 +5,38 @@ Date format: `YYYY-MM-DD`.
 
 ---
 
+## 2026-08-25 — Phase A reorganized: design member stalled, split into 3 parallel members
+
+The original architecture design member (branch `design/architecture`) ran ~2 goal
+rounds with zero files on disk; after a queued status probe it could not be reached
+mid-turn, so it was interrupted (per leader stall protocol) and **Phase A was
+re-delegated to three parallel design members with ISOLATED git worktrees** (no
+file collisions) and disjoint file ownership:
+
+- **Design-A** (`work/design-a`, branch `design/a`): `docs/06-architecture.md` +
+  `docs/07-mvp-plan.md`
+- **Design-B** (`work/design-b`, branch `design/b`): `docs/04-adr/ADR-001.md`,
+  `ADR-002.md`, `ADR-003.md`
+- **Design-C** (`work/design-c`, branch `design/c`): `docs/04-adr/ADR-004.md`,
+  `ADR-005.md`, `ADR-006.md` + `docs/08-compatibility-checklist.md` +
+  `docs/README.md` index
+
+All decisions **D1–D16** remain in force (see [02-open-questions.md](./02-open-questions.md)).
+Merge to main deferred to the merge-manager. The interrupted member's branch
+`design/architecture` is unpushed, clean, at an old commit — **candidate for
+deletion at merge time**.
+
+**Details**
+
+- Supersedes the single-architecture-member kickoff entry below (same date).
+- `work/` added to `.gitignore` so the three design members' worktrees do not
+  pollute `git status`.
+- Disjoint file ownership prevents write collisions across the three members.
+
 ## 2026-08-25 — Consensus confirmed (D1–D16); Phase A kicked off
+
+> ⚠️ *Superseded by the entry above — Phase A was reorganized into 3 parallel design
+> members.* Kept for history.
 
 Consensus confirmed: the user approved all **D1–D16** at the consensus gate
 ("确认共识，先进 Phase A 设计文档") and chose **Phase A** (detailed design docs

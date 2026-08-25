@@ -59,6 +59,8 @@ Prerequisite: Node.js ≥ 20 and pnpm. If `pnpm` is missing, enable it with
 | `pnpm format:check` | Prettier check-only (the CI/gate form; fails on any unformatted file).             |
 | `pnpm doc:lint`     | Check every doc for broken internal links and invalid status fields (ADR-007).     |
 | `pnpm typecheck`    | Type-check every package without emitting.                                         |
+| `pnpm build:www`    | P5 packaging: build the portable game folder `www/` (bundle runtime+core+renderer via esbuild, copy+validate sample data, generate the placeholder atlas, run the banned-API smoke check). Requires a `packages/core` dist (built on demand). |
+| `pnpm build:deploy` | P5 deploy: assemble `deploy/` = C++ server binary + `www/` + editor build + README. Runs `build:www`; builds the server via cmake (pinned cmake under `work/p0/.tools/` preferred; set `AGENTICRPG_FETCHCONTENT_DIR` to reuse a teammate's populated `_deps/` for offline builds). |
 
 C++ server (run from `server/`):
 

@@ -6,6 +6,8 @@ docs/
 node_modules/
 **/dist/
 **/build/
+**/build-*/
+**/CMakeFiles/
 **/coverage/
 **/.vite/
 **/.tools/

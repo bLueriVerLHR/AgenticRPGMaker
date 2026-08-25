@@ -8,6 +8,8 @@ export default tseslint.config(
       "**/dist/**",
       "**/node_modules/**",
       "**/build/**",
+      "**/build-*/**",
+      "**/CMakeFiles/**",
       "**/coverage/**",
       "**/.vite/**",
       "**/.tools/**",

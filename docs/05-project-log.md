@@ -5,6 +5,34 @@ Date format: `YYYY-MM-DD`.
 
 ---
 
+## 2026-08-25 — Round 2 resolved
+
+Round 2 answered (RQ1–RQ5, all decided). Decision summary D1–D16 presented to user;
+D12–D16 proposed defaults pending sign-off. Blind-spot closure done: world-state
+desync documented as MVP limitation; JoiPlay untestable from dev side →
+compatibility checklist needed.
+
+**Details**
+
+- RQ1–RQ5 flipped from `pending` to `decided` in
+  [02-open-questions.md](./02-open-questions.md), each with a resolution note
+  (all leader-recommended options accepted; RQ1 = user confirmed the portable-`www`
+  reinterpretation).
+- Decision summary renumbered **D1–D16**: D1–D11 = Q1–Q6 + RQ1–RQ5 (decided);
+  **D12–D16** = new proposed defaults, **pending sign-off**: D12 editor project
+  storage (IndexedDB), D13 editor UI (React + TS + Vite), D14 data formats (versioned
+  JSON schema), D15 repo structure (monorepo, pnpm, Vitest/Playwright/Catch2),
+  D16 MVP sync scope (player-state only; world-state sync a documented MVP
+  limitation).
+- Blind-spot closure:
+  - **World-state desync** (doors/switches/NPCs diverging per client) documented as
+    an MVP limitation — future path: host-authoritative world state or embedded-JS
+    authoritative server.
+  - **JoiPlay** is not testable from the dev side → a **compatibility checklist** is
+    needed for the JoiPlay/WebView target.
+- [01-vision.md](./01-vision.md) updated: MVP sync-scope limitation noted (players
+  only).
+
 ## 2026-08-25 — Round 1 resolved, Round 2 opened
 
 Round 1 answered (Q1–Q6): Q1 reinterpreted as portable HTML package + Linux C++

@@ -2,10 +2,10 @@
 
 > **status: DRAFT — pending consensus**
 > This document records the user's stated vision as of kickoff and its evolution
-> through the discussion rounds. **Round 1 (Q1–Q6) is resolved**; **Round 2
-> (RQ1–RQ5) is open** (see [02-open-questions.md](./02-open-questions.md)). The Q1
-> reinterpretation still awaits **user confirmation (RQ1)** — nothing is binding
-> until the leader confirms it.
+> through the discussion rounds. **Round 1 (Q1–Q6) and Round 2 (RQ1–RQ5) are
+> resolved**; proposed defaults **D12–D16** are pending the user's sign-off (see
+> [02-open-questions.md](./02-open-questions.md)). Nothing is binding until the
+> leader confirms it.
 
 ## 1. What it is
 
@@ -30,12 +30,15 @@ For **multiplayer**, a **C++ server** is launched to **exchange data between
 players** (position/state sync). **Decided (Round 1, Q2):** the server is a
 **relay / state-sync server** — thin pipe + state storage; game logic runs
 client-side; versioned protocol (see [02-open-questions.md](./02-open-questions.md)).
+**MVP sync scope (Decided, D16): sync players only** — position / direction /
+animation, join/leave, chat; world-state sync (doors/switches/NPCs) is a documented
+MVP limitation.
 
 ## 3. Single-player distribution — RESOLVED (Round 1)
 
-> ✅ **Resolved in Round 1 (Q1).** The "only HTML" premise was **reinterpreted**
-> rather than discarded, and the reinterpretation still needs **user confirmation
-> (RQ1)** — see below and [02-open-questions.md](./02-open-questions.md).
+> ✅ **Resolved in Round 1 (Q1), confirmed by the user in Round 2 (RQ1).** The
+> "only HTML" premise was **reinterpreted** — see below and
+> [02-open-questions.md](./02-open-questions.md).
 
 "Only HTML" does **not** mean a bare `.html` file opened via `file://`. It means the
 game is a **PORTABLE HTML package** — an RPG-Maker-style deployable folder:
@@ -85,9 +88,9 @@ Short reference — full detail in
 
 | # | Question | Resolution |
 |---|----------|------------|
-| Q1 | single-player distribution | portable HTML package + Linux C++ runtime *(pending user confirmation, RQ1)* |
+| Q1 | single-player distribution | portable HTML package + Linux C++ runtime *(user-confirmed, RQ1)* |
 | Q2 | multiplayer server role | relay / state-sync server, versioned protocol |
-| Q3 | rendering | WebGL renderer interface + design patterns *(fallback pending, RQ2)* |
+| Q3 | rendering | WebGL renderer interface + design patterns *(Canvas2D fallback decided, RQ2)* |
 | Q4 | scripting | TypeScript + events/API; LLM-NPC interface first, proxy via C++ server, out of MVP |
 | Q5 | target platforms | editor + game = browser web apps; C++ Linux only; no native path |
 | Q6 | MVP scope | map editor + SP runtime + 2-player relay + C++ Linux launcher/server |
@@ -113,13 +116,15 @@ These are non-negotiable process requirements, regardless of the open questions:
 
 ## 6. Out of scope for now
 
-**Confirmed MVP non-goals (Round 1, Q6):** matchmaking, animation editor, cloud
-saves, **LLM NPCs** (see [02-open-questions.md](./02-open-questions.md#q6--mvp-scope)).
-Open future-phase items from Round 2: renderer fallback on weak devices (RQ2),
-multiplayer deployment model (RQ4).
+**Confirmed MVP non-goals (Round 1, Q6 + Round 2, D16):** matchmaking, animation
+editor, cloud saves, **LLM NPCs**, and **world-state sync** (doors/switches/NPCs) —
+multiplayer sync covers **players only** in the MVP (see
+[02-open-questions.md](./02-open-questions.md#q6--mvp-scope)). Proposed defaults
+pending user sign-off: **D12–D16** (editor storage, editor UI, data formats, repo
+structure, MVP sync scope).
 
 ---
 
 *Status history: created as DRAFT at kickoff (2026-08-25); updated after Round 1 —
-Q1–Q6 resolved (Q1 reinterpreted, pending user confirmation RQ1), Round 2 opened
-(RQ1–RQ5).*
+Q1–Q6 resolved (Q1 reinterpreted); updated after Round 2 — RQ1–RQ5 resolved
+(portable target user-confirmed), D12–D16 proposed defaults pending sign-off.*

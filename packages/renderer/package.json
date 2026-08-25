@@ -1,0 +1,28 @@
+{
+  "name": "@agenticrpg/renderer",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "AgenticRPGMaker renderer: the Renderer interface plus (later, P1b) WebGL and Canvas2D backends (ADR-002). Vanilla TypeScript.",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": ["dist"],
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@agenticrpg/core": "workspace:*"
+  },
+  "devDependencies": {
+    "typescript": "^5.8.3",
+    "vitest": "^3.2.4"
+  }
+}

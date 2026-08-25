@@ -1,0 +1,26 @@
+{
+  "name": "@agenticrpg/editor",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "AgenticRPGMaker Web editor (Game Maker): React + TypeScript + Vite (ADR-006). P2 builds the real map/event editor; P0 is the app shell placeholder.",
+  "scripts": {
+    "build": "tsc -p tsconfig.json && vite build",
+    "typecheck": "tsc -p tsconfig.json",
+    "test": "vitest run",
+    "dev": "vite"
+  },
+  "dependencies": {
+    "@agenticrpg/core": "workspace:*",
+    "react": "^19.1.0",
+    "react-dom": "^19.1.0"
+  },
+  "devDependencies": {
+    "@types/react": "^19.1.0",
+    "@types/react-dom": "^19.1.0",
+    "@vitejs/plugin-react": "^4.5.0",
+    "typescript": "^5.8.3",
+    "vite": "^6.3.5",
+    "vitest": "^3.2.4"
+  }
+}

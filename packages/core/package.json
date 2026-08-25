@@ -1,0 +1,30 @@
+{
+  "name": "@agenticrpg/core",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "AgenticRPGMaker shared engine core: data model, event interpreter (later), versioned JSON schemas (ADR-001, ADR-003). Vanilla TypeScript with zero DOM/browser dependencies.",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "zod": "^3.25.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.8.3",
+    "vitest": "^3.2.4"
+  }
+}

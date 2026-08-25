@@ -1,0 +1,76 @@
+/**
+ * Shared test fixtures for the core schema suite (ADR-003).
+ *
+ * `makeMap()` builds a structurally valid map (mirroring the ADR-003 concrete
+ * example) that individual tests can override field-by-field.
+ */
+import type { MapData } from "../../src/index.js";
+
+export function makeMap(overrides: Partial<MapData> = {}): MapData {
+  const base: MapData = {
+    schemaVersion: 1,
+    id: "map_town_square",
+    name: "Town Square",
+    tileSize: 16,
+    width: 8,
+    height: 6,
+    tileset: "tilesets/grassland",
+    layers: [
+      {
+        id: "ground",
+        name: "Ground",
+        type: "tile",
+        opacity: 1,
+        visible: true,
+        data: [
+          [1, 1, 1, 1, 1, 1, 1, 1],
+          [1, 1, 1, 1, 1, 1, 1, 1],
+          [1, 1, 1, 1, 1, 1, 1, 1],
+          [1, 1, 1, 1, 1, 1, 1, 1],
+          [1, 1, 1, 1, 1, 1, 1, 1],
+          [1, 1, 1, 1, 1, 1, 1, 1],
+        ],
+      },
+      {
+        id: "colliders",
+        name: "Colliders",
+        type: "tile",
+        opacity: 1,
+        visible: false,
+        data: [
+          [0, 0, 0, 0, 0, 0, 0, 0],
+          [0, 0, 0, 0, 0, 0, 0, 0],
+          [0, 0, 0, 0, 0, 0, 0, 0],
+          [0, 0, 0, 0, 0, 0, 0, 0],
+          [0, 0, 0, 0, 0, 0, 0, 0],
+          [1, 1, 1, 1, 1, 1, 1, 1],
+        ],
+      },
+    ],
+    events: [
+      {
+        id: "evt_inn_owner",
+        name: "Inn Owner",
+        x: 3,
+        y: 2,
+        sprite: "characters/npc_innkeeper",
+        pages: [
+          {
+            condition: { switchId: "sw_met_inn_owner", value: true },
+            commands: [
+              { cmd: "showText", args: ["Welcome to the inn!"] },
+              { cmd: "setVariable", args: ["gold", "add", 50] },
+            ],
+          },
+          {
+            condition: null,
+            commands: [{ cmd: "showText", args: ["Come again soon!"] }],
+          },
+        ],
+      },
+    ],
+    variables: { gold: 0 },
+    switches: { sw_met_inn_owner: false },
+  };
+  return { ...base, ...overrides };
+}

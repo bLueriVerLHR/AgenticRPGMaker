@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no"
+    />
+    <title>AgenticRPGMaker — Runtime Demo</title>
+    <style>
+      html,
+      body {
+        margin: 0;
+        padding: 0;
+        background: #111;
+        color: #ddd;
+        font:
+          14px/1.5 system-ui,
+          sans-serif;
+        height: 100%;
+        overflow: hidden;
+      }
+      #app {
+        position: fixed;
+        inset: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+      #game-canvas {
+        image-rendering: pixelated;
+        background: #22332a;
+        max-width: 100vw;
+        max-height: 100vh;
+      }
+      #root {
+        position: fixed;
+        inset: 0;
+        pointer-events: none;
+      }
+      .controls-hint {
+        position: fixed;
+        top: 2.2rem;
+        left: 0.5rem;
+        color: #9aa;
+        font: 11px/1.4 monospace;
+        background: rgba(0, 0, 0, 0.45);
+        padding: 0.3rem 0.5rem;
+        border-radius: 0.3rem;
+        pointer-events: none;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="app">
+      <canvas id="game-canvas" width="640" height="480"></canvas>
+    </div>
+    <div id="root"></div>
+    <div class="controls-hint">Arrows/WASD walk · Z/Enter talk · X/Esc close · S save · L load</div>
+    <script type="module" src="/main.ts"></script>
+  </body>
+</html>

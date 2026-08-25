@@ -1,0 +1,72 @@
+{
+  "schemaVersion": 1,
+  "id": "map_demo",
+  "name": "Demo Square",
+  "tileSize": 16,
+  "width": 12,
+  "height": 8,
+  "tileset": "tilesets/grassland",
+  "layers": [
+    {
+      "id": "ground",
+      "name": "Ground",
+      "type": "tile",
+      "opacity": 1,
+      "visible": true,
+      "data": [
+        [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
+        [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
+        [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
+        [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
+        [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
+        [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
+        [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
+        [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]
+      ]
+    },
+    {
+      "id": "colliders",
+      "name": "Colliders",
+      "type": "tile",
+      "opacity": 1,
+      "visible": false,
+      "data": [
+        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+        [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
+        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+      ]
+    }
+  ],
+  "events": [
+    {
+      "id": "evt_innkeeper",
+      "name": "Innkeeper",
+      "x": 6,
+      "y": 2,
+      "sprite": "characters/npc_innkeeper",
+      "pages": [
+        {
+          "condition": { "switchId": "sw_met_innkeeper", "value": true },
+          "commands": [
+            { "cmd": "showText", "args": ["Welcome back, traveler!"] },
+            { "cmd": "setVariable", "args": ["gold", "add", 10] }
+          ]
+        },
+        {
+          "condition": null,
+          "commands": [
+            { "cmd": "showText", "args": ["Hello, traveler!"] },
+            { "cmd": "setSwitch", "args": ["sw_met_innkeeper", true] }
+          ]
+        }
+      ]
+    }
+  ],
+  "variables": { "gold": 0 },
+  "switches": { "sw_met_innkeeper": false }
+}

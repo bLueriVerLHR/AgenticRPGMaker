@@ -1,0 +1,16 @@
+{
+  "schemaVersion": 1,
+  "settings": {
+    "display": {
+      "width": 640,
+      "height": 480
+    },
+    "initialMap": "map_town_square"
+  },
+  "assets": {
+    "images": ["img/tilesets/placeholder.png"],
+    "audio": [],
+    "tilesets": ["tilesets/placeholder"],
+    "maps": ["map_town_square"]
+  }
+}

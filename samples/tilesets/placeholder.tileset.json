@@ -1,0 +1,9 @@
+{
+  "schemaVersion": 1,
+  "id": "tilesets/placeholder",
+  "name": "Placeholder",
+  "image": "img/tilesets/placeholder.png",
+  "tileSize": 16,
+  "columns": 8,
+  "rows": 8
+}

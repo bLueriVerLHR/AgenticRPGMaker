@@ -17,10 +17,15 @@
  * copy, so the editor works under any mount prefix (assembly-level fix; no
  * package source is modified).
  *
- * Requirements: `pnpm build` output for packages/editor (built on demand),
- * packages/core dist for build-www validation (built on demand), and the C++
- * toolchain. cmake is resolved as: $AGENTICRPG_CMAKE → the pinned self-hosted
- * cmake under work/p0/.tools → PATH.
+ * Requirements: all workspace packages built (`pnpm -r build`, run up front
+ * in dependency order so core → renderer → runtime → editor dists exist), the
+ * C++ toolchain. cmake is resolved as: $AGENTICRPG_CMAKE → the pinned
+ * self-hosted cmake under work/p0/.tools → PATH.
+ *
+ * Clean-state contract: `pnpm -r build` runs first so this script works from a
+ * fresh clone where no package `dist/` output exists yet. The later "build if
+ * missing" checks (editor dist, packages/core dist for build-www validation)
+ * are kept as no-op safety nets rather than the primary build path.
  *
  * Usage:
  *   node scripts/build-deploy.mjs [--out <dir>] [--server-build <dir>] [--skip-server-build]
@@ -105,6 +110,14 @@ function relativizeEditorAssets(editorDir) {
 
 async function main() {
   console.log(`[build-deploy] output: ${outDir}`);
+
+  // 0. Build ALL workspace packages in dependency order (pnpm resolves the
+  // topological order core → renderer → runtime → editor). This guarantees the
+  // editor's tsc step can resolve `@agenticrpg/runtime` (and renderer/core) from
+  // a clean clone where no packages/*/dist exist yet — previously the editor
+  // build ran first and failed with TS2307 "Cannot find module '@agenticrpg/runtime'".
+  // The per-step "build if missing" checks below remain as no-op safety nets.
+  run("pnpm", ["-r", "build"], REPO_ROOT);
 
   // 1. www — portable game package (Task 1).
   run(process.execPath, [path.join(__dirname, "build-www.mjs")], REPO_ROOT);

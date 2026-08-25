@@ -24,6 +24,9 @@ int main(int argc, char** argv) {
     // Logging seam: level is runtime-configurable, never hard-coded.
     spdlog::set_level(agenticrpg::parseLogLevel(cfg.logLevel));
     spdlog::set_pattern("[%Y-%m-%d %H:%M:%S.%e] [%l] %v");
+    // Lifecycle/connection/protocol-error entries must be durable even if the
+    // process exits abruptly; flush synchronously at info and above.
+    spdlog::flush_on(spdlog::level::info);
 
     spdlog::info("AgenticRPGMaker server starting");
     spdlog::info("config: port={}, www_root={}, editor_root={}, log_level={}, max_players_per_room={}",

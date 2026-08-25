@@ -665,7 +665,11 @@ void Server::checkBackpressure() {
     Session& s = *session;
     if (s.backpressureSince.has_value() &&
         now - *s.backpressureSince > std::chrono::seconds(5)) {
-      spdlog::warn("{}: slow consumer (outbound queue full > 5s), disconnecting", s.connId);
+      const auto heldForMs =
+          std::chrono::duration_cast<std::chrono::milliseconds>(now - *s.backpressureSince)
+              .count();
+      spdlog::warn("{}: slow consumer (outbound queue full for {} ms > 5s), disconnecting",
+                   s.connId, heldForMs);
       s.closeReason = "disconnect";  // onClose broadcasts leave
       std::error_code ec;
       ws_.close(hdl, websocketpp::close::status::going_away, "slow consumer", ec);

@@ -489,7 +489,7 @@ TEST_CASE("integration: HTTP static serving over the wire", "[integration]") {
   cfg.editorRoot = editorRoot.string();
   RunningServer running(cfg);
 
-  const auto httpGet = [&](const std::string& path, int timeoutMs = 5000) {
+  const auto httpGet = [&](const std::string& path) {
     // Minimal blocking HTTP/1.1 GET over a raw TCP socket.
     asio::io_context io;
     asio::ip::tcp::socket sock(io);

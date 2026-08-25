@@ -51,16 +51,21 @@ export class TypedEventBus<M extends object> {
 
   /**
    * Emits a payload to all handlers of `type`, synchronously, in subscription
-   * order. Handlers that unsubscribe during emission are skipped for the
-   * current dispatch (snapshot semantics).
+   * order. Handlers that are unsubscribed *during* the emission (by an earlier
+   * handler) are skipped for the rest of the current dispatch — the same
+   * semantics as Node.js EventEmitter.
    */
   emit<K extends keyof M>(type: K, payload: M[K]): void {
     const set = this.handlers.get(type);
     if (set === undefined || set.size === 0) {
       return;
     }
-    for (const handler of [...set]) {
-      (handler as EventHandler<M[K]>)(payload);
+    const snapshot = [...set];
+    for (const handler of snapshot) {
+      // Skip handlers removed mid-dispatch.
+      if (set.has(handler)) {
+        (handler as EventHandler<M[K]>)(payload);
+      }
     }
   }
 

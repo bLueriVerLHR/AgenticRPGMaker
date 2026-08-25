@@ -179,9 +179,10 @@ export class SceneGraph {
     return entity.getWorldPosition();
   }
 
-  /** Number of registered entities (excluding the root). */
+  /** Number of registered entities (excluding the root node). */
   get size(): number {
-    return this.byId.size;
+    // The root is always registered; subtract it so `size` counts real entities.
+    return Math.max(0, this.byId.size - 1);
   }
 
   private index(entity: GameObject): void {

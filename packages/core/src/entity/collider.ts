@@ -59,7 +59,7 @@ export function shapeToLocalAABB(shape: ColliderShape): AABB {
 /** True when two world-space AABBs overlap (touching edges count as overlap). */
 export function aabbsOverlap(a: AABB, b: AABB): boolean {
   return (
-    a.x < b.x + b.width && a.x + a.width > b.x && a.y < b.y + b.height && a.y + a.height > b.y
+    a.x <= b.x + b.width && a.x + a.width >= b.x && a.y <= b.y + b.height && a.y + a.height >= b.y
   );
 }
 

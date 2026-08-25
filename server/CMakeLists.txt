@@ -127,6 +127,7 @@ if(AGENTICRPG_BUILD_TESTS)
     tests/test_protocol.cpp
     tests/test_rate_limiter.cpp
     tests/test_room_registry.cpp
+    tests/test_loopback.cpp
     tests/main_test.cpp
   )
   target_link_libraries(agenticrpg-server-tests PRIVATE Catch2::Catch2 agenticrpg-server-lib agenticrpg_third_party)

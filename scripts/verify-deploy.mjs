@@ -55,7 +55,11 @@ async function request(urlPath, { method = "GET", headers = {} } = {}) {
 
 async function main() {
   if (!existsSync(path.join(outDir, "agenticrpg-server"))) {
-    report("deploy exists", false, `no agenticrpg-server in ${outDir} (run pnpm build:deploy first)`);
+    report(
+      "deploy exists",
+      false,
+      `no agenticrpg-server in ${outDir} (run pnpm build:deploy first)`,
+    );
     process.exit(1);
   }
   report("deploy layout", true, `${outDir}`);
@@ -70,18 +74,29 @@ async function main() {
   // --help
   const { spawnSync } = await import("node:child_process");
   const help = spawnSync(path.join(outDir, "agenticrpg-server"), ["--help"], { encoding: "utf8" });
-  const helpHasFlags = /--port/.test(help.stdout) && /--www-root/.test(help.stdout) && /--editor-root/.test(help.stdout);
-  report("--help", help.status === 0 && helpHasFlags, "exit 0, lists --port/--www-root/--editor-root");
+  const helpHasFlags =
+    /--port/.test(help.stdout) &&
+    /--www-root/.test(help.stdout) &&
+    /--editor-root/.test(help.stdout);
+  report(
+    "--help",
+    help.status === 0 && helpHasFlags,
+    "exit 0, lists --port/--www-root/--editor-root",
+  );
 
   // AGENTICRPG_PORT env (start briefly on a separate port, capture config,
   // kill). A distinct port avoids "address already in use" if the main server
   // from a previous run lingers on `port`.
   const envPort = port + 1;
-  const envProc = spawn(path.join(outDir, "agenticrpg-server"), ["--www-root", "www", "--editor-root", "editor", "--log-level", "info"], {
-    cwd: outDir,
-    env: { ...process.env, AGENTICRPG_PORT: String(envPort) },
-    stdio: ["ignore", "pipe", "pipe"],
-  });
+  const envProc = spawn(
+    path.join(outDir, "agenticrpg-server"),
+    ["--www-root", "www", "--editor-root", "editor", "--log-level", "info"],
+    {
+      cwd: outDir,
+      env: { ...process.env, AGENTICRPG_PORT: String(envPort) },
+      stdio: ["ignore", "pipe", "pipe"],
+    },
+  );
   let envLine = "";
   const envReady = await new Promise((resolve) => {
     const timer = setTimeout(() => resolve(false), 5000);
@@ -108,12 +123,11 @@ async function main() {
   );
 
   // Start the real server for HTTP checks.
-  const server = spawn(path.join(outDir, "agenticrpg-server"), [
-    "--www-root", "www",
-    "--editor-root", "editor",
-    "--port", String(port),
-    "--log-level", "info",
-  ], { cwd: outDir, stdio: ["ignore", "pipe", "pipe"] });
+  const server = spawn(
+    path.join(outDir, "agenticrpg-server"),
+    ["--www-root", "www", "--editor-root", "editor", "--port", String(port), "--log-level", "info"],
+    { cwd: outDir, stdio: ["ignore", "pipe", "pipe"] },
+  );
   let serverLog = "";
   server.stdout.on("data", (c) => (serverLog += c.toString()));
   server.stderr.on("data", (c) => (serverLog += c.toString()));
@@ -121,7 +135,11 @@ async function main() {
 
   try {
     // Bind address (VPS mode).
-    report("bind 0.0.0.0 (VPS mode)", /0\.0\.0\.0/.test(serverLog), `log: ${serverLog.trim().split("\n").pop() ?? ""}`);
+    report(
+      "bind 0.0.0.0 (VPS mode)",
+      /0\.0\.0\.0/.test(serverLog),
+      `log: ${serverLog.trim().split("\n").pop() ?? ""}`,
+    );
 
     // Positive serving + MIME.
     const checks = [
@@ -136,7 +154,11 @@ async function main() {
     ];
     for (const [urlPath, wantStatus, wantType] of checks) {
       const { status, type } = await request(urlPath);
-      report(`serve ${urlPath}`, status === wantStatus && type.startsWith(wantType.split(";")[0]), `${status} ${type}`);
+      report(
+        `serve ${urlPath}`,
+        status === wantStatus && type.startsWith(wantType.split(";")[0]),
+        `${status} ${type}`,
+      );
     }
 
     // Editor asset (relativized URL).
@@ -144,9 +166,17 @@ async function main() {
     const asset = /src="(\.\/assets\/[^"]+\.js)"/.exec(html)?.[1];
     if (asset) {
       const { status, type } = await request("/editor/" + asset);
-      report(`editor asset ${asset}`, status === 200 && type.startsWith("text/javascript"), `${status} ${type}`);
+      report(
+        `editor asset ${asset}`,
+        status === 200 && type.startsWith("text/javascript"),
+        `${status} ${type}`,
+      );
     } else {
-      report("editor asset reference", false, "no relative ./assets/ URL found in editor index.html");
+      report(
+        "editor asset reference",
+        false,
+        "no relative ./assets/ URL found in editor index.html",
+      );
     }
 
     // 404s.
@@ -176,11 +206,11 @@ async function main() {
       const sock = connect(port, "127.0.0.1", () => {
         sock.write(
           "GET /ws HTTP/1.1\r\n" +
-          "Host: 127.0.0.1\r\n" +
-          "Connection: Upgrade\r\n" +
-          "Upgrade: websocket\r\n" +
-          "Sec-WebSocket-Key: dGhlIHNhbXBsZSBub25jZQ==\r\n" +
-          "Sec-WebSocket-Version: 13\r\n\r\n",
+            "Host: 127.0.0.1\r\n" +
+            "Connection: Upgrade\r\n" +
+            "Upgrade: websocket\r\n" +
+            "Sec-WebSocket-Key: dGhlIHNhbXBsZSBub25jZQ==\r\n" +
+            "Sec-WebSocket-Version: 13\r\n\r\n",
         );
       });
       sock.setTimeout(3000, () => {

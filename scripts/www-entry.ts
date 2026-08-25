@@ -22,11 +22,7 @@
  * the dev demo harness.
  */
 import { boot, Logger } from "@agenticrpg/runtime";
-import {
-  parseMapDocument,
-  parseProjectDocument,
-  parseTilesetDocument,
-} from "@agenticrpg/core";
+import { parseMapDocument, parseProjectDocument, parseTilesetDocument } from "@agenticrpg/core";
 import type { MapData, ProjectData, TilesetData } from "@agenticrpg/core";
 
 /** Build-generated load list (see scripts/build-www.mjs). */

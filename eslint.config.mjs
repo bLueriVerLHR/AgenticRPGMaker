@@ -13,6 +13,8 @@ export default tseslint.config(
       "**/coverage/**",
       "**/.vite/**",
       "**/.tools/**",
+      "**/www/**",
+      "**/deploy/**",
       "work/**",
       "pnpm-lock.yaml",
       "docs/**",

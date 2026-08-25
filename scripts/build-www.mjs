@@ -208,7 +208,12 @@ function encodePng(width, height, rgba) {
     rgba.copy(raw, y * stride + 1, y * width * 4, (y + 1) * width * 4);
   }
   const idat = deflateSync(raw, { level: 9 });
-  return Buffer.concat([signature, pngChunk("IHDR", ihdr), pngChunk("IDAT", idat), pngChunk("IEND", Buffer.alloc(0))]);
+  return Buffer.concat([
+    signature,
+    pngChunk("IHDR", ihdr),
+    pngChunk("IDAT", idat),
+    pngChunk("IEND", Buffer.alloc(0)),
+  ]);
 }
 
 // ---------------------------------------------------------------------------
@@ -334,7 +339,11 @@ async function validateDataFiles(dataDir) {
     const raw = JSON.parse(readFileSync(file, "utf8"));
     const name = path.basename(file);
     if (name === "manifest.json") {
-      reports.push({ file: rel, ok: true, kind: "manifest (build-generated, not schema-validated)" });
+      reports.push({
+        file: rel,
+        ok: true,
+        kind: "manifest (build-generated, not schema-validated)",
+      });
       continue;
     }
     try {
@@ -351,7 +360,12 @@ async function validateDataFiles(dataDir) {
         reports.push({ file: rel, ok: true, kind: "json (no schema)" });
       }
     } catch (error) {
-      reports.push({ file: rel, ok: false, kind: "schema validation failed", error: String(error) });
+      reports.push({
+        file: rel,
+        ok: false,
+        kind: "schema validation failed",
+        error: String(error),
+      });
     }
   }
   return reports;
@@ -435,10 +449,7 @@ async function main() {
   );
 
   // 6. index.html — the shipped player page (no remote fonts, conservative).
-  writeFileSync(
-    path.join(outDir, "index.html"),
-    INDEX_HTML,
-  );
+  writeFileSync(path.join(outDir, "index.html"), INDEX_HTML);
 
   // 7. READMEs.
   writeFileSync(path.join(outDir, "README.md"), wwwReadme(mkRelative(REPO_ROOT, outDir)));
@@ -472,7 +483,9 @@ async function main() {
   const bundle = readFileSync(bundlePath, "utf8");
   const sha = createHash("sha256").update(bundle).digest("hex").slice(0, 16);
   console.log(`[build-www] bundle sha256[0:16]=${sha}, size=${bundle.length} bytes`);
-  console.log("[build-www] done. To serve: agenticrpg-server --www-root " + outDir + " --port 8080");
+  console.log(
+    "[build-www] done. To serve: agenticrpg-server --www-root " + outDir + " --port 8080",
+  );
 }
 
 // ---------------------------------------------------------------------------

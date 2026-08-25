@@ -93,7 +93,9 @@ function relativizeEditorAssets(editorDir) {
   }
   let html = readFileSync(indexPath, "utf8");
   const before = html;
-  html = html.replaceAll('src="/assets/', 'src="./assets/').replaceAll('href="/assets/', 'href="./assets/');
+  html = html
+    .replaceAll('src="/assets/', 'src="./assets/')
+    .replaceAll('href="/assets/', 'href="./assets/');
   if (html === before) {
     console.warn("[build-deploy] warn: no /assets/ URLs found to relativize in " + indexPath);
   }
@@ -121,7 +123,12 @@ async function main() {
   const serverBin = path.join(serverBuildDir, "agenticrpg-server");
   if (!skipServerBuild && !existsSync(serverBin)) {
     const cmake = resolveCmake();
-    const configureArgs = ["-B", serverBuildDir, "-DCMAKE_BUILD_TYPE=Release", "-DAGENTICRPG_BUILD_TESTS=OFF"];
+    const configureArgs = [
+      "-B",
+      serverBuildDir,
+      "-DCMAKE_BUILD_TYPE=Release",
+      "-DAGENTICRPG_BUILD_TESTS=OFF",
+    ];
     // Offline fallback: reuse previously-populated FetchContent sources from
     // another build directory (e.g. a teammate's server/build) instead of
     // cloning deps from the network. Set AGENTICRPG_FETCHCONTENT_DIR to that
@@ -140,7 +147,9 @@ async function main() {
       ];
       configureArgs.push("-DFETCHCONTENT_FULLY_DISCONNECTED=ON");
       for (const [name, rel] of sourceDirs) {
-        configureArgs.push(`-DFETCHCONTENT_SOURCE_DIR_${name}=${path.join(fetchDir, "_deps", rel)}`);
+        configureArgs.push(
+          `-DFETCHCONTENT_SOURCE_DIR_${name}=${path.join(fetchDir, "_deps", rel)}`,
+        );
       }
       console.log(`[build-deploy] offline build: reusing FetchContent sources from ${fetchDir}`);
     }
@@ -172,7 +181,13 @@ async function main() {
 
 function layout(outDir) {
   const entries = [];
-  for (const entry of ["agenticrpg-server", "www/index.html", "www/js/runtime.js", "editor/index.html", "README.md"]) {
+  for (const entry of [
+    "agenticrpg-server",
+    "www/index.html",
+    "www/js/runtime.js",
+    "editor/index.html",
+    "README.md",
+  ]) {
     entries.push(`  ${entry} (${existsSync(path.join(outDir, entry)) ? "ok" : "MISSING"})`);
   }
   return entries.join("\n");

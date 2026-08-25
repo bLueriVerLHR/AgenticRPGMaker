@@ -5,6 +5,25 @@ Date format: `YYYY-MM-DD`.
 
 ---
 
+## 2026-08-25 — P0 scaffold complete; P1 started
+
+P0 scaffold complete (`feat/p0-scaffold` @ `50dd218`): monorepo skeleton,
+`packages/core` zod v1 schemas (43 Vitest tests green), renderer/runtime/editor
+skeletons, C++ CMake server skeleton (asio/websocketpp/spdlog/catch2 pinned,
+ctest 2/2), `AGENTS.md`, doc-lint script; P0 under merge-manager gate check; P1
+dispatched in parallel (core engine P1a + renderer P1b).
+
+**Details**
+
+- P0 (`feat/p0-scaffold`) produced: monorepo layout, `packages/core` v1 JSON
+  schemas validated by zod (43 Vitest tests passing), skeleton packages
+  (renderer / runtime / editor), C++ CMake server skeleton with pinned deps
+  (asio, websocketpp, spdlog, catch2) and ctest 2/2 green, `AGENTS.md` onboarding
+  doc, and the doc-lint script (per D19 / ADR-007).
+- P0 is at the merge-manager's gate check (see `work/merge-main`); merge to `main`
+  handled by the merge-manager, not here.
+- P1 dispatched in parallel: **P1a** (core engine) and **P1b** (renderer).
+
 ## 2026-08-25 — Phase A approved; agentic-operability decisions (D17–D19); ADR-007 accepted
 
 The user approved **Phase A** (design docs) and confirmed **zod**. New Round 3

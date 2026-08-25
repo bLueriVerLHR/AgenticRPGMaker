@@ -49,15 +49,16 @@ onboard, read the docs, and run the toolchain without asking a human. Read
 Prerequisite: Node.js ≥ 20 and pnpm. If `pnpm` is missing, enable it with
 `corepack enable` (comes with Node).
 
-| Command          | What it does                                                                       |
-| ---------------- | ---------------------------------------------------------------------------------- |
-| `pnpm install`   | Install all workspace dependencies (pnpm workspaces).                              |
-| `pnpm build`     | Build all TypeScript packages (`core`, `renderer`, `runtime`, `editor`).           |
-| `pnpm test`      | Run the Vitest unit suites across the web packages.                                |
-| `pnpm lint`      | ESLint over the repo (packages + scripts + configs).                               |
-| `pnpm format`    | Prettier over the repo (`docs/` excluded — docs are owned by the docs workstream). |
-| `pnpm doc:lint`  | Check every doc for broken internal links and invalid status fields (ADR-007).     |
-| `pnpm typecheck` | Type-check every package without emitting.                                         |
+| Command             | What it does                                                                       |
+| ------------------- | ---------------------------------------------------------------------------------- |
+| `pnpm install`      | Install all workspace dependencies (pnpm workspaces).                              |
+| `pnpm build`        | Build all TypeScript packages (`core`, `renderer`, `runtime`, `editor`).           |
+| `pnpm test`         | Run the Vitest unit suites across the web packages.                                |
+| `pnpm lint`         | ESLint over the repo (packages + scripts + configs).                               |
+| `pnpm format`       | Prettier over the repo (`docs/` excluded — docs are owned by the docs workstream). |
+| `pnpm format:check` | Prettier check-only (the CI/gate form; fails on any unformatted file).             |
+| `pnpm doc:lint`     | Check every doc for broken internal links and invalid status fields (ADR-007).     |
+| `pnpm typecheck`    | Type-check every package without emitting.                                         |
 
 C++ server (run from `server/`):
 
@@ -67,6 +68,27 @@ cmake --build build     # build agenticrpg-server + agenticrpg-server-tests
 ctest --test-dir build --output-on-failure   # run the Catch2 unit tests
 ./build/agenticrpg-server --help
 ```
+
+## The QA gate (order to run before handing a branch to the merge-manager)
+
+Run in this order on the member branch — the whole gate must be green:
+
+1. `pnpm install` (fresh resolves; supply-chain policy checked)
+2. `pnpm -r build` (all TS packages)
+3. `pnpm -r typecheck`
+4. `pnpm lint`
+5. `pnpm format:check`
+6. `pnpm doc:lint`
+7. `pnpm -r test` (the whole web unit suite, run twice to confirm stability)
+8. C++ server: `cmake -B build && cmake --build build && ctest --test-dir build --output-on-failure` (run from `server/`); reuse the pinned cmake under `work/p0/.tools/` when no system cmake exists
+9. E2E runners (skipped gracefully when Playwright browsers are unavailable):
+   `pnpm --filter @agenticrpg/runtime test:e2e`,
+   `pnpm --filter @agenticrpg/editor test:e2e`,
+   `pnpm --filter @agenticrpg/runtime test:multiplayer` (two-context smoke ↔ C++ server)
+
+The QA checklist ([docs/03-wal-process.md](./docs/03-wal-process.md) §5) must be
+ticked: build passes / unit green / E2E run / logs checked / docs updated in the
+same change.
 
 ## Where decisions live
 

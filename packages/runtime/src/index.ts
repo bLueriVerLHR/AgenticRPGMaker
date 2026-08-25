@@ -1,87 +1,103 @@
 /**
- * @agenticrpg/runtime — boot seam + Transport interface stubs (P0 scaffold).
+ * @agenticrpg/runtime — the playable game (P1c).
  *
- * The runtime is the playable game (ADR-001): boot sequence, game loop, scene
- * management, IndexedDB saves, and the multiplayer client. P1c implements the
- * real thing. This file only pins the two seams the rest of the system depends
- * on, so they compile and their contracts are visible before P1c:
+ * The portable, framework-free game runtime (ADR-001/ADR-004;
+ * docs/06-architecture.md §3/§5/§7): boot sequence, fixed-step game loop,
+ * scene/state management, a MapScene with movement/collision/dialogue,
+ * IndexedDB saves behind the Storage adapter, and the multiplayer client
+ * behind the Transport abstraction (players-only sync, D16).
  *
- * - the boot seam (06-architecture.md §3 boot flow);
- * - the Transport abstraction (ADR-001 patterns / ADR-004 protocol).
+ * Public surface:
+ * - `boot` / `createGame` / `Game` — boot & lifecycle
+ * - `Scene` / `SceneManager` / `MapScene` — scene/state management
+ * - `Storage` / `MemoryStorage` / `IndexedDBStorage` — save/load (RQ1)
+ * - `Transport` / `WebSocketTransport` / `NetworkClient` — multiplayer (ADR-004)
+ * - `Logger` / `LogLevel` / `LogEntry` — structured JSON logging (§8)
+ * - `Input` / `GameLoop` / `buildCollisionGrid` — supporting systems
  */
-import type { Renderer } from "@agenticrpg/renderer";
 
-/**
- * Boot options for `boot()`. Mirrors the boot flow from 06-architecture.md §3:
- * core init -> renderer capability detection -> runtime boot -> scene -> loop.
- */
-export interface BootOptions {
-  /** Canvas the renderer draws into. */
-  canvas: HTMLCanvasElement;
-  /** Renderer chosen by capability detection (injected, so it is mockable). */
-  renderer: Renderer;
-  /** URL of the portable game data package (index.html + data/ + js/ + ...). */
-  dataUrl: string;
-  /** Optional multiplayer server URL (ws:// or wss://); omitted = offline. */
-  serverUrl?: string;
-  /** Logging callback; structured JSON entries (03-wal-process.md §2). */
-  log?: (entry: {
-    level: "trace" | "debug" | "info" | "warn" | "error";
-    message: string;
-    data?: unknown;
-  }) => void;
-}
+// Logger (docs/06-architecture.md §8).
+export {
+  LOG_LEVELS,
+  Logger,
+  createConsoleSink,
+  createNoopLogger,
+  defaultLogger,
+  formatLogEntry,
+} from "./logger.js";
+export type { LogEntry, LogLevel, LoggerOptions, LogSink } from "./logger.js";
 
-/** Handle returned by `boot()`; the owner can stop the game loop cleanly. */
-export interface RuntimeHandle {
-  /** Stop the game loop and release resources. */
-  destroy(): void;
-}
+// Game loop + scenes (State pattern).
+export { GameLoop, hasAnimationFrame } from "./game-loop.js";
+export type { GameLoopOptions, LoopRender, LoopUpdate } from "./game-loop.js";
+export { SceneManager } from "./scene.js";
+export type { Scene, SceneContext, SceneManagerOptions } from "./scene.js";
 
-/**
- * Boot seam stub. P1c replaces the body with the real boot sequence. Throwing
- * here (at call time, not import time) makes the seam explicit and testable.
- */
-export function boot(_options: BootOptions): RuntimeHandle {
-  throw new Error("packages/runtime boot is not implemented yet (P1c). P0 defines the seam only.");
-}
+// Map scene: movement / collision / dialogue (Q6).
+export { MapScene } from "./map-scene.js";
+export type { MapSceneOptions } from "./map-scene.js";
 
-/**
- * Transport — the networking abstraction (ADR-001 pattern catalog; ADR-004
- * protocol v1 over WebSocket). P1c ships the WebSocket relay client; future
- * authoritative/proxy transports implement the same interface.
- *
- * The transport is byte/JSON-transparent: callers serialize protocol envelopes
- * (ADR-004) and pass strings; the transport is responsible for connectivity,
- * framing, and lifecycle only.
- */
-export interface Transport {
-  /** Open a connection to `url` and resolve once the handshake is ready. */
-  connect(url: string, options?: TransportOptions): Promise<void>;
-  /** Send one serialized protocol message (JSON envelope string). */
-  send(data: string): void;
-  /** Close the connection (sends `leave` if applicable, then closes). */
-  close(): void;
-  /** Register a handler for every inbound message. */
-  onMessage(handler: TransportMessageHandler): void;
-  /** Register a handler fired when the connection closes. */
-  onClose(handler: (code: number, reason: string) => void): void;
-  /** Register a handler fired on transport-level errors. */
-  onError(handler: (error: unknown) => void): void;
-}
+// Movement + collision.
+export { buildCollisionGrid, checkStep, entityColliderAt } from "./movement.js";
+export type { EntityCollider, SolidTileGrid, StepCheckInput, StepCheckResult } from "./movement.js";
 
-export interface TransportOptions {
-  /** Session/room to join (ADR-004 `hello` payload). */
-  roomId?: string;
-  playerName?: string;
-  projectId?: string;
-  /** Heartbeat interval in ms (default 15000 per ADR-004). */
-  heartbeatMs?: number;
-}
+// Input: keyboard + virtual D-pad (docs/08 §4.4).
+export { Input, createKeyboardOnlyInput, DIRECTION_VECTORS, KEY_TO_DIRECTION } from "./input.js";
+export type { DirectionVector, InputDirection, InputOptions } from "./input.js";
 
-export type TransportMessageHandler = (data: string) => void;
+// Storage (RQ1 / D12).
+export { MemoryStorage } from "./storage.js";
+export type { Storage } from "./storage.js";
+export {
+  DEFAULT_INDEXEDDB_DB,
+  DEFAULT_INDEXEDDB_KEY,
+  DEFAULT_INDEXEDDB_STORE,
+  IndexedDBStorage,
+  isIndexedDBAvailable,
+} from "./indexeddb-storage.js";
+export type { IndexedDBStorageOptions } from "./indexeddb-storage.js";
 
-/** Factory so the runtime can construct transports behind the interface. */
-export interface TransportFactory {
-  create(options?: TransportOptions): Transport;
-}
+// Transport (ADR-004).
+export { TokenBucket, WS_CLOSED, WS_CLOSING, WS_CONNECTING, WS_OPEN } from "./transport.js";
+export type {
+  Transport,
+  TransportCloseHandler,
+  TransportErrorHandler,
+  TransportMessageHandler,
+  TransportOptions,
+  TransportState,
+  WebSocketFactory,
+  WebSocketLike,
+} from "./transport.js";
+export {
+  HEARTBEAT_TIMEOUT_REASON,
+  NORMAL_CLOSE_CODE,
+  WebSocketTransport,
+} from "./websocket-transport.js";
+export type {
+  EnvelopeHandler,
+  InboundEnvelope,
+  WebSocketTransportOptions,
+} from "./websocket-transport.js";
+
+// Multiplayer client (players-only sync, D16).
+export {
+  DEFAULT_CHAT_RATE_HZ,
+  DEFAULT_STATE_INTERVAL_MS,
+  DEFAULT_STATE_RATE_HZ,
+  MAX_CHAT_LENGTH,
+  NetworkClient,
+} from "./network-client.js";
+export type {
+  ChatHandler,
+  NetworkClientOptions,
+  RemoteLeaveHandler,
+  RemotePlayer,
+  RemoteStateHandler,
+} from "./network-client.js";
+
+// Boot + game lifecycle.
+export { boot } from "./boot.js";
+export type { BootOptions, BootResult, NetworkOptions } from "./boot.js";
+export { createGame } from "./game.js";
+export type { CreateGameOptions, Game } from "./game.js";

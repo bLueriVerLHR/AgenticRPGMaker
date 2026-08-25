@@ -18,7 +18,8 @@
     "format:check": "prettier --check .",
     "doc:lint": "node scripts/doc-lint.mjs",
     "build:www": "node scripts/build-www.mjs",
-    "build:deploy": "node scripts/build-deploy.mjs"
+    "build:deploy": "node scripts/build-deploy.mjs",
+    "verify:deploy": "node scripts/verify-deploy.mjs"
   },
   "devDependencies": {
     "@eslint/js": "^9.31.0",

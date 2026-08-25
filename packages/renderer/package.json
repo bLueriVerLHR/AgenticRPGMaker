@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "description": "AgenticRPGMaker renderer: the Renderer interface plus (later, P1b) WebGL and Canvas2D backends (ADR-002). Vanilla TypeScript.",
+  "description": "AgenticRPGMaker renderer: the Renderer interface plus (P1b) WebGL and Canvas2D backends with capability detection, sprite batching, and texture atlas (ADR-002). Vanilla TypeScript.",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "exports": {

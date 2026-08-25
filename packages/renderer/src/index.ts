@@ -149,3 +149,23 @@ export function isRenderer(value: unknown): value is Renderer {
 
 /** Re-export the shared player state type for renderer consumers. */
 export type { PlayerState };
+
+// ---------------------------------------------------------------------------
+// P1b — backends, capability detection, factory, atlas manager (ADR-002).
+// The P0 declarations above are unchanged; the additions below are append-only.
+// ---------------------------------------------------------------------------
+export * from "./logger.js";
+export * from "./capability.js";
+export * from "./color.js";
+export * from "./tiles.js";
+export * from "./pool.js";
+export * from "./batch.js";
+export * from "./tilemap.js";
+export * from "./tileset-registry.js";
+export * from "./texture-manager.js";
+export * from "./math/mat3.js";
+export * from "./webgl/gl-context.js";
+export * from "./webgl/shader.js";
+export * from "./webgl/webgl-renderer.js";
+export * from "./canvas/canvas2d-renderer.js";
+export * from "./factory.js";

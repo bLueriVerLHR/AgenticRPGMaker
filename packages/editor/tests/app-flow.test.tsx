@@ -13,18 +13,21 @@
  */
 import "fake-indexeddb/auto";
 
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 
 import { App } from "../src/App.js";
-import { setDefaultEditorDbName } from "../src/storage/project-repository.js";
+import {
+  setDefaultEditorDbName,
+  type ProjectRepository,
+} from "../src/storage/project-repository.js";
 
 interface EditorHandle {
   store: {
     getSnapshot(): unknown;
     execute(cmd: unknown): void;
   };
-  repository: unknown;
+  repository: ProjectRepository | null;
 }
 
 /** A minimal structural view of the editor snapshot used by the test. */
@@ -35,6 +38,7 @@ interface MapLayerView {
 }
 
 interface EditorSnapshotView {
+  projectId: string | null;
   projectName: string;
   currentMapId: string;
   maps: {
@@ -57,6 +61,11 @@ function editorStore(): EditorHandle["store"] | null {
   return ed?.store ?? null;
 }
 
+function editorRepository(): ProjectRepository | null {
+  const ed = (globalThis as unknown as { __editor?: EditorHandle }).__editor;
+  return ed?.repository ?? null;
+}
+
 /** A unique DB name per test run so the fake IndexedDB never collides. */
 let dbCounter = 0;
 function uniqueDbName(): string {
@@ -73,6 +82,30 @@ function requireState(): EditorSnapshotView {
   return state;
 }
 
+/** Poll the repository until the autosaved project reflects the mutations. */
+async function waitForPersisted(
+  projectId: string,
+  expectTileAt: [number, number],
+  eventId: string,
+): Promise<void> {
+  const repository = editorRepository();
+  expect(repository).not.toBeNull();
+  await vi.waitUntil(
+    async () => {
+      const stored = await repository!.open(projectId);
+      if (stored === null) {
+        return false;
+      }
+      const [y, x] = expectTileAt;
+      const layer = stored.maps[0]?.layers[0];
+      const hasTile = layer?.data?.[y]?.[x] === 9;
+      const hasEvent = (stored.maps[0]?.events ?? []).some((event) => event.id === eventId);
+      return hasTile && hasEvent;
+    },
+    { timeout: 10000, interval: 50 },
+  );
+}
+
 describe("App flow (integration)", () => {
   beforeEach(() => {
     setDefaultEditorDbName(uniqueDbName());
@@ -85,15 +118,16 @@ describe("App flow (integration)", () => {
 
   it("creates a project, mutates documents, autosaves, and persists across remount", async () => {
     const first = render(<App />);
-    await waitFor(() => expect(screen.getByTestId("project-list")).toBeTruthy(), { timeout: 5000 });
+    await screen.findByTestId("project-list", undefined, { timeout: 10000 });
 
     // Create a project through the UI.
     fireEvent.change(screen.getByTestId("new-project-name"), { target: { value: "Flow Test" } });
     fireEvent.click(screen.getByTestId("new-project-create"));
-    await waitFor(() => expect(screen.getByTestId("app-editor")).toBeTruthy(), { timeout: 5000 });
+    await screen.findByTestId("app-editor", undefined, { timeout: 10000 });
 
     let state = requireState();
     expect(state.projectName).toBe("Flow Test");
+    expect(state.projectId).not.toBeNull();
     expect(state.maps).toHaveLength(1);
     expect(state.maps[0]!.layers[0]!.data[0]![0]).toBe(0);
 
@@ -113,17 +147,21 @@ describe("App flow (integration)", () => {
     expect(state.maps[0]!.layers[0]!.data[4]![3]).toBe(9);
     expect(state.maps[0]!.events).toHaveLength(1);
 
-    // Wait for the 500ms autosave debounce to fire and persist.
-    await new Promise((resolve) => setTimeout(resolve, 800));
+    // Wait for the 500ms autosave debounce to fire and persist. Poll the
+    // repository for the actual condition (tile + event durable) instead of
+    // sleeping a fixed wall-clock guess, so a loaded event loop can never
+    // outrun the debounce and remount before the write lands.
+    const projectId = state.projectId!;
+    await waitForPersisted(projectId, [4, 3], "evt_flow");
 
     first.unmount();
 
     // Remount = a fresh page load. The project should be listed and reopen.
     const second = render(<App />);
-    await waitFor(() => expect(screen.getByTestId("project-list")).toBeTruthy(), { timeout: 5000 });
-    const row = await waitFor(() => screen.getByTestId(/^project-row-/), { timeout: 5000 });
+    await screen.findByTestId("project-list", undefined, { timeout: 10000 });
+    const row = await screen.findByTestId(/^project-row-/, undefined, { timeout: 10000 });
     fireEvent.click(row);
-    await waitFor(() => expect(screen.getByTestId("app-editor")).toBeTruthy(), { timeout: 5000 });
+    await screen.findByTestId("app-editor", undefined, { timeout: 10000 });
 
     const persisted = requireState();
     expect(persisted.maps[0]!.layers[0]!.data[4]![3]).toBe(9);
@@ -135,7 +173,7 @@ describe("App flow (integration)", () => {
 
   it("shows the project list with an empty state on first boot", async () => {
     const { unmount } = render(<App />);
-    await waitFor(() => expect(screen.getByTestId("project-list")).toBeTruthy(), { timeout: 5000 });
+    await screen.findByTestId("project-list", undefined, { timeout: 10000 });
     expect(screen.getByText(/No projects yet/)).toBeTruthy();
     unmount();
   });

@@ -18,14 +18,19 @@
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "typecheck": "tsc -p tsconfig.json --noEmit",
-    "test": "vitest run"
+    "test": "vitest run",
+    "build:demo": "vite build --config demo/vite.config.ts",
+    "test:e2e": "node e2e/run-e2e.mjs"
   },
   "dependencies": {
     "@agenticrpg/core": "workspace:*",
     "@agenticrpg/renderer": "workspace:*"
   },
   "devDependencies": {
+    "fake-indexeddb": "^6.0.0",
+    "playwright": "^1.54.0",
     "typescript": "^5.8.3",
+    "vite": "^6.3.5",
     "vitest": "^3.2.4"
   }
 }

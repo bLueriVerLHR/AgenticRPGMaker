@@ -115,3 +115,35 @@ handed to the merge-manager:
 - Finish a task → report result (files, branch, commit hash, test/log status) to the leader.
 - Blocked or out of scope → report the blocker with a clear reason; do **not** silently
   proceed beyond the delegated scope.
+
+---
+
+## 7. ALL-ENGLISH rule
+
+All **engineering** artifacts are in **English**: docs, code, comments, commit
+messages, and UI strings. **Game content text** (dialogue, item names, in-game
+descriptions) is **player data** — it is the game author's content and is **not**
+language-restricted. English here is about the *engineering* of the product, not
+the *content* of the games it builds. (Decision: **D17** — see
+[02-open-questions.md](./02-open-questions.md); [ADR-007](./04-adr/ADR-007.md).)
+
+---
+
+## 8. AGENT-READABLE DOCS & agent operability
+
+The system must be operable by agents, not only by humans clicking a GUI.
+
+- **`AGENTS.md`** at the repo root is the **agent onboarding doc**, maintained as
+  the entry point: repository layout, WAL rules, one-command build/test/lint
+  scripts, where decisions live.
+- **Doc structure conventions** apply to every doc: stable headings and
+  machine-checkable status fields (see the status legend in
+  [02-open-questions.md](./02-open-questions.md) and the ADR template).
+- **Doc link/status lint runs in CI** — broken links and invalid status fields
+  fail the build.
+- **Reserved seams (designed now, implemented later, NOT in MVP):** editor headless
+  CLI (`create-project` / `add-map` / `set-tile` / `place-event` / `export-www`),
+  runtime headless test mode, server control API (rooms / status / kick over
+  HTTP/CLI, JSON in/out). These must not be implemented prematurely in the MVP.
+  (Decisions: **D18/D19** — see [02-open-questions.md](./02-open-questions.md);
+  [ADR-007](./04-adr/ADR-007.md).)

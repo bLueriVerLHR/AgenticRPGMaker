@@ -22,9 +22,9 @@ again after the work actually completes.
 
 | ADR | Title | Status | Date |
 |-----|-------|--------|------|
-| [ADR-001](./04-adr/ADR-001.md) | *(authored by a parallel design member)* | proposed | — |
-| [ADR-002](./04-adr/ADR-002.md) | *(authored by a parallel design member)* | proposed | — |
-| [ADR-003](./04-adr/ADR-003.md) | *(authored by a parallel design member)* | proposed | — |
+| [ADR-001](./04-adr/ADR-001.md) | Shared Engine Core: Component-Based Entities, Scene Graph, Event Bus (packages/core) | proposed | 2026-08-25 |
+| [ADR-002](./04-adr/ADR-002.md) | Renderer Interface: WebGL Default with Automatic Canvas2D Fallback | proposed | 2026-08-25 |
+| [ADR-003](./04-adr/ADR-003.md) | Versioned JSON Data Formats (Shared TS Types + Validation in packages/core) | proposed | 2026-08-25 |
 | [ADR-004](./04-adr/ADR-004.md) | Multiplayer protocol v1 (WebSocket + JSON) | proposed | 2026-08-25 |
 | [ADR-005](./04-adr/ADR-005.md) | C++ relay / state-sync server (C++20 + Asio + websocketpp) | proposed | 2026-08-25 |
 | [ADR-006](./04-adr/ADR-006.md) | Web editor (React + TypeScript + Vite) | proposed | 2026-08-25 |

@@ -22,7 +22,12 @@ same change.
 | ADR | Title | Status | Date |
 |-----|-------|--------|------|
 | [ADR-000](./ADR-000-template.md) | Template (this file is the template, not a real decision) | — | kickoff |
-| ADR-001 | *first real decision — e.g. the answer to Q1* | proposed | — |
+| [ADR-001](./ADR-001.md) | Shared Engine Core: Component-Based Entities, Scene Graph, Event Bus (packages/core) | proposed | 2026-08-25 |
+| [ADR-002](./ADR-002.md) | Renderer Interface: WebGL Default with Automatic Canvas2D Fallback | proposed | 2026-08-25 |
+| [ADR-003](./ADR-003.md) | Versioned JSON Data Formats (Shared TS Types + Validation in packages/core) | proposed | 2026-08-25 |
+| [ADR-004](./ADR-004.md) | Multiplayer protocol v1 (WebSocket + JSON) | proposed | 2026-08-25 |
+| [ADR-005](./ADR-005.md) | C++ relay / state-sync server (single binary, Linux) | proposed | 2026-08-25 |
+| [ADR-006](./ADR-006.md) | Web editor (React + TypeScript + Vite) | proposed | 2026-08-25 |
 
 > As decisions land from the kickoff discussion (see
 > [docs/02-open-questions.md](../02-open-questions.md)), each becomes an ADR in this

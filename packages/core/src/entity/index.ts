@@ -25,7 +25,4 @@ export {
   shapeToLocalAABB,
   aabbsOverlap,
 } from "./collider.js";
-export {
-  BehaviorComponent,
-  BEHAVIOR_TYPE,
-} from "./behavior-component.js";
+export { BehaviorComponent, BEHAVIOR_TYPE } from "./behavior-component.js";

@@ -86,7 +86,12 @@ export class UnknownCommandError extends Error {
 // ---------------------------------------------------------------------------
 
 /** Applies a tile-space translation to an entity's transform. */
-function translateEntity(ctx: CommandContext, entityId: string, dx: number, dy: number): { from: CommandPosition; to: CommandPosition } {
+function translateEntity(
+  ctx: CommandContext,
+  entityId: string,
+  dx: number,
+  dy: number,
+): { from: CommandPosition; to: CommandPosition } {
   const entity = ctx.scene.getEntityById(entityId);
   if (entity === null) {
     throw new Error(`command target: no entity "${entityId}" in the scene`);
@@ -240,11 +245,7 @@ export function commandFromSchema(command: EventCommand): Command {
       return new WalkCommand(asNumber(args[0], "walk"), asNumber(args[1], "walk"));
     case "move": {
       const targetId = typeof args[2] === "string" ? args[2] : undefined;
-      return new MoveCommand(
-        asNumber(args[0], "move"),
-        asNumber(args[1], "move"),
-        targetId,
-      );
+      return new MoveCommand(asNumber(args[0], "move"), asNumber(args[1], "move"), targetId);
     }
     default:
       throw new UnknownCommandError(command.cmd);

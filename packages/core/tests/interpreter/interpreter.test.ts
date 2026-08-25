@@ -73,29 +73,47 @@ describe("event interpreter (P1a DoD fixture)", () => {
     expect(kinds).toEqual(["walk", "dialogue", "move", "move", "move", "sound"]);
 
     // walk: the player moved from (3,1) to (3,2).
-    const walk = result.effects.find((e): e is Extract<GameEffect, { kind: "walk" }> => e.kind === "walk");
+    const walk = result.effects.find(
+      (e): e is Extract<GameEffect, { kind: "walk" }> => e.kind === "walk",
+    );
     expect(walk?.entityId).toBe("player");
     expect(walk?.from).toEqual({ x: 3, y: 1 });
     expect(walk?.to).toEqual({ x: 3, y: 2 });
 
     // dialogue
-    const dialogue = result.effects.find((e): e is Extract<GameEffect, { kind: "dialogue" }> => e.kind === "dialogue");
+    const dialogue = result.effects.find(
+      (e): e is Extract<GameEffect, { kind: "dialogue" }> => e.kind === "dialogue",
+    );
     expect(dialogue?.text).toBe("Welcome to the inn!");
 
     // move-block: the NPC (actor = event id) moved up, right, down → net (1,0).
-    const moves = result.effects.filter((e): e is Extract<GameEffect, { kind: "move" }> => e.kind === "move");
+    const moves = result.effects.filter(
+      (e): e is Extract<GameEffect, { kind: "move" }> => e.kind === "move",
+    );
     expect(moves).toHaveLength(3);
-    expect(moves.map((m) => m.entityId)).toEqual(["evt_inn_owner", "evt_inn_owner", "evt_inn_owner"]);
+    expect(moves.map((m) => m.entityId)).toEqual([
+      "evt_inn_owner",
+      "evt_inn_owner",
+      "evt_inn_owner",
+    ]);
     expect(moves[0]?.from).toEqual({ x: 3, y: 2 });
     expect(moves[moves.length - 1]?.to).toEqual({ x: 4, y: 2 });
 
     // sound
-    const sound = result.effects.find((e): e is Extract<GameEffect, { kind: "sound" }> => e.kind === "sound");
+    const sound = result.effects.find(
+      (e): e is Extract<GameEffect, { kind: "sound" }> => e.kind === "sound",
+    );
     expect(sound?.ref).toBe("audio/coin.ogg");
 
     // The scene reflects the moves: player and NPC transforms updated.
-    expect(scene.getEntityById("player")?.getComponent("transform")?.position).toEqual({ x: 3, y: 2 });
-    expect(scene.getEntityById("evt_inn_owner")?.getComponent("transform")?.position).toEqual({ x: 4, y: 2 });
+    expect(scene.getEntityById("player")?.getComponent("transform")?.position).toEqual({
+      x: 3,
+      y: 2,
+    });
+    expect(scene.getEntityById("evt_inn_owner")?.getComponent("transform")?.position).toEqual({
+      x: 4,
+      y: 2,
+    });
   });
 
   it("publishes gameplay events on the bus (walk + dialogue + sound)", () => {
@@ -170,7 +188,10 @@ describe("event interpreter conditions and page selection", () => {
       x: 0,
       y: 0,
       pages: [
-        { condition: { switchId: "sw_never", value: true }, commands: [{ cmd: "showText", args: ["nope"] }] },
+        {
+          condition: { switchId: "sw_never", value: true },
+          commands: [{ cmd: "showText", args: ["nope"] }],
+        },
       ],
     };
     const interpreter = new EventInterpreter();
@@ -236,6 +257,9 @@ describe("event interpreter robustness", () => {
       pages: [{ condition: null, commands: [{ cmd: "move", args: [0, 2, "player"] }] }],
     };
     interpreter.runEvent(event, { actorId: "evt_push" });
-    expect(scene.getEntityById("player")?.getComponent("transform")?.position).toEqual({ x: 0, y: 2 });
+    expect(scene.getEntityById("player")?.getComponent("transform")?.position).toEqual({
+      x: 0,
+      y: 2,
+    });
   });
 });

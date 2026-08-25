@@ -210,9 +210,11 @@ describe("rule-based behavior in a scene (integration)", () => {
     scene.addEntity(npc);
 
     const state = new GameState();
-    npc.getComponent("behavior")?.setBehavior(
-      new RuleBasedBehavior({ waypoints: [{ x: 3, y: 0 }], speed: 1, idleSeconds: 0 }),
-    );
+    npc
+      .getComponent("behavior")
+      ?.setBehavior(
+        new RuleBasedBehavior({ waypoints: [{ x: 3, y: 0 }], speed: 1, idleSeconds: 0 }),
+      );
 
     let elapsed = 0;
     while (state.getVariable("guard_progress") < 3 && elapsed < 10) {

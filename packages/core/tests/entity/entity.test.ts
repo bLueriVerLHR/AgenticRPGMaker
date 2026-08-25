@@ -26,7 +26,12 @@ describe("entity/component model (ADR-001)", () => {
     hero
       .addComponent(new Transform({ x: 3, y: 2, direction: "up" }))
       .addComponent(new Sprite({ texture: "characters/hero" }))
-      .addComponent(new Collider({ shape: { kind: "rect", width: 1, height: 1, offsetX: 0, offsetY: 0 }, solid: true }));
+      .addComponent(
+        new Collider({
+          shape: { kind: "rect", width: 1, height: 1, offsetX: 0, offsetY: 0 },
+          solid: true,
+        }),
+      );
 
     const transform = hero.getComponent("transform");
     expect(transform).not.toBeNull();
@@ -147,7 +152,11 @@ describe("entity/component model (ADR-001)", () => {
     const circleAABB = shapeToLocalAABB({ kind: "circle", radius: 1, offsetX: 0, offsetY: 0 });
     expect(circleAABB).toEqual({ x: -1, y: -1, width: 2, height: 2 });
 
-    expect(aabbsOverlap({ x: 0, y: 0, width: 1, height: 1 }, { x: 1, y: 0, width: 1, height: 1 })).toBe(true);
-    expect(aabbsOverlap({ x: 0, y: 0, width: 1, height: 1 }, { x: 5, y: 5, width: 1, height: 1 })).toBe(false);
+    expect(
+      aabbsOverlap({ x: 0, y: 0, width: 1, height: 1 }, { x: 1, y: 0, width: 1, height: 1 }),
+    ).toBe(true);
+    expect(
+      aabbsOverlap({ x: 0, y: 0, width: 1, height: 1 }, { x: 5, y: 5, width: 1, height: 1 }),
+    ).toBe(false);
   });
 });

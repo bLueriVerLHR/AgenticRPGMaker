@@ -54,7 +54,13 @@ describe("protocol v1 encode/decode (ADR-004)", () => {
       sessionId: "s-01ab",
       roomId: "room-alpha",
       serverTimeMs: 1,
-      players: [{ sessionId: "s-01aa", playerName: "Kibo", state: { x: 16, y: 12, direction: "down", animation: "idle" } }],
+      players: [
+        {
+          sessionId: "s-01aa",
+          playerName: "Kibo",
+          state: { x: 16, y: 12, direction: "down", animation: "idle" },
+        },
+      ],
     });
     const decoded = decodeMessageValue(JSON.parse(JSON.stringify(message)) as unknown);
     expect(decoded.type).toBe("welcome");
@@ -116,16 +122,24 @@ describe("protocol v1 payload constructors", () => {
     const cases: Array<{ message: ProtocolEnvelope; type: string }> = [
       { message: hello({ playerName: "A", roomId: "r", projectId: "p" }, 1), type: "hello" },
       {
-        message: welcome({
-          sessionId: "s",
-          roomId: "r",
-          serverTimeMs: 1,
-          players: [{ sessionId: "s", playerName: "A", state: { x: 1, y: 2, direction: "down" } }],
-        }, 2),
+        message: welcome(
+          {
+            sessionId: "s",
+            roomId: "r",
+            serverTimeMs: 1,
+            players: [
+              { sessionId: "s", playerName: "A", state: { x: 1, y: 2, direction: "down" } },
+            ],
+          },
+          2,
+        ),
         type: "welcome",
       },
       {
-        message: playerState({ state: { x: 3, y: 4, direction: "left", animation: "walk" }, clientTimeMs: 5 }, 3),
+        message: playerState(
+          { state: { x: 3, y: 4, direction: "left", animation: "walk" }, clientTimeMs: 5 },
+          3,
+        ),
         type: "player_state",
       },
       { message: chat({ text: "hi" }, 4), type: "chat" },

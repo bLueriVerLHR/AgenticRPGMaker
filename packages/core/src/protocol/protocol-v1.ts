@@ -73,7 +73,9 @@ export class ProtocolDecodeError extends Error {
  */
 export function assertProtocolVersion(v: unknown): asserts v is number {
   if (typeof v !== "number" || !Number.isInteger(v)) {
-    throw new ProtocolDecodeError(`protocol version field "v" must be an integer, got ${String(v)}`);
+    throw new ProtocolDecodeError(
+      `protocol version field "v" must be an integer, got ${String(v)}`,
+    );
   }
   if (v !== PROTOCOL_VERSION) {
     throw new ProtocolVersionMismatchError(v, PROTOCOL_VERSION);
@@ -111,9 +113,7 @@ export function decodeMessageValue(input: unknown): ProtocolEnvelope {
 }
 
 /** Result of a non-throwing decode. */
-export type DecodeResult =
-  | { ok: true; message: ProtocolEnvelope }
-  | { ok: false; error: Error };
+export type DecodeResult = { ok: true; message: ProtocolEnvelope } | { ok: false; error: Error };
 
 /** Non-throwing `decodeMessage` for edge handlers. */
 export function decodeMessageSafe(raw: string): DecodeResult {

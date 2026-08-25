@@ -5,6 +5,26 @@ Date format: `YYYY-MM-DD`.
 
 ---
 
+## 2026-08-25 — Round 1 resolved, Round 2 opened
+
+Round 1 answered (Q1–Q6): Q1 reinterpreted as portable HTML package + Linux C++
+runtime; Q2 relay server; Q3 WebGL interface + design patterns; Q4 TypeScript +
+events/API, LLM-NPCs future (interface first, proxy via C++ server); Q5 editor+game
+web-operable, C++ Linux only; Q6 MVP scope confirmed. Round 2 opened (RQ1–RQ5).
+
+**Details**
+
+- All of Q1–Q6 flipped from `pending` to `decided` in
+  [02-open-questions.md](./02-open-questions.md), each with a resolution note.
+- Q1 carries a `decided (reinterpreted)` status: the "only HTML" premise now means a
+  portable RPG-Maker-style HTML package (`index.html` + `data/` + `js/` + `img/` +
+  `audio/`), with the Linux C++ runtime retained for local serving, local file
+  access, and multiplayer. **User confirmation still pending (RQ1).**
+- New Round 2 questions opened: RQ1 portable target & saves, RQ2 renderer fallback,
+  RQ3 C++ server stack, RQ4 MVP multiplayer model, RQ5 commit attribution.
+- [01-vision.md](./01-vision.md) updated: single-player section now RESOLVED (with
+  background on browser local-resource limits) + "Round 1 resolutions" summary table.
+
 ## 2026-08-25 — Kickoff
 
 Kickoff: WAL docs scaffolded; discussion round 1 opened (Q1–Q6, see

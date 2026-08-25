@@ -121,6 +121,12 @@ option(AGENTICRPG_BUILD_TESTS "Build the Catch2 unit tests" ON)
 if(AGENTICRPG_BUILD_TESTS)
   enable_testing()
   add_executable(agenticrpg-server-tests
+    tests/test_config.cpp
+    tests/test_http_static.cpp
+    tests/test_outbound_queue.cpp
+    tests/test_protocol.cpp
+    tests/test_rate_limiter.cpp
+    tests/test_room_registry.cpp
     tests/main_test.cpp
   )
   target_link_libraries(agenticrpg-server-tests PRIVATE Catch2::Catch2 agenticrpg-server-lib agenticrpg_third_party)

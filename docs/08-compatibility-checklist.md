@@ -35,13 +35,24 @@ in the conservative evergreen baseline, it is not used.**
 |---|-----------------|------------------|------------|
 | 1 | **File System Access API** (`showOpenFilePicker`, `showSaveFilePicker`, `FileSystemFileHandle`, `FileSystemWritableFileStream`) | Chromium-only; absent in Firefox/Safari and most WebViews (vision §3.1). | `grep -rn "showOpenFilePicker\|showSaveFilePicker\|FileSystemFileHandle"` in the runtime bundle/source |
 | 2 | **OPFS as a required path** (`navigator.storage.getDirectory`) | Origin-sandboxed and newer; WebView support is spotty. Saves use IndexedDB (RQ1); OPFS is never a requirement. | `grep -rn "getDirectory()"` |
-| 3 | **Node-only APIs** (`fs`, `path`, `process`, `require`, `Buffer`, `node:…`) | Do not exist in the browser; must never leak into the runtime bundle. | `grep -rn "require(\\|process\\.\\|Buffer(\\|node:"` on the built bundle |
+| 3 | **Node-only APIs** (`fs`, `path`, `process`, `require`, `Buffer`, `node:…`) | Do not exist in the browser; must never leak into the runtime bundle. | `grep -rn "require(\\|process\\.\\|Buffer(\\|node:"` on the built bundle — **see `Buffer(` note below** |
 | 4 | **Experimental / flag-gated / origin-trial web APIs** | Anything not yet standard or behind a flag breaks older WebViews silently. | Keep a dependencies review: no `--experimental` or origin-trial APIs |
 | 5 | **`fetch()` of local `file://` paths** | Blocked/inconsistent across browsers; the portable build is served over HTTP(S) by the C++ launcher or a static host, never relied on `file://` fetch. | Grep for `file://` URLs in the bundle |
 | 6 | **Service Workers as a required feature** | JoiPlay WebView support is inconsistent; the portable build must work without them. | No hard dependency on `navigator.serviceWorker` |
 | 7 | **Bleeding-edge JS/TS features without transpilation** | Old WebViews choke on newest syntax. Define a conservative baseline (ES2019-era) and transpile. | Keep `tsconfig`/build targets aligned to the baseline |
 | 8 | **WebGL2-only / WebGPU** | Weak devices may lack WebGL2; WebGPU is out of scope. The renderer is WebGL (WebGL1-compatible subset) with an automatic **Canvas2D fallback** (RQ2, docs/02-open-questions.md). | Feature-detect; never hard-require WebGL2 |
 | 9 | **Web Audio advanced features** (AudioWorklet, spatialisation, etc.) | MVP **audio is deferred**; when added, only Web Audio **basics** (see §4). | — |
+
+> **Note on the `Buffer(` pattern (verified against implementation, P6):** the
+> `Buffer(` grep in row 3 above is a **known false-positive source** — it also
+> matches the **legitimate WebGL API** `gl.createBuffer()` / `gl.bindBuffer()`
+> (used by `packages/renderer/src/webgl/webgl-renderer.ts`), which is **not** Node's
+> `Buffer`. The actual banned-API smoke check
+> (`scripts/build-www.mjs`, `BANNED_PATTERNS`) therefore omits a `Buffer(` pattern —
+> it checks the real Node-specific signals (`require(`, `process.`, `node:`,
+> `file://`, plus File System Access/OPFS APIs) so the D1/D2 run stays correct in
+> intent. When grepping manually, use `\bBuffer\b` or check for Node's `Buffer`
+> specifically, and treat `createBuffer`/`bindBuffer` as false positives.
 
 ## 4. JoiPlay / weak-device constraints
 

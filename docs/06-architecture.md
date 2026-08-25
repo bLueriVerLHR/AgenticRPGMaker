@@ -140,6 +140,16 @@ index.html → core.init → detect.renderer (WebGL? → WebGLRenderer
          → saves: IndexedDB (load/save)        → network: WS → C++ server
 ```
 
+> **Implementation note (verified against implementation, P6):** the runtime boot
+> entry point is `boot(options: BootOptions)` in
+> `packages/runtime/src/boot.ts`; `BootOptions` takes
+> `{ canvas, root, mapUrl | mapData, renderer?, storage?, network? }` (plus
+> logger/log-level and game-loop overrides). This **supersedes the P0 stub's
+> `BootOptions.dataUrl`** — there is no `dataUrl` in the shipped code; a map is
+> supplied as `mapUrl` (fetched) or `mapData` (inline). `network` (or legacy
+> `serverUrl`) is optional; omitted/null ⇒ single-player, and a failed network
+> connect degrades to single-player with a logged error rather than failing boot.
+
 ---
 
 ## 4. Editor boot flow (the Game Maker)
@@ -237,6 +247,14 @@ assets/   ← shared static assets served to both (optional)
 - TLS is out of scope for the MVP deployment (documented); a reverse proxy can be
   added later without code changes (HTTP + WS both speak standard ports).
 
+> **Implementation note (verified against implementation, P6):** the server **binds
+> all interfaces (`0.0.0.0`) by default** — there is no `--bind` flag
+> (`server/src/config.cpp`; only `--port`, `--www-root`, `--editor-root`,
+> `--log-level`, `--max-players-per-room` exist). VPS mode therefore works out of
+> the box (the process listens on `0.0.0.0`); for public deployments a **reverse
+> proxy should front the server** and terminate TLS (TLS/WSS remains out of MVP
+> scope, as documented in ADR-005).
+
 ---
 
 ## 7. Design patterns catalog
@@ -261,6 +279,28 @@ pattern below is a **planned, named** element of the implementation, not an acci
 Cross-cutting rule: **every pattern hides a "will change later" axis** — renderer
 backend, server role, NPC intelligence, storage medium, scene set. If an axis never
 changes, it doesn't need a pattern.
+
+### Implementation notes (verified against implementation, P6)
+
+These nuisances were confirmed while aligning the docs to the shipped MVP (P0–P5,
+merged to main @ 94da8da):
+
+- **Collision = strict-overlap semantics for gameplay.** Core's `aabbsOverlap`
+  (`packages/core/src/entity/collider.ts`) counts *touching edges* as overlap. The
+  runtime deliberately uses **strict overlap** (`aabbsOverlapStrict` in
+  `packages/runtime/src/movement.ts`) for tile/entity collision, so a player may
+  **stand adjacent to a solid NPC and talk to it** (RPG convention: interact from the
+  next tile) but cannot enter the NPC's tile. Documented convention: **touching ≠
+  colliding** for gameplay collision.
+- **Input is a hardware adapter; the core event bus has no input events.** Input
+  (`packages/runtime/src/input.ts`) is an adapter over keyboard (arrows/WASD +
+  Z/Enter/X/Esc) and an on-screen D-pad + A/B buttons (JoiPlay, no keyboard).
+  `core`'s `GameEventMap` (walk / collide / dialogue / switch_changed /
+  variable_changed / sound) has **no input event type** — movement/collision/
+  dialogue events flow through the shared core event bus downstream of input.
+  **Movement is edge-triggered** (one step per direction press — key or D-pad tap)
+  with **held-key auto-repeat at 0.25 s** (`REPEAT_DELAY_SECONDS` in
+  `packages/runtime/src/map-scene.ts`), so hold-to-walk works.
 
 ---
 

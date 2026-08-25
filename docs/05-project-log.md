@@ -5,6 +5,41 @@ Date format: `YYYY-MM-DD`.
 
 ---
 
+## 2026-08-25 — MVP implementation complete (P0–P5 merged to main @ 94da8da); P6 release: docs aligned to implementation
+
+MVP implementation phases **P0–P5 are all merged to main** (`origin/main` @
+`94da8da`). **P6 = WAL doc-correction pass**: per the WAL rule (docs corrected /
+finalized in the same change as the code), the docs were aligned to what was
+actually built.
+
+**Details**
+
+- **Phases merged to main:**
+  - **P0** — scaffold: monorepo, `packages/core` zod v1 schemas, skeleton packages,
+    C++ CMake server skeleton, `AGENTS.md`, doc-lint script.
+  - **P1** — engine-core: core data model + event interpreter + protocol v1 (P1a),
+    renderer WebGL/Canvas2D behind the interface (P1b), runtime boot/scenes/
+    movement/collision/dialogue/saves/multiplayer client (P1c).
+  - **P2** — editor: React + TS + Vite map/event editor, IndexedDB project storage,
+    import/export, runtime preview.
+  - **P3** — server: C++20 relay/state-sync, custom HTTP static hosting,
+    WebSocket `/ws`, rate limiting, heartbeats, spdlog, Catch2.
+  - **P4** — QA hardening: three-layer suite consolidated; two-context multiplayer
+    smoke test.
+  - **P5** — packaging/deploy: portable `www/` + single binary (`build:www` /
+    `build:deploy` / `verify:deploy`), local + VPS modes, samples.
+- **Test counts at the P5 gate:** **306 web** (Vitest, all packages) + **41 C++**
+  (Catch2 via ctest) + **verify:deploy 23** (checks in `scripts/verify-deploy.mjs`).
+- **P6 doc-correction entry (this one):** docs aligned to implementation —
+  collision strict-overlap convention + input/movement semantics + boot API
+  (`boot({ canvas, root, mapUrl|mapData, ... })`, no `dataUrl`) +
+  server-bind (0.0.0.0) notes in `06-architecture.md`; ADR-006 global-data
+  correction (per-map variables/switches, no common-events schema, export =
+  `data/` + README); ADR-005 implementation notes (`defer_http_response()`,
+  `asio_no_tls` configs, room auto-create via `getOrCreateRoom`); docs/08
+  `Buffer(` false-positive note. Each change is marked "verified against
+  implementation (P6)". `pnpm doc:lint` green.
+
 ## 2026-08-25 — P0 scaffold complete; P1 started
 
 P0 scaffold complete (`feat/p0-scaffold` @ `50dd218`): monorepo skeleton,

@@ -20,7 +20,7 @@
  * Requirements: all workspace packages built (`pnpm -r build`, run up front
  * in dependency order so core → renderer → runtime → editor dists exist), the
  * C++ toolchain. cmake is resolved as: $AGENTICRPG_CMAKE → the pinned
- * self-hosted cmake under work/p0/.tools → PATH.
+ * self-hosted cmake under .tools → PATH.
  *
  * Clean-state contract: `pnpm -r build` runs first so this script works from a
  * fresh clone where no package `dist/` output exists yet. The later "build if
@@ -64,10 +64,11 @@ function resolveCmake() {
   if (process.env.AGENTICRPG_CMAKE) {
     return process.env.AGENTICRPG_CMAKE;
   }
-  // The pinned self-hosted cmake lives under <repo>/work/p0/.tools/. In a git
-  // worktree the `work/` directory belongs to the MAIN checkout, which is two
-  // levels up from a work/p5-pack-style worktree, so check both layouts.
-  const relative = path.join("work", "p0", ".tools", "cmake-3.31.6-linux-x86_64", "bin", "cmake");
+  // The pinned self-hosted cmake lives under <repo>/.tools/. It is gitignored,
+  // so it is not checked out into a worktree; in a git worktree the `.tools/`
+  // directory belongs to the MAIN checkout, which is two levels up from a
+  // work/<member>-style worktree, so check both layouts.
+  const relative = path.join(".tools", "cmake-3.31.6-linux-x86_64", "bin", "cmake");
   for (const candidate of [
     path.join(REPO_ROOT, relative),
     path.join(path.resolve(REPO_ROOT, "..", ".."), relative),

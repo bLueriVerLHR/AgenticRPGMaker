@@ -16,10 +16,13 @@
     "lint": "eslint . --max-warnings=0",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "doc:lint": "node scripts/doc-lint.mjs"
+    "doc:lint": "node scripts/doc-lint.mjs",
+    "build:www": "node scripts/build-www.mjs",
+    "build:deploy": "node scripts/build-deploy.mjs"
   },
   "devDependencies": {
     "@eslint/js": "^9.31.0",
+    "esbuild": "^0.28.2",
     "eslint": "^9.31.0",
     "globals": "^16.0.0",
     "prettier": "^3.6.2",

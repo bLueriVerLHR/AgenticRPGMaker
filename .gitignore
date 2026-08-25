@@ -67,3 +67,11 @@ vcpkg_installed/
 # test output & cache
 Testing/
 .cache/
+
+# Application logs (WAL: logs are mandatory for debugging, but never committed)
+logs/
+*.log.*
+
+# Node.js dependencies
+node_modules/
+

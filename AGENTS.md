@@ -76,17 +76,19 @@ ctest --test-dir build --output-on-failure   # run the Catch2 unit tests
 Run in this order on the member branch — the whole gate must be green:
 
 1. `pnpm install` (fresh resolves; supply-chain policy checked)
-2. `pnpm -r build` (all TS packages)
-3. `pnpm -r typecheck`
-4. `pnpm lint`
-5. `pnpm format:check`
-6. `pnpm doc:lint`
-7. `pnpm -r test` (the whole web unit suite, run twice to confirm stability)
-8. C++ server: `cmake -B build && cmake --build build && ctest --test-dir build --output-on-failure` (run from `server/`); reuse the pinned cmake under `work/p0/.tools/` when no system cmake exists
-9. E2E runners (skipped gracefully when Playwright browsers are unavailable):
-   `pnpm --filter @agenticrpg/runtime test:e2e`,
-   `pnpm --filter @agenticrpg/editor test:e2e`,
-   `pnpm --filter @agenticrpg/runtime test:multiplayer` (two-context smoke ↔ C++ server)
+2. **clean-state check**: from a fresh worktree with no `packages/*/dist`, run
+   `pnpm install && pnpm build:deploy` and `pnpm verify:deploy` — must pass.
+3. `pnpm -r build` (all TS packages)
+4. `pnpm -r typecheck`
+5. `pnpm lint`
+6. `pnpm format:check`
+7. `pnpm doc:lint`
+8. `pnpm -r test` (the whole web unit suite, run twice to confirm stability)
+9. C++ server: `cmake -B build && cmake --build build && ctest --test-dir build --output-on-failure` (run from `server/`); reuse the pinned cmake under `work/p0/.tools/` when no system cmake exists
+10. E2E runners (skipped gracefully when Playwright browsers are unavailable):
+    `pnpm --filter @agenticrpg/runtime test:e2e`,
+    `pnpm --filter @agenticrpg/editor test:e2e`,
+    `pnpm --filter @agenticrpg/runtime test:multiplayer` (two-context smoke ↔ C++ server)
 
 The QA checklist ([docs/03-wal-process.md](./docs/03-wal-process.md) §5) must be
 ticked: build passes / unit green / E2E run / logs checked / docs updated in the

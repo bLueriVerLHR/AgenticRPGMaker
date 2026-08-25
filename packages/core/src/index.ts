@@ -22,6 +22,12 @@ import { assertSchemaVersion, SCHEMA_VERSIONS } from "./version.js";
 
 export * from "./version.js";
 export * from "./schema/index.js";
+export * from "./entity/index.js";
+export * from "./events/index.js";
+export * from "./behavior/index.js";
+export * from "./scene/index.js";
+export * from "./interpreter/index.js";
+export * from "./protocol/index.js";
 
 /** A readonly view of every canonical schema version (for tooling/debug). */
 export const schemaVersions = SCHEMA_VERSIONS;

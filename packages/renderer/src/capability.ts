@@ -22,7 +22,8 @@ export interface CanvasLike {
 }
 
 /** Union of the real rendering contexts the backends consume. */
-export type RenderContext = CanvasRenderingContext2D | WebGLRenderingContext | WebGL2RenderingContext;
+export type RenderContext =
+  CanvasRenderingContext2D | WebGLRenderingContext | WebGL2RenderingContext;
 
 /** Context kinds probed in order (ADR-002: WebGL2 → WebGL1 → Canvas2D). */
 export type ContextKind = "webgl2" | "webgl" | "2d";

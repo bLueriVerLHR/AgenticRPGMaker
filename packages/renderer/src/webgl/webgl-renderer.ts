@@ -152,13 +152,7 @@ export class WebGLRenderer implements Renderer, TileMapRenderer {
     this.batch.flush();
   }
 
-  drawSprite(
-    textureId: TextureId,
-    frame: number,
-    x: number,
-    y: number,
-    opts?: DrawOptions,
-  ): void {
+  drawSprite(textureId: TextureId, frame: number, x: number, y: number, opts?: DrawOptions): void {
     if (this.lost) {
       return;
     }
@@ -172,16 +166,7 @@ export class WebGLRenderer implements Renderer, TileMapRenderer {
       this.logger.debug("drawSprite: texture not uploaded", { textureId });
       return;
     }
-    this.pushQuad(
-      textureId,
-      x,
-      y,
-      frameRect.width,
-      frameRect.height,
-      frameRect,
-      source,
-      opts,
-    );
+    this.pushQuad(textureId, x, y, frameRect.width, frameRect.height, frameRect, source, opts);
   }
 
   drawTile(tile: TileRef, x: number, y: number, opts?: DrawOptions): void {
@@ -203,16 +188,7 @@ export class WebGLRenderer implements Renderer, TileMapRenderer {
       return;
     }
     const size = binding.tileSize;
-    this.pushQuad(
-      binding.textureId,
-      x * size,
-      y * size,
-      size,
-      size,
-      frameRect,
-      source,
-      opts,
-    );
+    this.pushQuad(binding.textureId, x * size, y * size, size, size, frameRect, source, opts);
   }
 
   drawText(text: string, x: number, y: number, opts?: TextDrawOptions): void {
@@ -255,25 +231,8 @@ export class WebGLRenderer implements Renderer, TileMapRenderer {
     }
 
     this.textRevision += 1;
-    this.ensureTexture(
-      TEXT_TEXTURE_ID,
-      { width, height, raw: canvas },
-      this.textRevision,
-      true,
-    );
-    this.pushQuadRaw(
-      TEXT_TEXTURE_ID,
-      dx,
-      dy,
-      width,
-      height,
-      0,
-      0,
-      1,
-      1,
-      opts,
-      1,
-    );
+    this.ensureTexture(TEXT_TEXTURE_ID, { width, height, raw: canvas }, this.textRevision, true);
+    this.pushQuadRaw(TEXT_TEXTURE_ID, dx, dy, width, height, 0, 0, 1, 1, opts, 1);
   }
 
   drawRect(x: number, y: number, w: number, h: number, fill?: string, stroke?: RectStroke): void {
@@ -282,29 +241,24 @@ export class WebGLRenderer implements Renderer, TileMapRenderer {
     }
     this.ensureTexture(this.whiteTextureId, undefined, 0);
     if (fill !== undefined) {
-      this.pushQuadRaw(
-        this.whiteTextureId,
-        x,
-        y,
-        w,
-        h,
-        0,
-        0,
-        1,
-        1,
-        { tint: fill },
-        1,
-      );
+      this.pushQuadRaw(this.whiteTextureId, x, y, w, h, 0, 0, 1, 1, { tint: fill }, 1);
     }
     if (stroke !== undefined) {
       const half = stroke.width / 2;
-      const rect = (
-        px: number,
-        py: number,
-        pw: number,
-        ph: number,
-      ): void => {
-        this.pushQuadRaw(this.whiteTextureId, px, py, pw, ph, 0, 0, 1, 1, { tint: stroke.color }, 1);
+      const rect = (px: number, py: number, pw: number, ph: number): void => {
+        this.pushQuadRaw(
+          this.whiteTextureId,
+          px,
+          py,
+          pw,
+          ph,
+          0,
+          0,
+          1,
+          1,
+          { tint: stroke.color },
+          1,
+        );
       };
       rect(x - half, y - half, w + stroke.width, stroke.width);
       rect(x - half, y + h - half, w + stroke.width, stroke.width);
@@ -424,7 +378,11 @@ export class WebGLRenderer implements Renderer, TileMapRenderer {
       return;
     }
     gl.bindBuffer(gl.ARRAY_BUFFER, this.vbo);
-    gl.bufferData(gl.ARRAY_BUFFER, batch.vertices.subarray(0, vertexCount * FLOATS_PER_VERTEX), gl.DYNAMIC_DRAW);
+    gl.bufferData(
+      gl.ARRAY_BUFFER,
+      batch.vertices.subarray(0, vertexCount * FLOATS_PER_VERTEX),
+      gl.DYNAMIC_DRAW,
+    );
     gl.useProgram(program.program);
     const textureId = batch.textureId;
     if (textureId !== null) {
@@ -444,9 +402,7 @@ export class WebGLRenderer implements Renderer, TileMapRenderer {
   ): WebGLTexture {
     let tex = this.glTextures.get(textureId);
     const currentRevision =
-      explicitSource !== undefined
-        ? explicitRevision
-        : this.textureManager.getRevision(textureId);
+      explicitSource !== undefined ? explicitRevision : this.textureManager.getRevision(textureId);
     const needsUpload =
       force ||
       tex === undefined ||

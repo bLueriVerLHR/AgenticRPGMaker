@@ -144,10 +144,7 @@ export function createRenderer(
   canvas: HTMLCanvasElement,
   options?: RendererCreateOptions,
 ): Renderer;
-export function createRenderer(
-  context: RenderContext,
-  options?: RendererCreateOptions,
-): Renderer;
+export function createRenderer(context: RenderContext, options?: RendererCreateOptions): Renderer;
 export function createRenderer(
   input: HTMLCanvasElement | RenderContext,
   options: RendererCreateOptions = {},

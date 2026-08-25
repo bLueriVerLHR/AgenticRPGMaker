@@ -83,13 +83,7 @@ export class Canvas2DRenderer implements Renderer, TileMapRenderer {
     // Immediate mode: nothing to flush.
   }
 
-  drawSprite(
-    textureId: TextureId,
-    frame: number,
-    x: number,
-    y: number,
-    opts?: DrawOptions,
-  ): void {
+  drawSprite(textureId: TextureId, frame: number, x: number, y: number, opts?: DrawOptions): void {
     const frameRect = this.textureManager.getFrame(textureId, frame);
     const source = this.textureManager.getSource(textureId);
     if (frameRect === undefined || source === undefined) {
@@ -115,15 +109,7 @@ export class Canvas2DRenderer implements Renderer, TileMapRenderer {
       return;
     }
     const size = binding.tileSize;
-    this.drawImage(
-      source,
-      frameRect,
-      x * size,
-      y * size,
-      size,
-      size,
-      opts,
-    );
+    this.drawImage(source, frameRect, x * size, y * size, size, size, opts);
   }
 
   drawText(text: string, x: number, y: number, opts?: TextDrawOptions): void {

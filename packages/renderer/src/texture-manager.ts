@@ -61,9 +61,7 @@ export interface AtlasTextureManager extends TextureManager {
 }
 
 /** True when a texture manager already exposes the atlas surface. */
-export function isAtlasTextureManager(
-  manager: TextureManager,
-): manager is AtlasTextureManager {
+export function isAtlasTextureManager(manager: TextureManager): manager is AtlasTextureManager {
   return (
     "setGrid" in manager &&
     "getSource" in manager &&

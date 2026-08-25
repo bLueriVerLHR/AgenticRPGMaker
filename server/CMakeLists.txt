@@ -99,6 +99,8 @@ target_compile_definitions(agenticrpg_third_party INTERFACE ASIO_STANDALONE)
 
 # ---- Server core (static lib) -------------------------------------------------
 add_library(agenticrpg-server-lib STATIC
+  src/protocol.cpp
+  src/room_registry.cpp
   src/config.cpp
   src/http_static.cpp
 )

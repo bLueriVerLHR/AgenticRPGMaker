@@ -62,13 +62,18 @@ export interface NetworkClientOptions {
 export interface RemotePlayer {
   sessionId: string;
   playerName: string;
+  /** Interpolated (display) position, in tile units. */
   x: number;
   y: number;
   direction: PlayerState["direction"];
   animation: string;
-  /** Interpolation state (previous position + progress). */
+  /** Latest received target position (the state being interpolated toward). */
+  targetX: number;
+  targetY: number;
+  /** Display position at the last received state (interpolation baseline). */
   prevX: number;
   prevY: number;
+  /** Interpolation progress in [0,1]. */
   interpT: number;
 }
 
@@ -331,7 +336,8 @@ export class NetworkClient {
         y: player.state.y,
         direction: player.state.direction,
         animation: player.state.animation ?? "idle",
-        // interpolation fields (set by applyState)
+        targetX: player.state.x,
+        targetY: player.state.y,
         prevX: player.state.x,
         prevY: player.state.y,
         interpT: 1,
@@ -358,15 +364,18 @@ export class NetworkClient {
         y: state.y,
         direction: state.direction,
         animation: state.animation ?? "idle",
+        targetX: state.x,
+        targetY: state.y,
         prevX: state.x,
         prevY: state.y,
         interpT: 1,
       });
     } else {
+      // Baseline the interpolation from the current display position.
       existing.prevX = existing.x;
       existing.prevY = existing.y;
-      existing.x = state.x;
-      existing.y = state.y;
+      existing.targetX = state.x;
+      existing.targetY = state.y;
       existing.direction = state.direction;
       existing.animation = state.animation ?? existing.animation;
       existing.interpT = 0;
@@ -400,14 +409,16 @@ export class NetworkClient {
 
   private interpolate(player: RemotePlayer, dtMs: number): void {
     if (player.interpT >= 1) {
+      player.x = player.targetX;
+      player.y = player.targetY;
       player.prevX = player.x;
       player.prevY = player.y;
       return;
     }
     player.interpT = Math.min(1, player.interpT + dtMs / INTERPOLATION_WINDOW_MS);
     const t = player.interpT;
-    player.x = player.prevX + (player.x - player.prevX) * t;
-    player.y = player.prevY + (player.y - player.prevY) * t;
+    player.x = player.prevX + (player.targetX - player.prevX) * t;
+    player.y = player.prevY + (player.targetY - player.prevY) * t;
   }
 
   private flushPendingState(): void {

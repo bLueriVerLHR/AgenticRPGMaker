@@ -48,8 +48,7 @@ import type { Scene, SceneContext } from "./scene.js";
 import type { Storage } from "./storage.js";
 import { buildCollisionGrid, checkStep, type SolidTileGrid } from "./movement.js";
 
-/** Options for building a MapScene. */
-export interface MapSceneOptions {
+/** Options for building a MapScene. */ export interface MapSceneOptions {
   map: MapData;
   renderer: Renderer;
   canvas: HTMLCanvasElement;
@@ -87,6 +86,9 @@ interface Step {
   t: number;
 }
 
+/** Held-key repeat delay for continuous movement (seconds). */
+const REPEAT_DELAY_SECONDS = 0.25;
+
 /** The scene's on-screen HUD (DOM overlay). */
 interface HudElements {
   root: HTMLElement;
@@ -120,6 +122,8 @@ export class MapScene implements Scene {
 
   private input: Input | null = null;
   private step: Step | null = null;
+  private lastStepDir: InputDirection | null = null;
+  private repeatAccum = 0;
   private dialogueQueue: string[] = [];
   private dialogueEl: HTMLElement | null = null;
   private hud: HudElements | null = null;
@@ -183,7 +187,7 @@ export class MapScene implements Scene {
 
   update(dt: number): void {
     this.advanceStep(dt);
-    this.handleMovement();
+    this.handleMovement(dt);
     this.handleConfirm();
     this.handleCancel();
     this.network?.update(dt);
@@ -218,6 +222,8 @@ export class MapScene implements Scene {
     this.virtualInput = null;
     this.dialogueQueue = [];
     this.step = null;
+    this.lastStepDir = null;
+    this.repeatAccum = 0;
     this.logger.info("scene: map exited", { map: this.map.id });
   }
 
@@ -521,6 +527,14 @@ export class MapScene implements Scene {
     return primary ?? this.virtualInput?.direction ?? null;
   }
 
+  private consumeDirectionEdge(): InputDirection | null {
+    const edge = this.input?.consumeDirectionEdge() ?? null;
+    if (edge !== null) {
+      return edge;
+    }
+    return this.virtualInput?.consumeDirectionEdge() ?? null;
+  }
+
   private consumeConfirm(): boolean {
     if (this.input?.consumeConfirm() === true) {
       return true;
@@ -547,14 +561,40 @@ export class MapScene implements Scene {
     }
   }
 
-  private handleMovement(): void {
+  /**
+   * Movement is edge-triggered: one step per direction press (keyboard key,
+   * D-pad tap). Holding a direction repeats steps after `repeatDelay` seconds
+   * so hold-to-walk also works (grid/tile movement, Q6).
+   */
+  private handleMovement(dt: number): void {
     if (this.isDialogueOpen || this.step !== null) {
       return;
     }
-    const direction = this.currentDirection();
-    if (direction === null) {
+    const edge = this.consumeDirectionEdge();
+    if (edge !== null) {
+      this.lastStepDir = edge;
+      this.repeatAccum = 0;
+      this.tryStep(edge);
       return;
     }
+    const held = this.currentDirection();
+    if (held !== null && held === this.lastStepDir && this.repeatAccum >= REPEAT_DELAY_SECONDS) {
+      this.repeatAccum = 0;
+      this.tryStep(held);
+      return;
+    }
+    if (held !== null && held !== this.lastStepDir) {
+      this.repeatAccum = 0;
+    }
+    if (held !== null) {
+      this.repeatAccum += dt;
+    } else {
+      this.repeatAccum = 0;
+      this.lastStepDir = null;
+    }
+  }
+
+  private tryStep(direction: InputDirection): void {
     const transform = this.playerTransform;
     if (transform === null) {
       return;

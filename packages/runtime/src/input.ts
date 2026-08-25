@@ -75,6 +75,7 @@ export class Input {
   private readonly pressed = new Set<string>();
   private heldDirection: InputDirection | null = null;
   private readonly directionStack: InputDirection[] = [];
+  private readonly directionEdges: InputDirection[] = [];
   private confirmQueued = 0;
   private cancelQueued = 0;
 
@@ -136,6 +137,7 @@ export class Input {
     this.pressed.clear();
     this.heldDirection = null;
     this.directionStack.length = 0;
+    this.directionEdges.length = 0;
     this.confirmQueued = 0;
     this.cancelQueued = 0;
   }
@@ -224,6 +226,7 @@ export class Input {
       return;
     }
     this.directionStack.push(direction);
+    this.directionEdges.push(direction);
     this.heldDirection = direction;
   }
 
@@ -235,6 +238,15 @@ export class Input {
     }
     this.heldDirection =
       this.directionStack.length > 0 ? this.directionStack[this.directionStack.length - 1]! : null;
+  }
+
+  /**
+   * Consume the next direction press (edge-triggered: one step per press).
+   * Returns null when no fresh press is queued.
+   */
+  consumeDirectionEdge(): InputDirection | null {
+    const edge = this.directionEdges.shift();
+    return edge ?? null;
   }
 
   /** Queue one confirm edge (used by the A button and tests). */

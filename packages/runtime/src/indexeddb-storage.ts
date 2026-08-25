@@ -25,8 +25,11 @@ export interface IndexedDBStorageOptions {
   storeName?: string;
   /** Slot key inside the store. Default "default". */
   key?: string;
-  /** Injectable IDB factory (fake-indexeddb in tests). Default `indexedDB`. */
-  idb?: IDBFactory;
+  /**
+   * Injectable IDB factory (fake-indexeddb in tests). Pass `null` to force
+   * "unavailable" behavior. Defaults to the global `indexedDB`.
+   */
+  idb?: IDBFactory | null;
   logger?: Logger;
 }
 
@@ -37,7 +40,7 @@ export const DEFAULT_INDEXEDDB_STORE = "saves";
 /** Default slot key. */
 export const DEFAULT_INDEXEDDB_KEY = "default";
 
-function resolveIDB(idb: IDBFactory | undefined): IDBFactory | null {
+function resolveIDB(idb: IDBFactory | null | undefined): IDBFactory | null {
   if (idb !== undefined) {
     return idb;
   }

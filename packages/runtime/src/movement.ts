@@ -9,7 +9,7 @@
  * solid tile AABBs, and against other entities' solid colliders.
  */
 import type { Collider, MapData } from "@agenticrpg/core";
-import { aabbsOverlap, shapeToLocalAABB, type AABB } from "@agenticrpg/core";
+import { shapeToLocalAABB, type AABB } from "@agenticrpg/core";
 import type { GameObject } from "@agenticrpg/core";
 import type { Vec2 } from "@agenticrpg/core";
 
@@ -124,7 +124,10 @@ export function checkStep(input: StepCheckInput): StepCheckResult {
     return { blocked: true, blockerId: "map" };
   }
 
-  // Entity check.
+  // Entity check. Uses strict overlap so a mover may stand adjacent to a
+  // solid entity (RPG convention: talk to an NPC from the next tile) but may
+  // not enter the entity's tile. The core `aabbsOverlap` counts touching edges
+  // as overlap, which would forbid adjacency — hence the strict variant here.
   for (const entity of input.blockers ?? []) {
     if (input.selfId !== undefined && entity.id === input.selfId) {
       continue;
@@ -133,7 +136,7 @@ export function checkStep(input: StepCheckInput): StepCheckResult {
       x: entity.getComponent("transform")?.x ?? 0,
       y: entity.getComponent("transform")?.y ?? 0,
     });
-    if (collider !== null && collider.solid && aabbsOverlap(moverAABB, collider.aabb)) {
+    if (collider !== null && collider.solid && aabbsOverlapStrict(moverAABB, collider.aabb)) {
       return { blocked: true, blockerId: entity.id };
     }
   }
@@ -145,12 +148,21 @@ function placeAABB(local: AABB, at: Vec2): AABB {
   return { x: at.x + local.x, y: at.y + local.y, width: local.width, height: local.height };
 }
 
-/** Whether a world AABB overlaps any solid tile in the grid. */
+/**
+ * Strict AABB overlap (touching edges do NOT count). Matches the grid-tile
+ * model: a 1x1 mover at tile (5,2) does not overlap a solid tile/entity at
+ * (6,2), but does overlap it when stepping into (6,2).
+ */
+export function aabbsOverlapStrict(a: AABB, b: AABB): boolean {
+  return a.x < b.x + b.width && a.x + a.width > b.x && a.y < b.y + b.height && a.y + a.height > b.y;
+}
+
+/** Whether a world AABB strictly overlaps any solid tile in the grid. */
 function overlapsSolidTiles(aabb: AABB, grid: SolidTileGrid): boolean {
-  const minX = Math.floor(aabb.x);
-  const maxX = Math.floor(aabb.x + aabb.width);
-  const minY = Math.floor(aabb.y);
-  const maxY = Math.floor(aabb.y + aabb.height);
+  const minX = Math.floor(aabb.x + EPSILON);
+  const maxX = Math.floor(aabb.x + aabb.width - EPSILON);
+  const minY = Math.floor(aabb.y + EPSILON);
+  const maxY = Math.floor(aabb.y + aabb.height - EPSILON);
   for (let ty = minY; ty <= maxY; ty++) {
     for (let tx = minX; tx <= maxX; tx++) {
       if (grid.isSolid(tx, ty)) {
@@ -160,3 +172,7 @@ function overlapsSolidTiles(aabb: AABB, grid: SolidTileGrid): boolean {
   }
   return false;
 }
+
+/** Small epsilon so an AABB ending exactly on a tile boundary does not
+ *  include the neighboring tile (strict overlap for the grid check). */
+const EPSILON = 1e-9;

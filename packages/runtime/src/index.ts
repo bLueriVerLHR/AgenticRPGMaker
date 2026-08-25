@@ -38,7 +38,7 @@ export { MapScene } from "./map-scene.js";
 export type { MapSceneOptions } from "./map-scene.js";
 
 // Movement + collision.
-export { buildCollisionGrid, checkStep, entityColliderAt } from "./movement.js";
+export { aabbsOverlapStrict, buildCollisionGrid, checkStep, entityColliderAt } from "./movement.js";
 export type { EntityCollider, SolidTileGrid, StepCheckInput, StepCheckResult } from "./movement.js";
 
 // Input: keyboard + virtual D-pad (docs/08 §4.4).

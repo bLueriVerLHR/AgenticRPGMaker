@@ -94,6 +94,7 @@ export class WebSocketTransport implements Transport {
   private seq = 0;
   private sessionIdValue: string | null = null;
   private lastActivityMs = 0;
+  private lastInboundMs = 0;
   private latencyMsValue: number | null = null;
   private leaveSent = false;
 
@@ -178,13 +179,21 @@ export class WebSocketTransport implements Transport {
 
   /**
    * Encode a versioned envelope and send it (assigning the next `seq`).
+   * Works during the handshake too (the `hello` is sent while "handshaking").
    * Fails fast on an invalid envelope.
    */
   sendMessage(envelope: ProtocolEnvelope): boolean {
     const withSeq = { ...envelope, seq: this.nextSeq() };
     try {
       const raw = encodeMessage(withSeq);
-      this.send(raw);
+      if (this.stateValue === "idle" || this.stateValue === "closed") {
+        this.logger.warn("transport: sendMessage ignored (not connected)", {
+          state: this.stateValue,
+          type: envelope.type,
+        });
+        return false;
+      }
+      this.dispatchSend(raw);
       return true;
     } catch (error) {
       this.logger.error("transport: cannot encode outbound message", {
@@ -286,6 +295,7 @@ export class WebSocketTransport implements Transport {
   private handleMessage(data: unknown): void {
     const raw = typeof data === "string" ? data : String(data);
     this.lastActivityMs = this.now();
+    this.lastInboundMs = this.lastActivityMs;
     const decoded = decodeMessageSafe(raw);
     if (!decoded.ok) {
       this.logger.warn("transport: inbound decode failed", {
@@ -359,7 +369,8 @@ export class WebSocketTransport implements Transport {
     }, heartbeatMs);
     this.watchdogTimer = setInterval(
       () => {
-        const idleMs = this.now() - this.lastActivityMs;
+        // Watch for a silent *server*: no inbound message for `timeoutMs`.
+        const idleMs = this.now() - this.lastInboundMs;
         if (idleMs > timeoutMs) {
           this.logger.warn("transport: heartbeat timeout, dropping connection", {
             idleMs,

@@ -30,7 +30,10 @@ const REPO_ROOT = path.resolve(__dirname, "..");
 
 const args = process.argv.slice(2);
 const outDir = flagValue(args, "--out") ?? path.join(REPO_ROOT, "deploy");
-const port = Number(flagValue(args, "--port") ?? 18100);
+// A fresh port per run avoids TIME_WAIT collisions from the previous run's
+// SIGTERM'd server (spdlog block-buffers on pipes, so a failed bind shows up
+// as a truncated log + exit 1).
+const port = Number(flagValue(args, "--port") ?? 18100 + Math.floor(Math.random() * 500));
 const BASE = `http://127.0.0.1:${port}`;
 
 function flagValue(argv, name) {
@@ -129,11 +132,38 @@ async function main() {
     { cwd: outDir, stdio: ["ignore", "pipe", "pipe"] },
   );
   let serverLog = "";
+  let serverExit = null;
   server.stdout.on("data", (c) => (serverLog += c.toString()));
   server.stderr.on("data", (c) => (serverLog += c.toString()));
-  await sleep(1200);
+  server.on("exit", (code) => {
+    serverExit = code;
+  });
+  // Wait until the server actually accepts connections (up to ~6 s).
+  let reachable = false;
+  for (let i = 0; i < 30 && !reachable; i++) {
+    if (serverExit !== null) {
+      break;
+    }
+    try {
+      const res = await fetch(BASE + "/");
+      reachable = res.ok || res.status >= 400;
+    } catch {
+      /* not up yet */
+    }
+    if (!reachable) {
+      await sleep(200);
+    }
+  }
 
   try {
+    if (!reachable) {
+      report(
+        "server start",
+        false,
+        `process exited=${serverExit} log: ${serverLog.trim() || "(no output)"}`,
+      );
+      throw new Error("agenticrpg-server did not become reachable");
+    }
     // Bind address (VPS mode).
     report(
       "bind 0.0.0.0 (VPS mode)",

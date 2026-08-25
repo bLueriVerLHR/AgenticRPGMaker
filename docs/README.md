@@ -28,6 +28,7 @@ again after the work actually completes.
 | [ADR-004](./04-adr/ADR-004.md) | Multiplayer protocol v1 (WebSocket + JSON) | proposed | 2026-08-25 |
 | [ADR-005](./04-adr/ADR-005.md) | C++ relay / state-sync server (C++20 + Asio + websocketpp) | proposed | 2026-08-25 |
 | [ADR-006](./04-adr/ADR-006.md) | Web editor (React + TypeScript + Vite) | proposed | 2026-08-25 |
+| [ADR-007](./04-adr/ADR-007.md) | Agentic operability & agent-readable docs | accepted | 2026-08-25 |
 
 ## The WAL process in this project
 

@@ -25,15 +25,16 @@ export interface HttpChunkLoaderOptions {
 export class HttpChunkLoader implements ChunkLoader {
   private readonly baseDir: string;
   private readonly parser: ChunkParser;
-  private readonly fetchImpl: typeof fetch;
+  private readonly fetchImpl: ((url: string) => Promise<Response>) | undefined;
   private readonly logger: Logger;
 
   constructor(options: HttpChunkLoaderOptions) {
     this.baseDir = options.baseDir.endsWith("/") ? options.baseDir : `${options.baseDir}/`;
     this.parser = options.parser;
+    // Wrap the native fetch in a closure: calling it as `this.fetchImpl(url)`
+    // would detach `this` and throw "Illegal invocation" in browsers.
     this.fetchImpl =
-      options.fetchImpl ??
-      ((typeof fetch === "function" ? fetch : undefined) as unknown as typeof fetch);
+      options.fetchImpl ?? (typeof fetch === "function" ? (url: string) => fetch(url) : undefined);
     this.logger = options.logger ?? createNoopLogger();
   }
 

@@ -223,6 +223,7 @@ export function createWorldGame(options: CreateWorldGameOptions): WorldGame {
       loop.stop();
       running = false;
       sceneManager.clear();
+      worldScene.dispose(); // full teardown (exit() is a backgrounding pause)
       logger.info("game: disposed (world)");
     },
 

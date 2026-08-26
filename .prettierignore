@@ -14,3 +14,5 @@ node_modules/
 work/
 pnpm-lock.yaml
 LICENSE
+# Generated demo data (reproducible via scripts/gen-open-world.mjs).
+packages/runtime/world-demo/public/

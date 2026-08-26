@@ -84,6 +84,32 @@ describe("worldSchema", () => {
     expect(world.chunks[0]!.combatants).toEqual([{ id: "en_1", type: "slime", x: 3, y: 4 }]);
   });
 
+  it("keeps the optional onDefeatSwitch on a combatant", () => {
+    const world = parseWorldDocument(
+      makeWorld({
+        chunks: [
+          {
+            id: "c00",
+            file: "data/chunks/c00.json",
+            col: 0,
+            row: 0,
+            combatants: [{ id: "en_1", type: "slime", x: 1, y: 1, onDefeatSwitch: "sw_win" }],
+          },
+          { id: "c10", file: "data/chunks/c10.json", col: 1, row: 0 },
+          { id: "c01", file: "data/chunks/c01.json", col: 0, row: 1 },
+          { id: "c11", file: "data/chunks/c11.json", col: 1, row: 1 },
+        ],
+      }),
+    );
+    expect(world.chunks[0]!.combatants[0]).toEqual({
+      id: "en_1",
+      type: "slime",
+      x: 1,
+      y: 1,
+      onDefeatSwitch: "sw_win",
+    });
+  });
+
   it("preserves global variables and switches", () => {
     const world = parseWorldDocument(
       makeWorld({ global: { variables: { gold: 42 }, switches: { sw_open: true } } }),

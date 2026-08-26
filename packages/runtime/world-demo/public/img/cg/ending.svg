@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="640" height="480" viewBox="0 0 640 480">
+  <defs>
+    <linearGradient id="dawn" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#ff9a3c"/>
+      <stop offset="0.55" stop-color="#ffd54f"/>
+      <stop offset="1" stop-color="#4a5a3a"/>
+    </linearGradient>
+  </defs>
+  <rect width="640" height="480" fill="url(#dawn)"/>
+  <circle cx="320" cy="240" r="90" fill="#fff8dc" opacity="0.9"/>
+  <path d="M0 320 L120 260 L240 320 L400 250 L520 320 L640 270 L640 480 L0 480 Z" fill="#3a4a2a"/>
+  <rect x="150" y="180" width="26" height="90" fill="#333"/>
+  <rect x="470" y="170" width="26" height="100" fill="#333"/>
+  <rect x="156" y="184" width="14" height="90" fill="#ffd54f"/>
+  <rect x="476" y="174" width="14" height="100" fill="#ffb300"/>
+  <text x="320" y="440" font-family="monospace" font-size="30" fill="#2b1e0a" text-anchor="middle" letter-spacing="6">THE END</text>
+  <text x="320" y="468" font-family="monospace" font-size="13" fill="#3a4a2a" text-anchor="middle">the beacon burns again</text>
+</svg>

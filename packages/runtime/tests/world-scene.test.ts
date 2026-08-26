@@ -115,7 +115,7 @@ function makeFixture(intro: WorldData["intro"] = []): {
         col: 0,
         row: 0,
         combatants: [
-          { id: "slime_atk", type: "slime", x: 4, y: 3 },
+          { id: "slime_atk", type: "slime", x: 4, y: 3, onDefeatSwitch: "sw_slime_down" },
           { id: "turret_doom", type: "turret", x: 2, y: 5 },
           { id: "chaser", type: "slime_fast", x: 2, y: 6 },
         ],
@@ -309,7 +309,7 @@ describe("WorldScene", () => {
     h.scene.exit();
   });
 
-  it("plays the intro CG once (gate: sw_intro_done)", async () => {
+  it("plays the intro CG once (gate: sw_intro_done, fires on first update)", async () => {
     const h = makeHarness({
       intro: [
         { cmd: "bgm", args: ["title"] },
@@ -319,7 +319,8 @@ describe("WorldScene", () => {
     });
     h.scene.enter({ bus: h.bus, state: h.state, logger: createNoopLogger() });
     await waitUntil(() => h.scene.isReady, "readiness");
-    await waitUntil(() => h.openedCg.length > 0, "intro CG");
+    expect(h.openedCg).toHaveLength(0); // deferred until the world is current
+    h.scene.update(0.016); // the world is now the active scene → intro fires
     expect(h.openedCg).toHaveLength(1);
     expect(h.openedCg[0]![0]).toEqual({ kind: "bgm", ref: "title" });
     expect(h.state.getSwitch("sw_intro_done")).toBe(true);
@@ -328,6 +329,7 @@ describe("WorldScene", () => {
     h.openedCg.length = 0;
     h.scene.enter({ bus: h.bus, state: h.state, logger: createNoopLogger() });
     await waitUntil(() => h.scene.isReady, "readiness");
+    h.scene.update(0.016);
     expect(h.openedCg).toHaveLength(0); // switch set → no replay
     h.scene.exit();
   });
@@ -350,6 +352,7 @@ describe("WorldScene", () => {
     h.input.queueConfirm();
     h.scene.update(0.016); // swing 2 → kill + autosave
     expect(h.scene.combatSystem.views().find((c) => c.docId === "slime_atk")).toBeUndefined();
+    expect(h.state.getSwitch("sw_slime_down")).toBe(true); // onDefeatSwitch fired
 
     const start = Date.now();
     let stored: Awaited<ReturnType<MemoryWorldStorage["load"]>> = null;

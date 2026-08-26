@@ -24,6 +24,8 @@ export const worldCombatantSchema = z.object({
   /** Local tile coordinates inside the chunk. */
   x: z.number().int().nonnegative(),
   y: z.number().int().nonnegative(),
+  /** Optional global switch set to true when this combatant is defeated. */
+  onDefeatSwitch: z.string().min(1).optional(),
 });
 
 /** Combat tuning per type (ADR-009 §5: HP, contact damage, behavior, speed). */

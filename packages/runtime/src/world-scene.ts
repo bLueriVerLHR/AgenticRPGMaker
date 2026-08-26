@@ -154,6 +154,8 @@ export class WorldScene implements Scene {
   private tilesetsRegistered = false;
   /** Bus dialogue is suppressed while a CG-marked page runs (its lines replay inside the CG). */
   private suppressingDialogueForCg = false;
+  /** The intro CG triggers once, on the first world update (post-title). */
+  private introTriggered = false;
   /** On-map combat (ADR-009, S4): enemies, projectiles, the player sword. */
   private readonly combat: CombatSystem;
 
@@ -243,6 +245,11 @@ export class WorldScene implements Scene {
     return backend ?? "unknown";
   }
 
+  /** The world manifest this scene runs (HUD/logging/tests). */
+  get worldData(): WorldData {
+    return this.world;
+  }
+
   /** The live input instance (the CG scene reuses it during handoff). */
   get inputInstance(): Input | null {
     return this.input;
@@ -280,6 +287,10 @@ export class WorldScene implements Scene {
     if (!this.ready) {
       return;
     }
+    if (!this.introTriggered) {
+      this.introTriggered = true;
+      this.playIntroIfDue(); // world is current → the opening CG may fire now
+    }
     this.advanceStep(dt);
     this.handleMovement(dt);
     this.handleConfirm();
@@ -301,6 +312,16 @@ export class WorldScene implements Scene {
   }
 
   exit(): void {
+    // The world is only ever backgrounded (title/CG handoff) or disposed via
+    // `dispose()`; it is never permanently left through exit(). So exit() is
+    // a pause: it must NOT destroy input, HUD, or bus subscriptions, because
+    // re-enter() is a no-op and the scene simply resumes when it becomes the
+    // current scene again. Full teardown happens in `dispose()`.
+    this.logger.debug("scene: world backgrounded (paused)", { world: this.world.id });
+  }
+
+  /** Full teardown (game dispose): unsubscribes, removes DOM, frees input. */
+  dispose(): void {
     if (!this.entered) {
       return;
     }
@@ -321,11 +342,12 @@ export class WorldScene implements Scene {
     this.input = null;
     this.virtualInput?.dispose();
     this.virtualInput = null;
+    this.combat.clear();
     this.dialogueQueue = [];
     this.step = null;
     this.lastStepDir = null;
     this.repeatAccum = 0;
-    this.logger.info("scene: world exited", { world: this.world.id });
+    this.logger.info("scene: world disposed", { world: this.world.id });
   }
 
   /**
@@ -427,7 +449,9 @@ export class WorldScene implements Scene {
     }
     this.ready = true;
     this.updateHud();
-    this.playIntroIfDue();
+    // The intro is NOT played here: it must wait until the world scene is
+    // actually current (a title screen may precede it), so it triggers on the
+    // first world update instead.
   }
 
   /** The world's `intro` commands run once, gated by `sw_intro_done`. */
@@ -776,11 +800,17 @@ export class WorldScene implements Scene {
     }
   }
 
-  /** A combatant died: remember it (save-v2 delta) and autosave the victory. */
+  /** A combatant died: remember it (save-v2 delta), fire its story switch, autosave. */
   private onCombatantDefeated(chunkId: string, combatantId: string): void {
     const set = this.defeatedByChunk.get(chunkId) ?? new Set<string>();
     set.add(combatantId);
     this.defeatedByChunk.set(chunkId, set);
+    const chunk = this.world.chunks.find((c) => c.id === chunkId);
+    const def = chunk?.combatants.find((c) => c.id === combatantId);
+    if (def?.onDefeatSwitch !== undefined) {
+      this.state.setSwitch(def.onDefeatSwitch, true);
+      this.logger.info("combat: story switch set", { switch: def.onDefeatSwitch });
+    }
     void this.save().then((ok) => {
       if (ok) {
         this.logger.info("combat: victory autosave", { combatantId, chunkId });

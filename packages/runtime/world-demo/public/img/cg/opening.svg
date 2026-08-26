@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="640" height="480" viewBox="0 0 640 480">
+  <defs>
+    <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#0b1026"/>
+      <stop offset="1" stop-color="#2b1e3a"/>
+    </linearGradient>
+  </defs>
+  <rect width="640" height="480" fill="url(#sky)"/>
+  <circle cx="540" cy="120" r="42" fill="#3a3a4a"/>
+  <rect x="516" y="90" width="48" height="120" fill="#1c1c28"/>
+  <rect x="502" y="200" width="76" height="10" fill="#1c1c28"/>
+  <rect x="520" y="206" width="40" height="120" fill="#2a2a38"/>
+  <rect x="522" y="212" width="12" height="120" fill="#ffd54f"/>
+  <rect x="546" y="212" width="12" height="120" fill="#ffb300"/>
+  <text x="320" y="430" font-family="monospace" font-size="26" fill="#e8e6df" text-anchor="middle" letter-spacing="4">THE CROSSROADS</text>
+  <text x="320" y="458" font-family="monospace" font-size="13" fill="#8d99ae" text-anchor="middle">the beacon has gone dark</text>
+</svg>

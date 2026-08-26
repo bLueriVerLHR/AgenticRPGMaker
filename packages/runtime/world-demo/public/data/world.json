@@ -1,0 +1,200 @@
+{
+  "schemaVersion": 1,
+  "id": "world_crossroads",
+  "name": "The Crossroads",
+  "chunkSize": 64,
+  "grid": {
+    "cols": 3,
+    "rows": 3
+  },
+  "chunks": [
+    {
+      "id": "ch_village",
+      "file": "chunks/ch_village.json",
+      "col": 1,
+      "row": 1
+    },
+    {
+      "id": "ch_wilds",
+      "file": "chunks/ch_wilds.json",
+      "col": 1,
+      "row": 0,
+      "combatants": [
+        {
+          "id": "slime_a",
+          "type": "slime",
+          "x": 34,
+          "y": 20,
+          "onDefeatSwitch": "sw_wilds_cleared"
+        },
+        {
+          "id": "slime_b",
+          "type": "slime",
+          "x": 36,
+          "y": 24,
+          "onDefeatSwitch": "sw_wilds_cleared"
+        }
+      ]
+    },
+    {
+      "id": "ch_fortress",
+      "file": "chunks/ch_fortress.json",
+      "col": 2,
+      "row": 1,
+      "combatants": [
+        {
+          "id": "sentinel",
+          "type": "turret",
+          "x": 32,
+          "y": 28,
+          "onDefeatSwitch": "sw_boss_defeated"
+        }
+      ]
+    },
+    {
+      "id": "ch_nw",
+      "file": "chunks/ch_nw.json",
+      "col": 0,
+      "row": 0
+    },
+    {
+      "id": "ch_ne",
+      "file": "chunks/ch_ne.json",
+      "col": 2,
+      "row": 0
+    },
+    {
+      "id": "ch_w",
+      "file": "chunks/ch_w.json",
+      "col": 0,
+      "row": 1
+    },
+    {
+      "id": "ch_s",
+      "file": "chunks/ch_s.json",
+      "col": 1,
+      "row": 2
+    },
+    {
+      "id": "ch_sw",
+      "file": "chunks/ch_sw.json",
+      "col": 0,
+      "row": 2
+    },
+    {
+      "id": "ch_se",
+      "file": "chunks/ch_se.json",
+      "col": 2,
+      "row": 2
+    }
+  ],
+  "combatTypes": {
+    "slime": {
+      "hp": 2,
+      "damage": 1,
+      "behavior": "chase",
+      "speed": 1.2
+    },
+    "slime_fast": {
+      "hp": 2,
+      "damage": 1,
+      "behavior": "chase",
+      "speed": 1.6
+    },
+    "turret": {
+      "hp": 6,
+      "damage": 1,
+      "behavior": "turret",
+      "speed": 0
+    }
+  },
+  "spawn": {
+    "chunkId": "ch_village",
+    "x": 32,
+    "y": 32,
+    "direction": "down"
+  },
+  "tilesets": [
+    "tilesets/placeholder"
+  ],
+  "global": {
+    "variables": {
+      "gold": 0
+    },
+    "switches": {}
+  },
+  "intro": [
+    {
+      "cmd": "bgm",
+      "args": [
+        "title"
+      ]
+    },
+    {
+      "cmd": "fadeOut",
+      "args": [
+        "#000000",
+        300
+      ]
+    },
+    {
+      "cmd": "showCg",
+      "args": [
+        "img/cg/opening.svg"
+      ]
+    },
+    {
+      "cmd": "fadeIn",
+      "args": [
+        700
+      ]
+    },
+    {
+      "cmd": "letterbox",
+      "args": [
+        true
+      ]
+    },
+    {
+      "cmd": "showText",
+      "args": [
+        "边境的烽火……熄灭了。"
+      ]
+    },
+    {
+      "cmd": "showText",
+      "args": [
+        "长老将剑交到你手中:「一路向北,穿过荒野,点亮北关的烽火。」"
+      ]
+    },
+    {
+      "cmd": "showText",
+      "args": [
+        "方向键/WASD 移动 · Z/Enter 对话或挥剑 · F5 存档"
+      ]
+    },
+    {
+      "cmd": "letterbox",
+      "args": [
+        false
+      ]
+    },
+    {
+      "cmd": "bgm",
+      "args": [
+        "village"
+      ]
+    },
+    {
+      "cmd": "setSwitch",
+      "args": [
+        "sw_intro_done",
+        true
+      ]
+    },
+    {
+      "cmd": "endCg",
+      "args": []
+    }
+  ]
+}

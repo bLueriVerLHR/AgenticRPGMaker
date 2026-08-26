@@ -69,6 +69,15 @@ export {
 } from "./indexeddb-storage.js";
 export type { IndexedDBStorageOptions } from "./indexeddb-storage.js";
 
+// World-mode storage + chunk streaming (ADR-008, S3c).
+export { MemoryWorldStorage, IndexedDBWorldStorage } from "./world-storage.js";
+export { DEFAULT_WORLD_SAVES_KEY, DEFAULT_WORLD_SAVES_STORE } from "./world-storage.js";
+export type { IndexedDBWorldStorageOptions, WorldStorage } from "./world-storage.js";
+export { createChunkParser } from "./chunk-parser.js";
+export type { ChunkParser, ChunkParserOptions, ChunkWorkerLike } from "./chunk-parser.js";
+export { ChunkStore } from "./chunk-store.js";
+export type { ChunkLoader, ChunkStoreOptions } from "./chunk-store.js";
+
 // Transport (ADR-004).
 export { TokenBucket, WS_CLOSED, WS_CLOSING, WS_CONNECTING, WS_OPEN } from "./transport.js";
 export type {

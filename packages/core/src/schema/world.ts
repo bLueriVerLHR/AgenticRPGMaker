@@ -35,6 +35,13 @@ export const combatTypeSchema = z.object({
   behavior: z.enum(["chase", "turret"]),
   /** Movement in tile-steps per second (0 = stationary, e.g. turret). */
   speed: z.number().min(0),
+  /**
+   * Chebyshev aggro range in tiles: a chaser only pursues/contacts the player
+   * within this distance (leash — otherwise a long overland walk would get
+   * worn down by a cross-chunk chase). Turrets are unaffected (their shot
+   * range is PROJECTILE_MAX_TILES).
+   */
+  aggroRange: z.number().int().positive().optional(),
 });
 
 export const worldChunkSchema = z.object({

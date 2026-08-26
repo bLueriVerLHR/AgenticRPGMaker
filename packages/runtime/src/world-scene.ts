@@ -250,6 +250,16 @@ export class WorldScene implements Scene {
     return this.world;
   }
 
+  /** Story switch value (E2E assertions, debug). */
+  getSwitch(name: string): boolean {
+    return this.state.getSwitch(name);
+  }
+
+  /** Story variable value (E2E assertions, debug). */
+  getVariable(name: string): number {
+    return this.state.getVariable(name);
+  }
+
   /** The live input instance (the CG scene reuses it during handoff). */
   get inputInstance(): Input | null {
     return this.input;
@@ -467,7 +477,12 @@ export class WorldScene implements Scene {
       pages: [{ condition: null, commands: this.world.intro }],
     };
     this.logger.info("scene: playing intro CG", { world: this.world.id });
+    // The intro's dialogue lines replay inside the CgScene; suppress the
+    // world dialogue queue so no stray box stays open after the CG ends.
+    const wasSuppressing = this.suppressingDialogueForCg;
+    this.suppressingDialogueForCg = true;
     const result = this.interpreter.runEvent(introEvent, { actorId: "world:intro" });
+    this.suppressingDialogueForCg = wasSuppressing;
     const script = buildCgScript(result.effects);
     if (script.length > 0) {
       this.onOpenCg?.(script);

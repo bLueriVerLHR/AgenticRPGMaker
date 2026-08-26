@@ -45,6 +45,11 @@ describe("The Crossroads demo world", () => {
     expect(world.chunks).toHaveLength(9);
     expect(world.spawn.chunkId).toBe("ch_village");
     expect(world.spawn.direction).toBe("down");
+    // Spawn is in GLOBAL tile coordinates; the village occupies (64..127)².
+    expect(world.spawn.x).toBeGreaterThanOrEqual(64);
+    expect(world.spawn.x).toBeLessThan(128);
+    expect(world.spawn.y).toBeGreaterThanOrEqual(64);
+    expect(world.spawn.y).toBeLessThan(128);
   });
 
   it("has 64×64 maps with ground + collider layers", () => {

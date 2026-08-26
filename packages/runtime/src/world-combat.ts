@@ -64,6 +64,8 @@ const TURRET_FIRE_INTERVAL_SECONDS = 2.4;
 const ATTACK_COOLDOWN_SECONDS = 0.35;
 const HIT_FLASH_SECONDS = 0.15;
 const PLAYER_ATTACK_DAMAGE = 1;
+/** Default chase aggro leash (tiles) when the type does not specify one. */
+const DEFAULT_AGGRO_RANGE = 8;
 
 interface CombatantState extends CombatantView {
   speed: number;
@@ -279,6 +281,13 @@ export class CombatSystem {
   // ------------------------------------------------------------------
 
   private updateChase(state: CombatantState, dt: number, player: Vec2): void {
+    // Leash: idle until the player is within the type's aggro range (otherwise
+    // a cross-chunk walk would get worn down by an infinite chase).
+    const aggroRange = this.combatType(state).aggroRange ?? DEFAULT_AGGRO_RANGE;
+    const distance = Math.max(Math.abs(player.x - state.x), Math.abs(player.y - state.y));
+    if (distance > aggroRange) {
+      return;
+    }
     state.stepAccum += dt * state.speed;
     while (state.stepAccum >= 1 && state.alive) {
       state.stepAccum -= 1;
@@ -371,6 +380,7 @@ export class CombatSystem {
         damage: 1,
         behavior: "chase",
         speed: 0,
+        aggroRange: DEFAULT_AGGRO_RANGE,
       }
     );
   }

@@ -21,6 +21,7 @@
     "test": "vitest run",
     "build:demo": "vite build --config demo/vite.config.ts",
     "test:e2e": "node e2e/run-e2e.mjs",
+    "test:world": "node e2e/run-world-e2e.mjs",
     "test:multiplayer": "node e2e/e2e-multiplayer.mjs"
   },
   "dependencies": {

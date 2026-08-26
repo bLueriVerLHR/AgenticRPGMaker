@@ -153,7 +153,7 @@ function wildsEvents() {
 
 function fortressEvents() {
   return [
-    event("evt_guard", "Gate Guard", 30, 42, "characters/guard", [
+    event("evt_guard", "Gate Guard", 30, 40, undefined, [
       {
         condition: { switchId: "sw_wilds_cleared", value: true },
         commands: [textPage("「你竟穿过了荒野……哨兵就守在烽火台下,去点亮它吧。」").commands[0]],
@@ -205,17 +205,39 @@ function buildChunks() {
 
   const fortress = makeChunk("Northgate Fortress");
   paint(fortress, 0, 0, CHUNK, CHUNK, PATH); // stone floor (walkable path tile)
-  paint(fortress, 32, 0, 1, CHUNK, ROCK); // central spine wall
-  paint(fortress, 0, 32, 64, 1, ROCK); // moat wall
-  paint(fortress, 60, 24, 4, 8, ROCK); // gatehouse block
-  paint(fortress, 0, 24, 4, 8, ROCK); // gatehouse block (west)
-  scatter(fortress, mulberry32(13), 20, ROCK);
+  // Corner bastions (decorative, off the main path).
+  paint(fortress, 2, 2, 6, 6, ROCK);
+  paint(fortress, 56, 2, 6, 6, ROCK);
+  paint(fortress, 2, 56, 6, 6, ROCK);
+  paint(fortress, 56, 56, 6, 6, ROCK);
+  // Scattered rocks but never on the central path (x 28..36 / y 28..36),
+  // the guard→beacon access column (x 26..34), or the arena row (y 36..46).
+  const rngF = mulberry32(13);
+  for (let i = 0; i < 18; i++) {
+    const x = 2 + Math.floor(rngF() * 60);
+    const y = 2 + Math.floor(rngF() * 60);
+    const protectedZone =
+      (x >= 28 && x <= 36 && y >= 28 && y <= 36) || (x >= 26 && x <= 34) || (y >= 36 && y <= 46);
+    if (!protectedZone && fortress.ground[y]?.[x] === PATH) {
+      paint(fortress, x, y, 2, 2, ROCK);
+    }
+  }
 
-  // Connector chunks: simple paths linking the grid.
+  // Connector chunks: travel routes between regions — keep them mostly open
+  // (a few rocks, never on the cross-road bands so overland routes stay clear).
   const makeConnector = (seed) => {
     const chunk = makeChunk("Forest Road");
     crossRoads(chunk);
-    scatter(chunk, mulberry32(seed), 45, ROCK);
+    const rng = mulberry32(seed);
+    for (let i = 0; i < 10; i++) {
+      const x = Math.floor(rng() * CHUNK);
+      const y = Math.floor(rng() * CHUNK);
+      const onPath = x >= 31 && x <= 33 && y >= 31 && y <= 33;
+      if (!onPath && chunk.ground[y]?.[x] === GRASS) {
+        chunk.ground[y][x] = ROCK;
+        chunk.colliders[y][x] = 1;
+      }
+    }
     return chunk;
   };
   const nw = makeConnector(1);
@@ -245,7 +267,7 @@ function buildChunks() {
       chunk: fortress,
       events: fortressEvents(),
       combatants: [
-        { id: "sentinel", type: "turret", x: 32, y: 28, onDefeatSwitch: "sw_boss_defeated" },
+        { id: "sentinel", type: "turret", x: 40, y: 42, onDefeatSwitch: "sw_boss_defeated" },
       ],
     },
     { id: "ch_nw", col: 0, row: 0, chunk: nw, events: [] },
@@ -357,11 +379,11 @@ function buildWorld(chunkEntries) {
         : {}),
     })),
     combatTypes: {
-      slime: { hp: 2, damage: 1, behavior: "chase", speed: 1.2 },
-      slime_fast: { hp: 2, damage: 1, behavior: "chase", speed: 1.6 },
+      slime: { hp: 2, damage: 1, behavior: "chase", speed: 1.2, aggroRange: 6 },
+      slime_fast: { hp: 2, damage: 1, behavior: "chase", speed: 1.6, aggroRange: 6 },
       turret: { hp: 6, damage: 1, behavior: "turret", speed: 0 },
     },
-    spawn: { chunkId: "ch_village", x: 32, y: 32, direction: "down" },
+    spawn: { chunkId: "ch_village", x: 64 + 32, y: 64 + 32, direction: "down" },
     tilesets: [TILESET],
     global: { variables: { gold: 0 }, switches: {} },
     intro: [

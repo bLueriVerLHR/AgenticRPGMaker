@@ -133,6 +133,19 @@ describe("CombatSystem", () => {
     expect(a).toMatchObject({ x: 2, y: 2 });
   });
 
+  it("idles beyond its aggro range (leash), then chases when approached", () => {
+    const h = makeHarness();
+    h.system.spawnForChunk("c_0_0");
+    // slimeA (2,2) speed 1; player far away (aggro default 8, chebyshev 9).
+    h.player = { x: 11, y: 2 };
+    h.system.update(5.0);
+    expect(h.system.views().find((c) => c.docId === "slimeA")).toMatchObject({ x: 2, y: 2 });
+    // Bring the player within range → it chases now.
+    h.player = { x: 9, y: 2 }; // chebyshev 7 ≤ 8
+    h.system.update(1.0);
+    expect(h.system.views().find((c) => c.docId === "slimeA")).toMatchObject({ x: 3, y: 2 });
+  });
+
   it("deals contact damage when stepping into the player's tile", () => {
     const h = makeHarness();
     h.system.spawnForChunk("c_0_0");

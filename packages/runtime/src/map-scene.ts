@@ -129,6 +129,8 @@ export class MapScene implements Scene {
   private hud: HudElements | null = null;
   private saveToastEl: HTMLElement | null = null;
   private entered = false;
+  /** Whether the tilesets have been registered with the renderer (once). */
+  private tilesetsRegistered = false;
 
   private readonly busUnsubscribers: Array<() => void> = [];
   private readonly domCleanup: Array<() => void> = [];
@@ -422,7 +424,6 @@ export class MapScene implements Scene {
     position.textContent = "0,0";
     const status = document.createElement("span");
     status.dataset.testid = "hud-status";
-    status.textContent = "online" in (this.network ?? {}) ? "" : "";
     status.textContent = this.network !== null ? "network: connecting" : "network: offline";
     const sep = (): HTMLElement => {
       const s = document.createElement("span");
@@ -507,11 +508,15 @@ export class MapScene implements Scene {
       });
       this.virtualInput = virtual;
 
+      // Save/load shortcuts. F5/F9 are used (not letters) so they never
+      // collide with the WASD movement bindings in `Input`.
       const onKeyDown = (event: Event): void => {
         const e = event as KeyboardEvent;
-        if (e.code === "KeyS") {
+        if (e.code === "F5") {
+          e.preventDefault();
           void this.save();
-        } else if (e.code === "KeyL") {
+        } else if (e.code === "F9") {
+          e.preventDefault();
           void this.load();
         }
       };
@@ -755,8 +760,14 @@ export class MapScene implements Scene {
     // Optional tile layers (only when tilesets + TileMapRenderer available).
     if (this.tilesets !== undefined && isTileMapRenderer(renderer)) {
       const tilemap = renderer as TileMapRenderer;
-      for (const tileset of this.tilesets.values()) {
-        tilemap.registerTileset(tileset);
+      // Registration loads the atlas asynchronously; re-registering every
+      // frame is a no-op but still costs a map lookup + debug log, so the
+      // tilesets are registered once and the binding resolves when ready.
+      if (!this.tilesetsRegistered) {
+        this.tilesetsRegistered = true;
+        for (const tileset of this.tilesets.values()) {
+          tilemap.registerTileset(tileset);
+        }
       }
       for (const layer of this.map.layers) {
         if (isColliderLayer(layer)) {

@@ -240,7 +240,7 @@ async function main() {
     })
       .then(() => "3,2")
       .catch(() => hudPosition(page));
-    await page.keyboard.press("KeyS");
+    await page.keyboard.press("F5");
     await waitFor(
       async () => {
         const toast = await page.locator('[data-testid="save-toast"]').textContent();

@@ -204,6 +204,10 @@ async function createNetworkClient(
     logger.error("boot: network connect failed; continuing single-player", {
       error: String(error),
     });
+    // Tear the half-open client down so the session is genuinely offline
+    // (no dead send loop, no "connecting" HUD forever).
+    client.close("boot_connect_failed");
+    return null;
   }
   return client;
 }

@@ -63,7 +63,7 @@ describe("boot()", () => {
     game.dispose();
   });
 
-  it("continues single-player when the network connect fails", async () => {
+  it("continues single-player (network torn down) when the connect fails", async () => {
     const failingTransport = {
       connect: async () => {
         throw new Error("connect refused");
@@ -79,7 +79,8 @@ describe("boot()", () => {
         network: { url: "ws://127.0.0.1:1/ws", transport: failingTransport as never },
       }),
     );
-    expect(game.network).not.toBeNull();
+    // The half-open client is discarded: the session is genuinely offline.
+    expect(game.network).toBeNull();
     expect(game.sceneManager.current?.id).toBe("map"); // still playable
     game.dispose();
   });

@@ -560,7 +560,7 @@ const INDEX_HTML = `<!doctype html>
       <canvas id="game-canvas" width="640" height="480"></canvas>
     </div>
     <div id="root"></div>
-    <div class="controls-hint">Arrows/WASD walk · Z/Enter talk · X/Esc close · S save · L load</div>
+    <div class="controls-hint">Arrows/WASD walk · Z/Enter talk · X/Esc close · F5 save · F9 load</div>
     <div id="boot-status" data-testid="boot-status" data-status="loading">Loading…</div>
     <script src="js/runtime.js"></script>
   </body>

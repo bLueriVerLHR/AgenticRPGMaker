@@ -5,6 +5,31 @@ Date format: `YYYY-MM-DD`.
 
 ---
 
+## 2026-08-26 — Open-world demo kickoff: design proposal + ADRs 008–010 (docs before code)
+
+Leader opened a new feature: research what a **seamless open-world RPG** needs and
+ship a demo (CG playback, dialogue, events, real-time combat, exploration,
+interaction). Three discussion rounds reached consensus on 18 decisions; the
+proposal and ADRs are written first per the WAL rule (no code yet).
+
+**Details**
+
+- New design doc [09-open-world-rpg.md](./09-open-world-rpg.md) (proposed):
+  3×3 × 64×64 chunked world, streaming chunk pool, grid-step Zelda-minimal action
+  combat, static-CG presentation + minimal WebAudio, save v2, 15-minute vertical
+  slice "The Crossroads".
+- New ADRs (proposed): [ADR-008](./04-adr/ADR-008.md) world streaming + save v2,
+  [ADR-009](./04-adr/ADR-009.md) on-map combat, [ADR-010](./04-adr/ADR-010.md) CG
+  + audio.
+- Key leader decisions: on-map real-time action combat (not turn-based); keep
+  grid-step movement; world manifest + map-v1 chunks (editor untouched); content
+  agent-authored; follow the full WAL/QA gate on a feature branch.
+- Follow-up for the docs workstream: log the decisions in
+  [02-open-questions.md](./02-open-questions.md) once the leader ratifies the
+  proposal.
+- Work happens in the worktree `work/archie` on branch `feat/open-world-demo`
+  (tracking `origin/main`); leader review gates implementation.
+
 ## 2026-08-25 — MVP implementation complete (P0–P5 merged to main @ 94da8da); P6 release: docs aligned to implementation
 
 MVP implementation phases **P0–P5 are all merged to main** (`origin/main` @

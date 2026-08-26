@@ -17,6 +17,7 @@ again after the work actually completes.
 | [`06-architecture.md`](./06-architecture.md) | System architecture: components, boundaries, and data flow. | Read before starting any component work; update as the architecture evolves. |
 | [`07-mvp-plan.md`](./07-mvp-plan.md) | MVP implementation plan: phases, milestones, task breakdown. | Consult when planning/scheduling implementation work; update as the plan changes. |
 | [`08-compatibility-checklist.md`](./08-compatibility-checklist.md) | Portable/runtime compatibility: banned APIs, weak-device/JoiPlay constraints, user verification checklist. | Run before every release; update as the target matrix changes. |
+| [`09-open-world-rpg.md`](./09-open-world-rpg.md) | Open-world seamless streaming + action-RPG demo: design proposal (world manifest, chunk pool, combat, CG/audio). | Proposed 2026-08-26; leader review gates the implementation stages. |
 
 ### ADR index
 
@@ -29,6 +30,9 @@ again after the work actually completes.
 | [ADR-005](./04-adr/ADR-005.md) | C++ relay / state-sync server (C++20 + Asio + websocketpp) | proposed | 2026-08-25 |
 | [ADR-006](./04-adr/ADR-006.md) | Web editor (React + TypeScript + Vite) | proposed | 2026-08-25 |
 | [ADR-007](./04-adr/ADR-007.md) | Agentic operability & agent-readable docs | accepted | 2026-08-25 |
+| [ADR-008](./04-adr/ADR-008.md) | Chunked world streaming: world manifest + map-v1 chunks, save v2 | proposed | 2026-08-26 |
+| [ADR-009](./04-adr/ADR-009.md) | On-map real-time action combat (grid-step Zelda-minimal) | proposed | 2026-08-26 |
+| [ADR-010](./04-adr/ADR-010.md) | CG presentation layer & minimal WebAudio engine | proposed | 2026-08-26 |
 
 ## The WAL process in this project
 

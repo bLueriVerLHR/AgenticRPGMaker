@@ -32,6 +32,7 @@ same change.
 | [ADR-008](./ADR-008.md) | Chunked world streaming: world manifest + map-v1 chunks, save v2 | proposed | 2026-08-26 |
 | [ADR-009](./ADR-009.md) | On-map real-time action combat (grid-step Zelda-minimal) | proposed | 2026-08-26 |
 | [ADR-010](./ADR-010.md) | CG presentation layer & minimal WebAudio engine | proposed | 2026-08-26 |
+| [ADR-011](./ADR-011.md) | Multi-area worlds: named area grids + transfer event command | proposed | 2026-08-27 |
 
 > As decisions land from the kickoff discussion (see
 > [docs/02-open-questions.md](../02-open-questions.md)), each becomes an ADR in this

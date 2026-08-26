@@ -18,6 +18,7 @@ again after the work actually completes.
 | [`07-mvp-plan.md`](./07-mvp-plan.md) | MVP implementation plan: phases, milestones, task breakdown. | Consult when planning/scheduling implementation work; update as the plan changes. |
 | [`08-compatibility-checklist.md`](./08-compatibility-checklist.md) | Portable/runtime compatibility: banned APIs, weak-device/JoiPlay constraints, user verification checklist. | Run before every release; update as the target matrix changes. |
 | [`09-open-world-rpg.md`](./09-open-world-rpg.md) | Open-world seamless streaming + action-RPG demo: design proposal (world manifest, chunk pool, combat, CG/audio). | Proposed 2026-08-26; leader review gates the implementation stages. |
+| [`10-engine-editor-phase2.md`](./10-engine-editor-phase2.md) | Phase-2 engine/editor proposal: on-demand payload loading, multi-area worlds & interiors (doors). | DRAFT — leader review gates implementation. |
 
 ### ADR index
 

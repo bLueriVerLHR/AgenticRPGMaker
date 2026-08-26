@@ -12,6 +12,8 @@ export type RenderCall =
   | { method: "drawTile"; args: unknown[] }
   | { method: "drawSprite"; args: unknown[] }
   | { method: "drawText"; args: unknown[] }
+  | { method: "registerTexture"; args: unknown[] }
+  | { method: "drawTexture"; args: unknown[] }
   | { method: "setCamera"; args: unknown[] }
   | { method: "pushTransform"; args: unknown[] }
   | { method: "popTransform"; args: unknown[] };
@@ -54,6 +56,22 @@ export class StubRenderer implements Renderer {
 
   popTransform(...args: unknown[]): void {
     this.calls.push({ method: "popTransform", args });
+  }
+
+  /** Registered-texture ids for `textureReady`/`drawTexture` tests. */
+  readonly rawTextures = new Set<string>();
+
+  registerTexture(id: string, url: string): void {
+    this.calls.push({ method: "registerTexture", args: [id, url] });
+    this.rawTextures.add(id);
+  }
+
+  drawTexture(...args: unknown[]): void {
+    this.calls.push({ method: "drawTexture", args });
+  }
+
+  textureReady(id: string): boolean {
+    return this.rawTextures.has(id);
   }
 }
 

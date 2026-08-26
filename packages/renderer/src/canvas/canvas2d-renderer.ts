@@ -32,6 +32,7 @@ import { noopRendererLogger } from "../logger.js";
 import type { AtlasTextureManager, ImageSourceLike } from "../texture-manager.js";
 import { computeVisibleTileRange, isTileRangeEmpty } from "../tiles.js";
 import { TilesetRegistry } from "../tileset-registry.js";
+import { fitInto } from "../fit.js";
 import type { TileMapRenderer } from "../tilemap.js";
 
 export interface Canvas2DRendererOptions {
@@ -53,6 +54,7 @@ export class Canvas2DRenderer implements Renderer, TileMapRenderer {
   private camera: Viewport = { x: 0, y: 0, width: 0, height: 0 };
   private zoom = 1;
   private tintWarned = false;
+  private readonly rawTextures = new Map<string, TextureId>();
 
   constructor(options: Canvas2DRendererOptions) {
     this.canvas = options.canvas;
@@ -159,6 +161,69 @@ export class Canvas2DRenderer implements Renderer, TileMapRenderer {
 
   registerTileset(tileset: TilesetData): void {
     this.tilesets.register(tileset);
+  }
+
+  registerTexture(id: string, url: string): void {
+    if (this.rawTextures.has(id)) {
+      return;
+    }
+    void this.textureManager.load(url).then(
+      (textureId) => {
+        this.rawTextures.set(id, textureId);
+      },
+      (error: unknown) => {
+        this.logger.warn("registerTexture: load failed", { id, error: String(error) });
+      },
+    );
+  }
+
+  drawTexture(
+    id: string,
+    x: number,
+    y: number,
+    w: number,
+    h: number,
+    mode: "cover" | "fit" = "cover",
+  ): void {
+    const textureId = this.rawTextures.get(id);
+    if (textureId === undefined) {
+      this.logger.debug("drawTexture: not loaded yet", { id });
+      return;
+    }
+    const frameRect = this.textureManager.getFrame(textureId, 0);
+    const source = this.textureManager.getSource(textureId);
+    if (frameRect === undefined || source === undefined) {
+      this.logger.debug("drawTexture: frame/source not ready", { id });
+      return;
+    }
+    const rect = fitInto({
+      sourceWidth: frameRect.width,
+      sourceHeight: frameRect.height,
+      dest: { x, y, width: w, height: h },
+      mode,
+    });
+    const ctx = this.ctx;
+    // Screen space: identity transform, world camera ignored (ADR-010 §2).
+    ctx.save();
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    ctx.globalAlpha = 1;
+    ctx.drawImage(
+      source as CanvasImageSource,
+      frameRect.x,
+      frameRect.y,
+      frameRect.width,
+      frameRect.height,
+      rect.x,
+      rect.y,
+      rect.width,
+      rect.height,
+    );
+    ctx.restore();
+  }
+
+  textureReady(id: string): boolean {
+    const textureId = this.rawTextures.get(id);
+    return textureId !== undefined && this.textureManager.getFrame(textureId, 0) !== undefined;
   }
 
   drawTileLayer(layer: TileLayer, tilesetId: string, tileSize: number): void {

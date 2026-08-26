@@ -48,6 +48,7 @@ import {
 import { computeVisibleTileRange, isTileRangeEmpty } from "../tiles.js";
 import { TilesetRegistry } from "../tileset-registry.js";
 import type { TileMapRenderer } from "../tilemap.js";
+import { fitInto } from "../fit.js";
 
 const FLOATS_PER_VERTEX = 8;
 const VERTEX_STRIDE_BYTES = FLOATS_PER_VERTEX * 4;
@@ -96,6 +97,7 @@ export class WebGLRenderer implements Renderer, TileMapRenderer {
   private textCanvasValue: HTMLCanvasElement | null = null;
   private textContextValue: CanvasRenderingContext2D | null = null;
   private textRevision = 0;
+  private readonly rawTextures = new Map<string, TextureId>();
 
   constructor(options: WebGLRendererOptions) {
     this.canvas = options.canvas;
@@ -285,6 +287,77 @@ export class WebGLRenderer implements Renderer, TileMapRenderer {
 
   registerTileset(tileset: TilesetData): void {
     this.tilesets.register(tileset);
+  }
+
+  registerTexture(id: string, url: string): void {
+    if (this.rawTextures.has(id)) {
+      return;
+    }
+    void this.textureManager.load(url).then(
+      (textureId) => {
+        this.rawTextures.set(id, textureId);
+      },
+      (error: unknown) => {
+        this.logger.warn("registerTexture: load failed", { id, error: String(error) });
+      },
+    );
+  }
+
+  drawTexture(
+    id: string,
+    x: number,
+    y: number,
+    w: number,
+    h: number,
+    mode: "cover" | "fit" = "cover",
+  ): void {
+    if (this.lost) {
+      return;
+    }
+    const textureId = this.rawTextures.get(id);
+    if (textureId === undefined) {
+      this.logger.debug("drawTexture: not loaded yet", { id });
+      return;
+    }
+    const frameRect = this.textureManager.getFrame(textureId, 0);
+    const source = this.textureManager.getSource(textureId);
+    if (frameRect === undefined || source === undefined) {
+      this.logger.debug("drawTexture: frame/source not ready", { id });
+      return;
+    }
+    const rect = fitInto({
+      sourceWidth: frameRect.width,
+      sourceHeight: frameRect.height,
+      dest: { x, y, width: w, height: h },
+      mode,
+    });
+    // Screen space (ADR-010 §2): flush the world-content batch under the
+    // world projection, draw the still under an identity projection, flush
+    // again, then restore the world camera for subsequent draws.
+    this.batch.flush();
+    const savedCamera = this.camera;
+    const savedZoom = this.zoom;
+    this.camera = { x: 0, y: 0, width: this.canvas.width, height: this.canvas.height };
+    this.zoom = 1;
+    this.pushQuad(
+      textureId,
+      rect.x,
+      rect.y,
+      rect.width,
+      rect.height,
+      frameRect,
+      source,
+      undefined,
+      1,
+    );
+    this.batch.flush();
+    this.camera = savedCamera;
+    this.zoom = savedZoom;
+  }
+
+  textureReady(id: string): boolean {
+    const textureId = this.rawTextures.get(id);
+    return textureId !== undefined && this.textureManager.getFrame(textureId, 0) !== undefined;
   }
 
   drawTileLayer(layer: TileLayer, tilesetId: string, tileSize: number): void {

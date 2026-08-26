@@ -97,7 +97,24 @@ export interface Renderer {
   pushTransform(t: Transform): void;
   /** Pop the last pushed transform. */
   popTransform(): void;
+  /**
+   * Load an image under a stable id and make it drawable via `drawTexture`
+   * (CG stills, ADR-010 §4). Idempotent; async — `textureReady` flips when
+   * the image has been loaded and placed in the texture atlas.
+   */
+  registerTexture(id: string, url: string): void;
+  /**
+   * Draw a registered image into the rectangle (x, y, w, h) in **screen
+   * space** (ignores the world camera — ADR-010). `mode`: "cover" (fills the
+   * rect, overflowing edges are cropped by the canvas) or "fit" (letterboxed).
+   */
+  drawTexture(id: string, x: number, y: number, w: number, h: number, mode?: TextureFitMode): void;
+  /** True once a registered texture has loaded and can be drawn. */
+  textureReady(id: string): boolean;
 }
+
+/** How a registered texture is scaled into its destination rect. */
+export type TextureFitMode = "cover" | "fit";
 
 /**
  * TextureManager — a sibling interface (ADR-002), injected into backends: loads
@@ -163,6 +180,7 @@ export * from "./batch.js";
 export * from "./tilemap.js";
 export * from "./tileset-registry.js";
 export * from "./texture-manager.js";
+export * from "./fit.js";
 export * from "./math/mat3.js";
 export * from "./webgl/gl-context.js";
 export * from "./webgl/shader.js";

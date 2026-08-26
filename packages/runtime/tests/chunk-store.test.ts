@@ -89,10 +89,10 @@ function makeStore(loader: FakeLoader, overrides: Record<string, unknown> = {}) 
     world: makeWorld(),
     loader,
     logger: createNoopLogger(),
-    onChunkLoaded: (id) => loaded.push(id),
-    onChunkEvicted: (id) => evicted.push(id),
     ...overrides,
   });
+  store.onLoaded = (id) => loaded.push(id);
+  store.onEvicted = (id) => evicted.push(id);
   return { store, loaded, evicted };
 }
 

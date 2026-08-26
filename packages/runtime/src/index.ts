@@ -77,6 +77,12 @@ export { createChunkParser } from "./chunk-parser.js";
 export type { ChunkParser, ChunkParserOptions, ChunkWorkerLike } from "./chunk-parser.js";
 export { ChunkStore } from "./chunk-store.js";
 export type { ChunkLoader, ChunkStoreOptions } from "./chunk-store.js";
+export { HttpChunkLoader, baseDirOfWorldUrl } from "./chunk-fetcher.js";
+export type { HttpChunkLoaderOptions } from "./chunk-fetcher.js";
+export { WorldScene } from "./world-scene.js";
+export type { WorldSceneOptions } from "./world-scene.js";
+export { createWorldGame } from "./world-game.js";
+export type { CreateWorldGameOptions, WorldGame } from "./world-game.js";
 
 // Transport (ADR-004).
 export { TokenBucket, WS_CLOSED, WS_CLOSING, WS_CONNECTING, WS_OPEN } from "./transport.js";

@@ -19,8 +19,8 @@ export interface ChunkWorkerLike {
 }
 
 export interface ChunkParserOptions {
-  /** Creates the worker; omit/null ⇒ main-thread parsing. */
-  workerFactory?: (() => ChunkWorkerLike) | null;
+  /** Creates the worker; returns null / throws / omitted ⇒ main thread. */
+  workerFactory?: (() => ChunkWorkerLike | null) | null;
 }
 
 interface WorkerReply {

@@ -29,8 +29,6 @@ export interface ChunkStoreOptions {
   /** Chunks farther than this radius are evicted. Default 2. */
   evictRadius?: number;
   logger?: Logger;
-  onChunkLoaded?: (chunkId: string) => void;
-  onChunkEvicted?: (chunkId: string) => void;
 }
 
 interface ResidentChunk {
@@ -44,8 +42,13 @@ export class ChunkStore {
   private readonly prefetchRadius: number;
   private readonly evictRadius: number;
   private readonly logger: Logger;
-  private readonly onChunkLoaded?: (chunkId: string) => void;
-  private readonly onChunkEvicted?: (chunkId: string) => void;
+
+  /**
+   * Wired after construction by the game assembly: notified when a chunk
+   * becomes resident / leaves memory (entity + collision-grid wiring).
+   */
+  public onLoaded: ((chunkId: string) => void) | undefined;
+  public onEvicted: ((chunkId: string) => void) | undefined;
 
   private readonly resident = new Map<string, ResidentChunk>();
   private readonly inflight = new Map<string, Promise<MapData>>();
@@ -57,8 +60,6 @@ export class ChunkStore {
     this.prefetchRadius = Math.max(0, options.prefetchRadius ?? 1);
     this.evictRadius = Math.max(this.prefetchRadius, options.evictRadius ?? 2);
     this.logger = options.logger ?? createNoopLogger();
-    this.onChunkLoaded = options.onChunkLoaded;
-    this.onChunkEvicted = options.onChunkEvicted;
     for (const chunk of this.world.chunks) {
       this.byCell.set(`${chunk.col}:${chunk.row}`, chunk);
     }
@@ -119,7 +120,7 @@ export class ChunkStore {
           events: map.events.length,
           size: map.width * map.height,
         });
-        this.onChunkLoaded?.(chunkId);
+        this.onLoaded?.(chunkId);
         return map;
       })
       .catch((error: unknown) => {
@@ -165,7 +166,7 @@ export class ChunkStore {
       if (distance > this.evictRadius) {
         this.resident.delete(chunkId);
         this.logger.info("chunk evicted", { chunkId, distance });
-        this.onChunkEvicted?.(chunkId);
+        this.onEvicted?.(chunkId);
       }
     }
   }

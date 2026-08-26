@@ -8,5 +8,7 @@
 export * from "./map.js";
 export * from "./tileset.js";
 export * from "./save.js";
+export * from "./save-v2.js";
 export * from "./project.js";
 export * from "./protocol.js";
+export * from "./world.js";

@@ -16,7 +16,10 @@ import {
   protocolEnvelopeSchema,
   projectSchema,
   saveSchema,
+  saveV2Schema,
+  SAVE_V2_SCHEMA_VERSION,
   tilesetSchema,
+  worldSchema,
 } from "./schema/index.js";
 import { assertSchemaVersion, SCHEMA_VERSIONS } from "./version.js";
 
@@ -28,6 +31,7 @@ export * from "./behavior/index.js";
 export * from "./scene/index.js";
 export * from "./interpreter/index.js";
 export * from "./protocol/index.js";
+export * from "./world/index.js";
 
 /** A readonly view of every canonical schema version (for tooling/debug). */
 export const schemaVersions = SCHEMA_VERSIONS;
@@ -81,6 +85,26 @@ export function parseSaveDocument(input: unknown) {
 export function parseProjectDocument(input: unknown) {
   assertSchemaVersion("project", readSchemaVersion(input));
   return projectSchema.parse(input);
+}
+
+/** Version-gated world manifest parse (ADR-008). */
+export function parseWorldDocument(input: unknown) {
+  assertSchemaVersion("world", readSchemaVersion(input));
+  return worldSchema.parse(input);
+}
+
+/**
+ * Version-gated save-v2 parse (ADR-008 §7). Accepts only v2 documents; the
+ * runtime storage adapter discriminates v1 vs v2 before calling this.
+ */
+export function parseSaveV2Document(input: unknown) {
+  const version = readSchemaVersion(input);
+  if (version !== SAVE_V2_SCHEMA_VERSION) {
+    throw new Error(
+      `unsupported save schemaVersion ${version}: parseSaveV2Document only accepts v${SAVE_V2_SCHEMA_VERSION} (use parseSaveDocument for v1)`,
+    );
+  }
+  return saveV2Schema.parse(input);
 }
 
 /** Version-gated protocol message parse (checks `v`, not `schemaVersion`). */

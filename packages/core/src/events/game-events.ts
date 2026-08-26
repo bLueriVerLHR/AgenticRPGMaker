@@ -57,6 +57,33 @@ export interface SoundEvent {
   ref: string;
 }
 
+/** How a CG still fills the screen (ADR-010 §2). */
+export type CgFitMode = "cover" | "fit";
+
+/** A `showCg` command asked the presentation layer to show a still. */
+export interface CgShowEvent {
+  /** Image reference, e.g. "img/cg/opening.png". */
+  image: string;
+  mode: CgFitMode;
+}
+
+/** A screen fade started (`fade_out` / `fade_in` carry direction in the name). */
+export interface ScreenFadeEvent {
+  /** CSS color to fade through, e.g. "#000000". */
+  color: string;
+  durationMs: number;
+}
+
+/** A `letterbox` command toggled the cinematic bars. */
+export interface LetterboxEvent {
+  on: boolean;
+}
+
+/** A `bgm` command requested a music track. */
+export interface BgmEvent {
+  ref: string;
+}
+
 /**
  * The typed gameplay event map for this engine. Every key maps an event name to
  * its payload type; `TypedEventBus<GameEventMap>` then enforces at compile time
@@ -69,4 +96,10 @@ export interface GameEventMap {
   switch_changed: SwitchChangedEvent;
   variable_changed: VariableChangedEvent;
   sound: SoundEvent;
+  cg_show: CgShowEvent;
+  fade_out: ScreenFadeEvent;
+  fade_in: ScreenFadeEvent;
+  letterbox: LetterboxEvent;
+  bgm: BgmEvent;
+  cg_end: Record<string, never>;
 }

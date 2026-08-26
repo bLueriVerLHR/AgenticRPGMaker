@@ -13,6 +13,14 @@
  * - `playSound`      — publish a `sound` event (core never plays audio)
  * - `walk`           — move the **player** by a tile delta, publish `walk`
  * - `move`           — move an entity by a tile delta (move routes; no event)
+ * CG presentation (ADR-010 §2; core publishes events, never renders/plays):
+ * - `showCg`         — publish `cg_show` (full-screen still, cover|fit)
+ * - `fadeOut`        — publish `fade_out` (color + ms)
+ * - `fadeIn`         — publish `fade_in` (ms)
+ * - `letterbox`      — publish `letterbox` (on|off)
+ * - `bgm`            — publish `bgm` (music ref)
+ * - `sfx`            — alias of `playSound` (same sound pipeline)
+ * - `endCg`          — publish `cg_end`
  * Commands are deterministic: the same page + same state + same scene always
  * produce the same effects.
  */
@@ -35,7 +43,13 @@ export type GameEffect =
   | { kind: "dialogue"; text: string; speakerId?: string }
   | { kind: "sound"; ref: string }
   | { kind: "variable"; name: string; op: "set" | "add"; value: number; result: number }
-  | { kind: "switch"; name: string; value: boolean };
+  | { kind: "switch"; name: string; value: boolean }
+  | { kind: "cg_show"; image: string; mode: "cover" | "fit" }
+  | { kind: "fade_out"; color: string; durationMs: number }
+  | { kind: "fade_in"; durationMs: number }
+  | { kind: "letterbox"; on: boolean }
+  | { kind: "bgm"; ref: string }
+  | { kind: "cg_end" };
 
 /** Everything a command may read and mutate while executing. */
 export interface CommandContext {
@@ -216,6 +230,81 @@ export class MoveCommand implements Command {
   }
 }
 
+/**
+ * `showCg "imgRef" [mode]` — publishes a `cg_show` event (core never
+ * renders; the runtime presentation layer shows the still). Mode is "cover"
+ * (default) or "fit" (ADR-010 §2).
+ */
+export class ShowCgCommand implements Command {
+  readonly cmd: string = "showCg";
+  constructor(
+    readonly image: string,
+    readonly mode: "cover" | "fit" = "cover",
+  ) {}
+
+  execute(ctx: CommandContext): void {
+    ctx.effects.push({ kind: "cg_show", image: this.image, mode: this.mode });
+    ctx.bus.emit("cg_show", { image: this.image, mode: this.mode });
+  }
+}
+
+/** `fadeOut "color" ms` — publishes a `fade_out` presentation event. */
+export class FadeOutCommand implements Command {
+  readonly cmd: string = "fadeOut";
+  constructor(
+    readonly color: string,
+    readonly durationMs: number,
+  ) {}
+
+  execute(ctx: CommandContext): void {
+    ctx.effects.push({ kind: "fade_out", color: this.color, durationMs: this.durationMs });
+    ctx.bus.emit("fade_out", { color: this.color, durationMs: this.durationMs });
+  }
+}
+
+/** `fadeIn ms` — publishes a `fade_in` presentation event. */
+export class FadeInCommand implements Command {
+  readonly cmd: string = "fadeIn";
+  constructor(readonly durationMs: number) {}
+
+  execute(ctx: CommandContext): void {
+    ctx.effects.push({ kind: "fade_in", durationMs: this.durationMs });
+    ctx.bus.emit("fade_in", { color: "#000000", durationMs: this.durationMs });
+  }
+}
+
+/** `letterbox on|off` — toggles the cinematic bars (ADR-010 §2). */
+export class LetterboxCommand implements Command {
+  readonly cmd: string = "letterbox";
+  constructor(readonly on: boolean) {}
+
+  execute(ctx: CommandContext): void {
+    ctx.effects.push({ kind: "letterbox", on: this.on });
+    ctx.bus.emit("letterbox", { on: this.on });
+  }
+}
+
+/** `bgm "ref"` — posts a music-track cue (core never plays audio). */
+export class BgmCommand implements Command {
+  readonly cmd: string = "bgm";
+  constructor(readonly ref: string) {}
+
+  execute(ctx: CommandContext): void {
+    ctx.effects.push({ kind: "bgm", ref: this.ref });
+    ctx.bus.emit("bgm", { ref: this.ref });
+  }
+}
+
+/** `endCg` — ends the current CG presentation (ADR-010 §2). */
+export class EndCgCommand implements Command {
+  readonly cmd: string = "endCg";
+
+  execute(ctx: CommandContext): void {
+    ctx.effects.push({ kind: "cg_end" });
+    ctx.bus.emit("cg_end", {});
+  }
+}
+
 // ---------------------------------------------------------------------------
 // Factory: map-schema command lines → Command objects
 // ---------------------------------------------------------------------------
@@ -247,6 +336,23 @@ export function commandFromSchema(command: EventCommand): Command {
       const targetId = typeof args[2] === "string" ? args[2] : undefined;
       return new MoveCommand(asNumber(args[0], "move"), asNumber(args[1], "move"), targetId);
     }
+    case "showCg": {
+      const mode = args[1] === "fit" ? "fit" : "cover";
+      return new ShowCgCommand(asString(args[0], "showCg"), mode);
+    }
+    case "fadeOut":
+      return new FadeOutCommand(asString(args[0], "fadeOut"), asNumber(args[1], "fadeOut"));
+    case "fadeIn":
+      return new FadeInCommand(asNumber(args[0], "fadeIn"));
+    case "letterbox":
+      return new LetterboxCommand(Boolean(args[0]));
+    case "bgm":
+      return new BgmCommand(asString(args[0], "bgm"));
+    case "sfx":
+      // `sfx` is the same sound pipeline as `playSound` (ADR-010 §2).
+      return new PlaySoundCommand(asString(args[0], "sfx"));
+    case "endCg":
+      return new EndCgCommand();
     default:
       throw new UnknownCommandError(command.cmd);
   }

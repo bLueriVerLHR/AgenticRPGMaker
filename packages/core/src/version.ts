@@ -14,6 +14,7 @@ export const SCHEMA_VERSIONS = {
   save: 1,
   project: 1,
   protocol: 1,
+  world: 1,
 } as const;
 
 export type SchemaName = keyof typeof SCHEMA_VERSIONS;

@@ -20,6 +20,11 @@ synced ([09-open-world-rpg.md](./09-open-world-rpg.md), playtest pass 2).
   eaten first move).
 - **Boot bars**: were the world HUD hint/objective strips rendering above
   title/CG; the UI layer now stays hidden until the title/CG handoff.
+- Serving the zoomed build also exposed a WebGL-only projection bug
+  (`ortho·T·S` panned after zooming → player off-screen at zoom > 1); the new
+  pure `computeWorldProjection` fixes the order to match Canvas2D and is
+  pinned by regression tests. Hero re-verified visually centered via
+  screenshot pixel scan.
 - Gold path E2E **14/14** again (approach helper updated: sprite props now
   block movement); runtime unit suite green incl. three new regressions.
 

@@ -9,7 +9,8 @@
 import { describe, expect, it, vi } from "vitest";
 
 import type { TileLayer, TilesetData } from "@agenticrpg/core";
-import { WebGLRenderer } from "../src/webgl/webgl-renderer.js";
+import { WebGLRenderer, computeWorldProjection } from "../src/webgl/webgl-renderer.js";
+import { mat3TransformPoint } from "../src/math/mat3.js";
 import {
   asGLContext,
   createGLStub,
@@ -18,6 +19,45 @@ import {
   createStubTextureManager,
   type StubCanvas,
 } from "./helpers.js";
+
+/**
+ * Zoomed-camera projection order (playtest round 2: "the character is gone").
+ * The projection must pan the camera in WORLD pixels first, then zoom about
+ * the screen origin — matching Canvas2D's setTransform(e/f = -cam·zoom).
+ */
+describe("WebGLRenderer zoomed projection", () => {
+  it("maps camera-centered world points to the screen center at zoom 3", () => {
+    const w = 600;
+    const h = 450;
+    const zoom = 3;
+    const cam = { x: 100, y: 50 };
+    const proj = computeWorldProjection(cam, zoom, w, h);
+    // Screen center ← world point at the middle of the visible band.
+    const px = cam.x + w / zoom / 2;
+    const py = cam.y + h / zoom / 2;
+    const [nx, ny] = mat3TransformPoint(proj, px, py);
+    expect(nx).toBeCloseTo(0, 5);
+    expect(ny).toBeCloseTo(0, 5);
+  });
+
+  it("maps the camera origin to the top-left clip corner at any zoom", () => {
+    const proj = computeWorldProjection({ x: 137, y: 91 }, 2, 320, 240);
+    const [nx, ny] = mat3TransformPoint(proj, 137, 91);
+    expect(nx).toBeCloseTo(-1, 5);
+    expect(ny).toBeCloseTo(1, 5); // ortho flips Y (top-left origin)
+  });
+
+  it("is not the pan-after-zoom ordering that hid the player", () => {
+    // The previous ortho·T·S order produced a projection that moved the
+    // camera AFTER scaling; asserting a non-trivial camera offset on the
+    // final NDC position keeps the order pinned.
+    const proj = computeWorldProjection({ x: 96, y: 64 }, 3, 320, 240);
+    const [nx] = mat3TransformPoint(proj, 128, 64);
+    // Correct: ((128-96)*3)/320 -> beyond half-screen right.
+    expect(nx).toBeCloseTo((((128 - 96) * 3) / 320) * 2 - 1, 5);
+    expect(Math.abs(nx)).toBeGreaterThan(0.1); // not stuck near origin
+  });
+});
 
 const TILESET: TilesetData = {
   schemaVersion: 1,

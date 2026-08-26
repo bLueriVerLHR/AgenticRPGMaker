@@ -401,7 +401,14 @@ the S6 feedback pass on this branch:
    plus props drawn for chest/signpost/beacon (the beacon flames once
    `sw_boss_defeated` is set).
 
-The world golden-path E2E stays 14/14 after the pass.
+Follow-up within this pass: serving the zoomed build exposed a real
+**WebGL renderer bug** — `computeProjection` composed `ortho·T·S`, zooming
+world coordinates before panning, so the visible band landed around `cam/zoom`
+and the player left the screen (Canvas2D's premultiplied `setTransform` had the
+correct order all along). The pure `computeWorldProjection(camera, zoom, w, h)`
+now composes `ortho·S·T` and is pinned by NDC-level regression tests using
+`mat3TransformPoint`; visual screenshot scan confirms the hero renders centered
+at zoom 3.
 
 **Playtest feedback pass 2 (2026-08-26, verified against the branch)**
 

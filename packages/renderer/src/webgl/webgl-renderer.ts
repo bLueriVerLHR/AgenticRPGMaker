@@ -71,6 +71,30 @@ export interface WebGLRendererOptions {
   watchdogMs?: number;
 }
 
+/**
+ * The world→screen projection for a zoomed camera: pan the camera in WORLD
+ * pixels first, then zoom about the screen origin — `ortho·S·T` under the
+ * column-major convention (rightmost applies to the point first).
+ *
+ * Pure and exported for tests: this ordering must match Canvas2D's
+ * `setTransform(zoom, 0, 0, zoom, -cam·zoom, -cam·zoom)`. Zooming before
+ * panning (the previous `ortho·T·S`) shifted the visible band to cam/zoom,
+ * which pushed the player off-screen at zoom > 1 (playtest round 2).
+ */
+export function computeWorldProjection(
+  camera: { x: number; y: number },
+  zoom: number,
+  width: number,
+  height: number,
+): Mat3 {
+  const w = width || 1;
+  const h = height || 1;
+  const ortho = mat3Ortho(0, w, h, 0);
+  const trans = mat3Translation(-camera.x, -camera.y);
+  const scale = mat3Scale(zoom, zoom);
+  return mat3Multiply(mat3Multiply(ortho, scale), trans);
+}
+
 export class WebGLRenderer implements Renderer, TileMapRenderer {
   readonly textureManager: AtlasTextureManager;
   private readonly canvas: CanvasLike;
@@ -616,12 +640,7 @@ export class WebGLRenderer implements Renderer, TileMapRenderer {
   }
 
   private computeProjection(): Mat3 {
-    const w = this.canvas.width || 1;
-    const h = this.canvas.height || 1;
-    const ortho = mat3Ortho(0, w, h, 0);
-    const trans = mat3Translation(-this.camera.x, -this.camera.y);
-    const scale = mat3Scale(this.zoom, this.zoom);
-    return mat3Multiply(mat3Multiply(ortho, trans), scale);
+    return computeWorldProjection(this.camera, this.zoom, this.canvas.width, this.canvas.height);
   }
 
   private textCanvas(): HTMLCanvasElement | null {

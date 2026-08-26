@@ -155,8 +155,25 @@ describe("WebGLRenderer tiles (ADR-002/ADR-003)", () => {
     expect(gl.calls.drawArrays).toHaveLength(0);
   });
 
-  it("drawTile maps tile-space to pixels at the tileset size", async () => {
-    const { renderer, gl, tm } = makeRenderer();
+  it("drawTile maps tile-space to pixels and map index N to atlas cell N-1", async () => {
+    const frames = [
+      { x: 0, y: 0, width: 16, height: 16 },
+      { x: 16, y: 0, width: 16, height: 16 },
+    ];
+    const tm = createStubTextureManager({
+      getFrame: vi.fn((_id: string, frame: number) => frames[frame]),
+    });
+    const gl = createGLStub();
+    const canvas = createStubCanvas({
+      getContext: (id: string) => (id === "webgl2" ? gl.stub : null),
+    });
+    const renderer = new WebGLRenderer({
+      canvas,
+      gl: asGLContext(gl.stub),
+      textureManager: tm,
+      logger: createStubLogger(),
+      backend: "webgl2",
+    });
     renderer.beginFrame();
     renderer.registerTileset(TILESET);
     await tm.load("img.png");
@@ -164,9 +181,29 @@ describe("WebGLRenderer tiles (ADR-002/ADR-003)", () => {
     renderer.endFrame();
     expect(gl.calls.drawArrays).toHaveLength(1);
     const data = gl.calls.bufferData[0].data as Float32Array;
-    // corner 0 = (x*16, y*16) = (32, 48)
+    // corner 0 = (x*16, y*16) = (32, 48); map index 1 → cell 0 → u = 0/64
     expect(data[0]).toBe(32);
     expect(data[1]).toBe(48);
+    expect(data[2]).toBe(0);
+    expect(data[3]).toBe(0);
+
+    // Map index 2 → atlas cell 1 → u0 = 16/64 = 0.25.
+    renderer.beginFrame();
+    renderer.drawTile({ tilesetId: "ts1", index: 2 }, 0, 0);
+    renderer.endFrame();
+    const data2 = gl.calls.bufferData[1]!.data as Float32Array;
+    expect(data2[2]).toBeCloseTo(0.25);
+    expect(data2[3]).toBe(0);
+  });
+
+  it("drawTile skips map index 0 (empty/transparent)", async () => {
+    const { renderer, gl, tm } = makeRenderer();
+    renderer.beginFrame();
+    renderer.registerTileset(TILESET);
+    await tm.load("img.png");
+    renderer.drawTile({ tilesetId: "ts1", index: 0 }, 1, 1);
+    renderer.endFrame();
+    expect(gl.calls.drawArrays).toHaveLength(0);
   });
 });
 

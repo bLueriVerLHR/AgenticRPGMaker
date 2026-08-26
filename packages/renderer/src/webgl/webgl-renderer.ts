@@ -96,6 +96,15 @@ export class WebGLRenderer implements Renderer, TileMapRenderer {
   private textCanvasValue: HTMLCanvasElement | null = null;
   private textContextValue: CanvasRenderingContext2D | null = null;
   private textRevision = 0;
+  /**
+   * Scratch quad corners shared by transformed draws: the batch copies the
+   * values synchronously while staging each quad, so per-quad allocation is
+   * unnecessary (pooling, ADR-002 / architecture §7).
+   */
+  private readonly cornerScratch = new Float32Array(8);
+  /** Cached composed transform matrix (null = no transform on the stack). */
+  private composedTransform: Mat3 | null = null;
+  private composedTransformValid = false;
 
   constructor(options: WebGLRendererOptions) {
     this.canvas = options.canvas;
@@ -142,6 +151,7 @@ export class WebGLRenderer implements Renderer, TileMapRenderer {
     gl.viewport(0, 0, this.canvas.width, this.canvas.height);
     gl.clear(gl.COLOR_BUFFER_BIT);
     this.transformStack.length = 0;
+    this.invalidateTransform();
     this.batch.begin();
   }
 
@@ -178,7 +188,11 @@ export class WebGLRenderer implements Renderer, TileMapRenderer {
       this.logger.debug("drawTile: unknown tileset", { tilesetId: tile.tilesetId });
       return;
     }
-    const frameRect = this.textureManager.getFrame(binding.textureId, tile.index);
+    if (tile.index <= 0) {
+      return; // 0 = empty/transparent (map schema convention)
+    }
+    // Map tile indices are 1-based (index N = atlas cell N-1).
+    const frameRect = this.textureManager.getFrame(binding.textureId, tile.index - 1);
     const source = this.textureManager.getSource(binding.textureId);
     if (frameRect === undefined || source === undefined) {
       this.logger.debug("drawTile: tile frame not ready", {
@@ -274,13 +288,16 @@ export class WebGLRenderer implements Renderer, TileMapRenderer {
 
   pushTransform(t: Transform): void {
     this.transformStack.push({ ...t });
+    this.invalidateTransform();
   }
 
   popTransform(): void {
     const popped = this.transformStack.pop();
     if (popped === undefined) {
       this.logger.debug("popTransform: transform stack underflow", {});
+      return;
     }
+    this.invalidateTransform();
   }
 
   registerTileset(tileset: TilesetData): void {
@@ -327,7 +344,8 @@ export class WebGLRenderer implements Renderer, TileMapRenderer {
         if (index === undefined || index <= 0) {
           continue; // 0 = empty/transparent (map schema)
         }
-        const frameRect = this.textureManager.getFrame(binding.textureId, index);
+        // Map tile indices are 1-based: index N = atlas cell N-1.
+        const frameRect = this.textureManager.getFrame(binding.textureId, index - 1);
         if (frameRect === undefined) {
           continue;
         }
@@ -513,9 +531,10 @@ export class WebGLRenderer implements Renderer, TileMapRenderer {
   private applyTransforms(entry: SpriteDrawEntry): void {
     const m = this.currentTransformMatrix();
     if (m === null) {
+      entry.corners = null; // axis-aligned path reads x/y/w/h
       return;
     }
-    const corners = new Float32Array(8);
+    const corners = this.cornerScratch;
     const x = entry.x;
     const y = entry.y;
     const w = entry.w;
@@ -527,9 +546,20 @@ export class WebGLRenderer implements Renderer, TileMapRenderer {
     entry.corners = corners;
   }
 
+  /** Invalidate the cached transform matrix (stack changed / frame reset). */
+  private invalidateTransform(): void {
+    this.composedTransformValid = false;
+    this.composedTransform = null;
+  }
+
   private currentTransformMatrix(): Mat3 | null {
     if (this.transformStack.length === 0) {
       return null;
+    }
+    // Compose lazily and cache: the stack changes far less often than quads
+    // are staged, so per-quad matrix allocation/multiplication is waste.
+    if (this.composedTransformValid) {
+      return this.composedTransform;
     }
     let m = mat3Identity();
     for (const t of this.transformStack) {
@@ -539,6 +569,8 @@ export class WebGLRenderer implements Renderer, TileMapRenderer {
       );
       m = mat3Multiply(m, local);
     }
+    this.composedTransform = m;
+    this.composedTransformValid = true;
     return m;
   }
 
@@ -620,6 +652,7 @@ export class WebGLRenderer implements Renderer, TileMapRenderer {
     this.canvas.removeEventListener?.("webglcontextrestored", this.onContextRestored);
     this.batch.begin();
     this.transformStack.length = 0;
+    this.invalidateTransform();
     this.glTextures.clear();
     this.glTextureRevisions.clear();
   }

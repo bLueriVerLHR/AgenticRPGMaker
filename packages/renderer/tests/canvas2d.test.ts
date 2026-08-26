@@ -71,7 +71,7 @@ describe("Canvas2DRenderer (immediate mode)", () => {
     expect(args).toEqual([expect.anything(), 32, 16, 16, 16, 10, 20, 16, 16]);
   });
 
-  it("drawTile uses the registered tileset size and index frame", async () => {
+  it("drawTile uses the registered tileset size and maps map index → frame index-1", async () => {
     const { renderer, ctx, tm } = makeRenderer({
       frames: [
         { x: 0, y: 0, width: 16, height: 16 },
@@ -81,10 +81,24 @@ describe("Canvas2DRenderer (immediate mode)", () => {
     renderer.beginFrame();
     renderer.registerTileset(TILESET);
     await tm.load("img.png");
+    // Map tile index 1 = atlas cell 0 (0 is reserved for empty).
     renderer.drawTile({ tilesetId: "ts1", index: 1 }, 2, 3);
-    const args = mockCalls(ctx.drawImage)[0];
+    let args = mockCalls(ctx.drawImage)[0];
     // dst = (x*tileSize, y*tileSize, tileSize, tileSize) = (32, 48, 16, 16)
-    expect(args).toEqual([expect.anything(), 16, 0, 16, 16, 32, 48, 16, 16]);
+    expect(args).toEqual([expect.anything(), 0, 0, 16, 16, 32, 48, 16, 16]);
+    // Map tile index 2 = atlas cell 1.
+    renderer.drawTile({ tilesetId: "ts1", index: 2 }, 0, 0);
+    args = mockCalls(ctx.drawImage)[1]!;
+    expect(args).toEqual([expect.anything(), 16, 0, 16, 16, 0, 0, 16, 16]);
+  });
+
+  it("drawTile skips map index 0 (empty/transparent)", async () => {
+    const { renderer, ctx, tm } = makeRenderer();
+    renderer.beginFrame();
+    renderer.registerTileset(TILESET);
+    await tm.load("img.png");
+    renderer.drawTile({ tilesetId: "ts1", index: 0 }, 1, 1);
+    expect(ctx.drawImage).not.toHaveBeenCalled();
   });
 
   it("drawText maps to fillText with font/color/align/baseline", () => {
@@ -128,6 +142,32 @@ describe("Canvas2DRenderer (immediate mode)", () => {
     expect(ctx.scale).toHaveBeenCalledWith(1, 1);
     expect(ctx.restore).toHaveBeenCalled();
     expect(mockCalls(ctx.save).length).toBe(mockCalls(ctx.restore).length); // balanced
+  });
+
+  it("drawTileLayer maps map indices to atlas cells (index N → cell N-1)", async () => {
+    const { renderer, ctx, tm } = makeRenderer({
+      frames: [
+        { x: 0, y: 0, width: 16, height: 16 },
+        { x: 16, y: 0, width: 16, height: 16 },
+      ],
+    });
+    const layer: TileLayer = {
+      id: "ground",
+      name: "Ground",
+      type: "tile",
+      opacity: 1,
+      visible: true,
+      data: [[1, 2]],
+    };
+    renderer.beginFrame();
+    renderer.setCamera({ x: 0, y: 0, width: 32, height: 32 }, 1);
+    renderer.registerTileset(TILESET);
+    await tm.load("img.png");
+    renderer.drawTileLayer(layer, "ts1", 16);
+    const calls = mockCalls(ctx.drawImage);
+    expect(calls).toHaveLength(2);
+    expect(calls[0]!.slice(1, 5)).toEqual([0, 0, 16, 16]); // map index 1 → cell 0
+    expect(calls[1]!.slice(1, 5)).toEqual([16, 0, 16, 16]); // map index 2 → cell 1
   });
 
   it("drawTileLayer emits only visible non-empty tiles (culling)", async () => {

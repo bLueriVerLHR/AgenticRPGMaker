@@ -99,7 +99,11 @@ export class Canvas2DRenderer implements Renderer, TileMapRenderer {
       this.logger.debug("drawTile: unknown tileset", { tilesetId: tile.tilesetId });
       return;
     }
-    const frameRect = this.textureManager.getFrame(binding.textureId, tile.index);
+    if (tile.index <= 0) {
+      return; // 0 = empty/transparent (map schema convention)
+    }
+    // Map tile indices are 1-based (index N = atlas cell N-1).
+    const frameRect = this.textureManager.getFrame(binding.textureId, tile.index - 1);
     const source = this.textureManager.getSource(binding.textureId);
     if (frameRect === undefined || source === undefined) {
       this.logger.debug("drawTile: tile frame not ready", {
@@ -198,7 +202,8 @@ export class Canvas2DRenderer implements Renderer, TileMapRenderer {
         if (index === undefined || index <= 0) {
           continue; // 0 = empty/transparent (map schema)
         }
-        const frameRect = this.textureManager.getFrame(binding.textureId, index);
+        // Map tile indices are 1-based: index N = atlas cell N-1.
+        const frameRect = this.textureManager.getFrame(binding.textureId, index - 1);
         if (frameRect === undefined) {
           continue;
         }

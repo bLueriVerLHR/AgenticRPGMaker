@@ -121,7 +121,7 @@ export interface BootResult {
 export async function boot(
   options: BootOptions & ({ worldUrl: string } | { worldData: WorldData }),
 ): Promise<WorldGame>;
-export async function boot(options: BootOptions): Promise<Game | WorldGame>;
+export async function boot(options: BootOptions): Promise<Game>;
 export async function boot(options: BootOptions): Promise<Game | WorldGame> {
   if (options.worldUrl !== undefined || options.worldData !== undefined) {
     return bootWorld(options);

@@ -5,6 +5,32 @@ Date format: `YYYY-MM-DD`.
 
 ---
 
+## 2026-08-26 — Open-world demo implemented: S1–S5 shipped, golden-path E2E green
+
+The seamless open-world RPG demo is built and verified on
+`feat/open-world-demo` (worktree `work/archie`): engine (core/renderer/runtime),
+content, and automated golden-path E2E all land together per the WAL rule.
+
+**Details**
+
+- **S1 core** — world/save-v2 schemas, global↔chunk coordinate math, 7 CG
+  presentation commands. **S2 renderer** — registered textures (cover/fit)
+  both backends. **S3** — WebAudio manager, title + CgScene, chunk streaming
+  (worker parse, prefetch/evict), WorldScene with seamless cross-boundary
+  movement, save-v2, `boot({ worldUrl })`.
+- **S4 combat** — Zelda-minimal: Z = talk-or-sword, contact damage, i-frames,
+  chase slimes + turret sentinel, aggro leash, death → respawn at spawn,
+  defeated ids persist in save chunkState.
+- **S5 content** — `scripts/gen-open-world.mjs` generates "The Crossroads"
+  (3×3×64 world, 9 map-v1 chunks, CG SVGs, story events); `world-demo` harness
+  serves it. Golden-path E2E (`test:world`) runs 14/14 steps: title → opening
+  CG → chest/elder → seamless village→wilds crossing → two slimes → guard
+  branch → sentinel → ending CG → F5/reload persistence.
+- Workspace unit suite 416/416 green; E2E suites (editor, runtime, world) run;
+  QA gate pass 1 green (pass 2 + stability re-runs in S6).
+- Docs corrected in the same change: design doc §13 implementation notes, ADR
+  notes, this entry.
+
 ## 2026-08-26 — Open-world demo kickoff: design proposal + ADRs 008–010 (docs before code)
 
 Leader opened a new feature: research what a **seamless open-world RPG** needs and

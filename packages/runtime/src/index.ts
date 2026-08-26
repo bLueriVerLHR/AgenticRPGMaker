@@ -45,6 +45,10 @@ export type { EntityCollider, SolidTileGrid, StepCheckInput, StepCheckResult } f
 export { Input, createKeyboardOnlyInput, DIRECTION_VECTORS, KEY_TO_DIRECTION } from "./input.js";
 export type { DirectionVector, InputDirection, InputOptions } from "./input.js";
 
+// Audio (ADR-010 §4, minimal WebAudio).
+export { AudioManager } from "./audio.js";
+export type { AudioContextFactory, AudioContextLike, AudioManagerOptions } from "./audio.js";
+
 // Storage (RQ1 / D12).
 export { MemoryStorage } from "./storage.js";
 export type { Storage } from "./storage.js";

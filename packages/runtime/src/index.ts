@@ -49,6 +49,14 @@ export type { DirectionVector, InputDirection, InputOptions } from "./input.js";
 export { AudioManager } from "./audio.js";
 export type { AudioContextFactory, AudioContextLike, AudioManagerOptions } from "./audio.js";
 
+// CG presentation + title (ADR-010 §3, S3b).
+export { buildCgScript } from "./cg.js";
+export type { CgScript, CgStep } from "./cg.js";
+export { CgScene, CG_TEXTURE_ID } from "./cg-scene.js";
+export type { CgSceneOptions } from "./cg-scene.js";
+export { TitleScene } from "./title-scene.js";
+export type { TitleSceneOptions } from "./title-scene.js";
+
 // Storage (RQ1 / D12).
 export { MemoryStorage } from "./storage.js";
 export type { Storage } from "./storage.js";

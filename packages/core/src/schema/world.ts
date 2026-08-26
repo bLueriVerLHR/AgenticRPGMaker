@@ -12,6 +12,7 @@ import { z } from "zod";
 
 import { SCHEMA_VERSIONS } from "../version.js";
 import { directionSchema } from "./save.js";
+import { eventCommandSchema } from "./map.js";
 
 export const WORLD_SCHEMA_VERSION = SCHEMA_VERSIONS.world;
 
@@ -71,6 +72,12 @@ export const worldSchema = z
         switches: z.record(z.string(), z.boolean()).default({}),
       })
       .default({ variables: {}, switches: {} }),
+    /**
+     * Optional opening narrative: event commands (ADR-010 presentation
+     * commands plus setVariable/setSwitch) run once at world enter when the
+     * `sw_intro_done` switch is false — the demo's opening CG lives here.
+     */
+    intro: z.array(eventCommandSchema).default([]),
   })
   .refine(
     (w) => {

@@ -37,6 +37,24 @@ describe("worldSchema", () => {
     expect(world.chunks[0]!.combatants).toEqual([]);
     expect(world.combatTypes).toEqual({});
     expect(world.global).toEqual({ variables: {}, switches: {} });
+    expect(world.intro).toEqual([]);
+  });
+
+  it("carries the optional intro command list", () => {
+    const world = parseWorldDocument(
+      makeWorld({
+        intro: [
+          { cmd: "bgm", args: ["title"] },
+          { cmd: "showCg", args: ["img/cg/opening.png"] },
+          { cmd: "setSwitch", args: ["sw_intro_done", true] },
+        ],
+      }),
+    );
+    expect(world.intro).toEqual([
+      { cmd: "bgm", args: ["title"] },
+      { cmd: "showCg", args: ["img/cg/opening.png"] },
+      { cmd: "setSwitch", args: ["sw_intro_done", true] },
+    ]);
   });
 
   it("keeps combatants and combat types when provided", () => {

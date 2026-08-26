@@ -12,6 +12,10 @@ synced ([09-open-world-rpg.md](./09-open-world-rpg.md), playtest pass 2).
 
 **Details**
 
+- Round 3 quick report: drawn props were still walkable; chest/signpost/
+  beacon now carry colliders via PROP_EVENT_NAMES (solid for player + enemies,
+  interactions unchanged) with unit coverage on both prop solidity and
+  trigger-style walk-over events.
 - **Camera**: world renders at zoom ×3 with smoothed, clamped follow — the
   character reads at ~48 px instead of 16; fewer chunks drawn per frame.
 - **Movement**: continuous held-key walking (0.09 s glide → next step with no

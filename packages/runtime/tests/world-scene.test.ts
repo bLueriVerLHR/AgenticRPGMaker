@@ -79,7 +79,10 @@ function makeMapWithEvents(
   return map;
 }
 
-function makeFixture(intro: WorldData["intro"] = []): {
+function makeFixture(
+  intro: WorldData["intro"] = [],
+  extraEvents: MapEvent[] = [],
+): {
   world: WorldData;
   loader: ChunkLoader & { calls: Set<string> };
 } {
@@ -96,6 +99,7 @@ function makeFixture(intro: WorldData["intro"] = []): {
           sprite: "characters/guide",
           pages: [{ condition: null, commands: [{ cmd: "showText", args: ["Follow me."] }] }],
         },
+        ...extraEvents,
       ]),
     ],
     ["c_0_1", makeChunkMap("c_0_1")],
@@ -183,9 +187,10 @@ function makeHarness(
   overrides: {
     intro?: WorldData["intro"];
     spawn?: { x: number; y: number };
+    extraEvents?: MapEvent[];
   } = {},
 ): Harness {
-  const fixture = makeFixture(overrides.intro ?? []);
+  const fixture = makeFixture(overrides.intro ?? [], overrides.extraEvents ?? []);
   if (overrides.spawn !== undefined) {
     fixture.world.spawn = {
       chunkId: fixture.world.spawn.chunkId,
@@ -461,6 +466,61 @@ describe("WorldScene", () => {
     h.scene.update(0.05);
     h.scene.update(0.2);
     expect(h.scene.playerPosition).toEqual({ x: 9, y: 1 }); // the tap was not eaten
+    h.scene.exit();
+  });
+
+  it("prop events (chest/signpost/beacon) are solid but still interactable", async () => {
+    const h = makeHarness({
+      spawn: { x: 5, y: 1 },
+      extraEvents: [
+        {
+          id: "evt_chest",
+          name: "Chest",
+          x: 6,
+          y: 1,
+          pages: [{ condition: null, commands: [{ cmd: "showText", args: ["clunk."] }] }],
+        },
+      ],
+    });
+    h.scene.enter({ bus: h.bus, state: h.state, logger: createNoopLogger() });
+    await waitUntil(() => h.scene.isReady, "readiness");
+    // step right onto the chest tile at (5,1): blocked.
+    h.input.pressDirection("right");
+    h.scene.update(0.05);
+    h.input.releaseDirection("right");
+    h.scene.update(0.2);
+    const afterBlock = { ...h.scene.playerPosition };
+    expect(afterBlock).toEqual({ x: 5, y: 1 }); // stayed put beside the chest...
+    expect(h.scene.playerDirection).toBe("right"); // ...but turned to face it
+
+    // facing the chest, confirm interacts (solid != inert)
+    h.input.queueConfirm();
+    h.scene.update(0.05);
+    expect(h.scene.isDialogueOpen).toBe(true);
+    expect(h.scene.currentDialogueText).toBe("clunk.");
+    h.scene.exit();
+  });
+
+  it("unknown sprite-less events stay walkable (trigger semantics)", async () => {
+    const h = makeHarness({
+      spawn: { x: 8, y: 8 },
+      extraEvents: [
+        {
+          id: "evt_trigger",
+          name: "AreaTrigger",
+          x: 9,
+          y: 8,
+          pages: [],
+        },
+      ],
+    });
+    h.scene.enter({ bus: h.bus, state: h.state, logger: createNoopLogger() });
+    await waitUntil(() => h.scene.isReady, "readiness");
+    h.input.pressDirection("right");
+    h.scene.update(0.05);
+    h.input.releaseDirection("right");
+    h.scene.update(0.2);
+    expect(h.scene.playerPosition).toEqual({ x: 9, y: 8 }); // stepped onto it
     h.scene.exit();
   });
 

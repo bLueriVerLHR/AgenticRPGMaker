@@ -10,6 +10,15 @@
  */
 import type { Renderer } from "@agenticrpg/renderer";
 
+/**
+ * Sprite-less event names that render as props (chest / signpost / beacon).
+ * Single source of truth so the chunk wiring (they are SOLID — playtest round
+ * 2: "I can stand on the chest") and the renderer prop pass stay in sync.
+ * Sprite-less events NOT in this set stay invisible and walkable (area
+ * triggers, etc.). Matching is on lowercased `event.name`.
+ */
+export const PROP_EVENT_NAMES: ReadonlySet<string> = new Set(["signpost", "chest", "beacon"]);
+
 // ---------------------------------------------------------------------------
 // Palette
 // ---------------------------------------------------------------------------

@@ -63,6 +63,7 @@ import {
   drawSlime,
   drawTurret,
   drawVillager,
+  PROP_EVENT_NAMES,
 } from "./world-sprites.js";
 import type { WorldStorage } from "./world-storage.js";
 
@@ -556,8 +557,15 @@ export class WorldScene implements Scene {
           y: chunk.row * this.world.chunkSize + event.y,
         }),
       );
-      if (event.sprite !== undefined) {
-        entity.addComponent(new Sprite({ texture: event.sprite }));
+      // Solid entities: sprite-backed NPCs, plus the prop set (chest /
+      // signpost / beacon) which has no Sprite component but renders through
+      // the chunk-local props pass (playtest round 2: props were walkable).
+      const isProp =
+        event.sprite === undefined && PROP_EVENT_NAMES.has(event.name.trim().toLowerCase());
+      if (event.sprite !== undefined || isProp) {
+        if (event.sprite !== undefined) {
+          entity.addComponent(new Sprite({ texture: event.sprite }));
+        }
         entity.addComponent(
           new Collider({
             shape: { kind: "rect", width: 1, height: 1, offsetX: 0, offsetY: 0 },
@@ -1225,10 +1233,14 @@ export class WorldScene implements Scene {
         }
 
         // Event props (signposts, chests, beacons) — drawn inside this chunk's
-        // transform using chunk-local coordinates.
+        // transform using chunk-local coordinates. Membership uses the same
+        // PROP_EVENT_NAMES set as the collision wiring above.
         for (const event of map.events) {
-          if (event.sprite !== undefined) {
-            continue; // blocking NPCs draw in the global NPC pass below
+          if (
+            event.sprite !== undefined ||
+            !PROP_EVENT_NAMES.has(event.name.trim().toLowerCase())
+          ) {
+            continue; // NPCs draw below; unknown sprite-less events stay invisible
           }
           const ex = event.x * tileSize;
           const ey = event.y * tileSize;
@@ -1251,20 +1263,19 @@ export class WorldScene implements Scene {
     }
 
     // NPCs (global coordinates, no transform): villagers as little people,
-    // tinted by their sprite role ("characters/elder" → elder tunic).
+    // tinted by their sprite role ("characters/elder" → elder tunic). Solid
+    // props (chest/signpost/beacon) also live in this map but have no Sprite
+    // component — they draw through the chunk-local props pass instead.
     for (const blocker of this.blockByEntity.values()) {
       const t = blocker.getComponent("transform");
       if (t === null) {
         continue;
       }
       const sprite = blocker.getComponent("sprite");
-      drawVillager(
-        renderer,
-        t.x * tileSize,
-        t.y * tileSize,
-        tileSize,
-        sprite?.texture ?? "characters/villager",
-      );
+      if (sprite === null) {
+        continue; // solid prop: drawn inside its chunk's transform above
+      }
+      drawVillager(renderer, t.x * tileSize, t.y * tileSize, tileSize, sprite.texture);
     }
 
     // Combatants (ADR-009): chasers render as slimes, turrets as sentry

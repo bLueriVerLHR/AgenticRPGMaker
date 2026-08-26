@@ -438,3 +438,14 @@ Tests: three new WorldScene unit regressions (continuous walk coverage,
 one-tile-per-tap, sub-frame tap) plus the zoomed-camera assertions; the world
 golden-path E2E stays 14/14 with the approach helper updated for solid chest/
 NPC tiles (sprites now block, so approach coordinates changed).
+
+**Prop solidity (playtest round 3, same day):** drawing props had left them
+walkable — collision only attached to sprite-backed NPC events. The prop set
+(chest / signpost / beacon — `PROP_EVENT_NAMES` in world-sprites.ts) now wires
+a Collider and joins the blocker map like NPCs: solid to the player AND to
+chasing enemies (both paths check occupancy through `isBlocked`). The renderer
+NPC pass skips Sprite-less entities so props keep their chunk-local art; the
+props pass keys off the same set, keeping collision and visuals in sync.
+Sprite-less events outside the set stay walkable (area-trigger semantics,
+covered by a unit test). Interactions are unchanged — face the prop from the
+adjacent tile and confirm, as the chest step of the golden-path E2E does.

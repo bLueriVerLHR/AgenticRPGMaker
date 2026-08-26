@@ -83,6 +83,22 @@ describe("boot()", () => {
     expect(game.sceneManager.current?.id).toBe("map"); // still playable
     game.dispose();
   });
+
+  it("keeps the receiver when reading the renderer backend (class-method getBackend)", async () => {
+    // Real backends implement `getBackend()` as a prototype method that reads
+    // `this.backend`. A detached call (`const f = r.getBackend; f()`) throws in
+    // strict ESM — regression guard for the boot-time backend label.
+    class BackendReportingRenderer extends StubRenderer {
+      readonly backend = "webgl2";
+      getBackend(): string {
+        return this.backend;
+      }
+    }
+    const game = await boot(bootOptions({ renderer: new BackendReportingRenderer() }));
+    expect(game.sceneManager.current?.id).toBe("map");
+    expect(game.scene.backendLabel).toBe("webgl2");
+    game.dispose();
+  });
 });
 
 describe("createGame()", () => {

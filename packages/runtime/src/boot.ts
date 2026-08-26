@@ -173,7 +173,10 @@ async function createRuntimeRenderer(options: BootOptions, logger: Logger): Prom
 
 function rendererBackend(renderer: Renderer): string {
   const getBackend = (renderer as { getBackend?: () => string }).getBackend;
-  return typeof getBackend === "function" ? getBackend() : "unknown";
+  // Invoke with the renderer as receiver: backend getBackend()s are prototype
+  // methods that read `this`, and a detached ClassMeth() call has `this ===
+  // undefined` in strict ESM (boot crash: "reading 'backend' of undefined").
+  return typeof getBackend === "function" ? getBackend.call(renderer) : "unknown";
 }
 
 async function createNetworkClient(

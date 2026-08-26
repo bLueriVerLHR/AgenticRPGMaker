@@ -98,8 +98,13 @@ interface Step {
   t: number;
 }
 
-const REPEAT_DELAY_SECONDS = 0.2;
 const DEFAULT_STEP_DURATION = 0.09;
+/** Retry cadence while a held direction is blocked (seconds). */
+const BLOCKED_RETRY_SECONDS = 0.12;
+/** World-view zoom: the camera keeps the character readable on screen. */
+const CAMERA_ZOOM = 3;
+/** Camera follow smoothing (higher = snappier). */
+const CAMERA_LERP_RATE = 8;
 const PLAYER_MAX_HP = 3;
 /** Chunk-local event entity id prefix: `${chunkId}:${event.id}`. */
 const ENTITY_SEP = ":";
@@ -157,8 +162,12 @@ export class WorldScene implements Scene {
   private input: Input | null = null;
   private virtualInput: Input | null = null;
   private step: Step | null = null;
+  /** Direction of the most recent attempt (fresh-press detection). */
   private lastStepDir: InputDirection | null = null;
-  private repeatAccum = 0;
+  private blockedWait = 0;
+  /** Camera top-left in world pixels (null until the first frame). */
+  private cameraX: number | null = null;
+  private cameraY: number | null = null;
   private dialogueQueue: string[] = [];
   private dialogueEl: HTMLElement | null = null;
   private hud: HudElements | null = null;
@@ -338,10 +347,12 @@ export class WorldScene implements Scene {
       this.deathTimer -= dt;
       if (this.deathTimer <= 0) {
         this.respawnAtSpawn();
+        this.resetCamera();
       }
     } else if (!this.isDialogueOpen) {
       this.combat.update(dt); // frozen during dialogue/CG (ADR-009 §5.5)
     }
+    this.updateCamera(dt);
     this.updateHud();
   }
 
@@ -384,7 +395,7 @@ export class WorldScene implements Scene {
     this.dialogueQueue = [];
     this.step = null;
     this.lastStepDir = null;
-    this.repeatAccum = 0;
+    this.blockedWait = 0;
     this.logger.info("scene: world disposed", { world: this.world.id });
   }
 
@@ -607,34 +618,39 @@ export class WorldScene implements Scene {
     if (this.isDialogueOpen || this.step !== null) {
       return;
     }
-    const edge = this.consumeDirectionEdge();
-    if (edge !== null) {
-      this.lastStepDir = edge;
-      this.repeatAccum = 0;
-      this.tryStep(edge);
-      return;
-    }
+    // A tap shorter than one simulation frame (keydown+keyup between fixed
+    // updates) still has to move the player: Input queues direction edges,
+    // so a fresh edge starts a step even though nothing is held anymore.
     const held = this.currentDirection();
-    if (held !== null && held === this.lastStepDir && this.repeatAccum >= REPEAT_DELAY_SECONDS) {
-      this.repeatAccum = 0;
-      this.tryStep(held);
+    const direction = this.consumeDirectionEdge() ?? held;
+    if (direction === null) {
+      this.blockedWait = 0;
+      this.lastStepDir = null;
       return;
     }
-    if (held !== null && held !== this.lastStepDir) {
-      this.repeatAccum = 0;
+    // Continuous walking (playtest feedback): while a direction stays held,
+    // each completed glide flows straight into the next step with no forced
+    // pause. A fresh press always attempts immediately; a blocked facing tile
+    // retries on a small cadence instead of hammering collision every frame.
+    const fresh = direction !== this.lastStepDir;
+    this.lastStepDir = direction;
+    if (!fresh && this.blockedWait > 0) {
+      this.blockedWait = Math.max(0, this.blockedWait - dt);
+      if (this.blockedWait > 0) {
+        return;
+      }
     }
-    if (held !== null) {
-      this.repeatAccum += dt;
+    if (this.tryStep(direction)) {
+      this.blockedWait = 0;
     } else {
-      this.repeatAccum = 0;
-      this.lastStepDir = null;
+      this.blockedWait = BLOCKED_RETRY_SECONDS;
     }
   }
 
-  private tryStep(direction: InputDirection): void {
+  private tryStep(direction: InputDirection): boolean {
     const transform = this.playerTransform;
     if (transform === null) {
-      return;
+      return false;
     }
     const vector = DIRECTION_VECTORS[direction];
     const from = { x: transform.x, y: transform.y };
@@ -643,11 +659,12 @@ export class WorldScene implements Scene {
 
     if (this.isBlocked(to)) {
       this.logger.debug("movement: blocked", { from, to });
-      return;
+      return false;
     }
     this.step = { from, to, t: 0 };
     this.bus.emit("walk", { entityId: PLAYER_ENTITY_ID, from, to });
     this.logger.debug("movement: step", { from, to });
+    return true;
   }
 
   /** World-bounds, residency, tile-solidity, and NPC occupancy at a global tile. */
@@ -1128,8 +1145,21 @@ export class WorldScene implements Scene {
       y: this.world.grid.rows * chunkPx,
     };
 
+    const viewW = Math.max(1, Math.round(this.canvas.width / CAMERA_ZOOM));
+    const viewH = Math.max(1, Math.round(this.canvas.height / CAMERA_ZOOM));
     renderer.beginFrame();
-    renderer.setCamera(this.computeCameraViewport(worldPx), 1);
+    // Zoomed world camera (playtest feedback: the character was too small).
+    // The top-left is rounded to whole WORLD pixels so integer zoom keeps
+    // every rect on integer screen pixels - no shimmer, no seams.
+    renderer.setCamera(
+      {
+        x: Math.round(this.cameraX ?? 0),
+        y: Math.round(this.cameraY ?? 0),
+        width: viewW,
+        height: viewH,
+      },
+      CAMERA_ZOOM,
+    );
     renderer.drawRect(0, 0, worldPx.x, worldPx.y, "#22332a");
 
     if (this.tilesets !== undefined && isTileMapRenderer(renderer)) {
@@ -1307,7 +1337,10 @@ export class WorldScene implements Scene {
     }
 
     // Death fade (black ramp while down; the respawn happens in update()).
+    // Drawn in SCREEN space: reset the camera so the overlay covers the whole
+    // canvas regardless of zoom/pan.
     if (this.dead) {
+      renderer.setCamera({ x: 0, y: 0, width: this.canvas.width, height: this.canvas.height }, 1);
       const alpha = Math.min(1, Math.max(0, (1.2 - this.deathTimer) / 1.2 + 0.05));
       renderer.drawRect(
         0,
@@ -1341,28 +1374,36 @@ export class WorldScene implements Scene {
     return undefined;
   }
 
-  private computeCameraViewport(mapPx: Vec2): {
-    x: number;
-    y: number;
-    width: number;
-    height: number;
-  } {
-    const width = this.canvas.width > 0 ? this.canvas.width : 320;
-    const height = this.canvas.height > 0 ? this.canvas.height : 240;
-    const pos = this.renderPosition();
+  /**
+   * Camera follow: ease the zoomed view toward the player (in world pixels),
+   * clamped to the world bounds so the void outside never shows.
+   */
+  private updateCamera(dt: number): void {
     const tile = this.chunkTileSize();
-    let x = pos.x * tile - width / 2;
-    let y = pos.y * tile - height / 2;
-    if (width >= mapPx.x) {
-      x = (mapPx.x - width) / 2;
-    } else {
-      x = Math.min(Math.max(x, 0), mapPx.x - width);
+    const viewW = this.canvas.width / CAMERA_ZOOM;
+    const viewH = this.canvas.height / CAMERA_ZOOM;
+    const worldW = this.world.grid.cols * this.world.chunkSize * tile;
+    const worldH = this.world.grid.rows * this.world.chunkSize * tile;
+    const pos = this.renderPosition();
+    let targetX = pos.x * tile - viewW / 2;
+    let targetY = pos.y * tile - viewH / 2;
+    targetX =
+      worldW <= viewW ? (worldW - viewW) / 2 : Math.min(Math.max(targetX, 0), worldW - viewW);
+    targetY =
+      worldH <= viewH ? (worldH - viewH) / 2 : Math.min(Math.max(targetY, 0), worldH - viewH);
+    if (this.cameraX === null || this.cameraY === null) {
+      this.cameraX = targetX;
+      this.cameraY = targetY;
+      return;
     }
-    if (height >= mapPx.y) {
-      y = (mapPx.y - height) / 2;
-    } else {
-      y = Math.min(Math.max(y, 0), mapPx.y - height);
-    }
-    return { x, y, width, height };
+    const alpha = Math.min(1, dt * CAMERA_LERP_RATE);
+    this.cameraX += (targetX - this.cameraX) * alpha;
+    this.cameraY += (targetY - this.cameraY) * alpha;
+  }
+
+  /** Snap the camera back onto the player (respawn / first frame). */
+  private resetCamera(): void {
+    this.cameraX = null;
+    this.cameraY = null;
   }
 }

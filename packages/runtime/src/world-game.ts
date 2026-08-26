@@ -94,6 +94,12 @@ export interface WorldGame {
   tick(dt: number, alpha?: number): void;
   /** Stop the loop, exit the scene, and release resources. */
   dispose(): void;
+  /**
+   * Show/hide the world UI layer (HUD, dialogue, virtual controls, toasts).
+   * Hidden while a presentation scene owns the screen (title, CG) so its
+   * overlays never float above them (playtest feedback: stray bars).
+   */
+  setHudVisible(visible: boolean): void;
   /** Save the current world session through the WorldStorage adapter. */
   save(): Promise<boolean>;
   /** Load the latest world save into the current session. */
@@ -141,7 +147,17 @@ export function createWorldGame(options: CreateWorldGameOptions): WorldGame {
 
   const sceneManager = new SceneManager({ bus, state, logger }, { logger });
 
+  /** UI-layer visibility gate (hidden while title/CG own the screen). */
+  function setHudVisible(visible: boolean): void {
+    const style = options.root?.style;
+    if (style !== undefined) {
+      style.display = visible ? "" : "none";
+    }
+  }
+  setHudVisible(false); // the boot mounts the world first, then the title
+
   function openCg(script: CgScript): void {
+    setHudVisible(false);
     const input = worldScene.inputInstance ?? undefined;
     const cg = new CgScene({
       script,
@@ -154,6 +170,7 @@ export function createWorldGame(options: CreateWorldGameOptions): WorldGame {
       onEnd: () => {
         worldScene.clearInput();
         sceneManager.change(worldScene);
+        setHudVisible(true);
       },
     });
     sceneManager.change(cg);
@@ -191,6 +208,7 @@ export function createWorldGame(options: CreateWorldGameOptions): WorldGame {
       }
       if (sceneManager.current === null) {
         sceneManager.change(worldScene);
+        setHudVisible(true); // entering the world directly: own the screen
       }
       if (!hasAnimationFrame()) {
         logger.warn(
@@ -225,6 +243,10 @@ export function createWorldGame(options: CreateWorldGameOptions): WorldGame {
       sceneManager.clear();
       worldScene.dispose(); // full teardown (exit() is a backgrounding pause)
       logger.info("game: disposed (world)");
+    },
+
+    setHudVisible(visible: boolean): void {
+      setHudVisible(visible);
     },
 
     async save(): Promise<boolean> {

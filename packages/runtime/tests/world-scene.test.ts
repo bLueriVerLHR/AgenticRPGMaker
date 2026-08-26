@@ -176,6 +176,7 @@ interface Harness {
   state: GameState;
   graph: SceneGraph;
   bus: TypedEventBus<GameEventMap>;
+  renderer: StubRenderer;
 }
 
 function makeHarness(
@@ -203,11 +204,12 @@ function makeHarness(
   });
   const storage = new MemoryWorldStorage();
   const openedCg: CgScript[] = [];
+  const renderer = new StubRenderer();
   const scene = new WorldScene({
     world: fixture.world,
     chunkStore: store,
     sceneGraph: graph,
-    renderer: new StubRenderer(),
+    renderer,
     canvas: stubCanvas(),
     bus,
     state,
@@ -218,7 +220,7 @@ function makeHarness(
     autoLoad: false,
     onOpenCg: (script) => openedCg.push(script),
   });
-  return { scene, input, storage, openedCg, state, graph, bus };
+  return { scene, input, storage, openedCg, state, graph, bus, renderer };
 }
 
 async function waitUntil(predicate: () => boolean, label: string): Promise<void> {
@@ -231,13 +233,16 @@ async function waitUntil(predicate: () => boolean, label: string): Promise<void>
   }
 }
 
-/** One committed tile step: press + two frames (step duration 0.15s). */
+/** One committed tile step: press exactly one step and release. */
 function step(scene: WorldScene, input: Input, direction: "up" | "down" | "left" | "right"): void {
   input.pressDirection(direction);
-  scene.update(0.2);
-  scene.update(0.2);
+  scene.update(0.05); // start the glide
   input.releaseDirection(direction);
+  scene.update(0.2); // complete the glide
 }
+
+/** The world camera zoom the scene ships with (see world-scene.ts). */
+const CAMERA_ZOOM_TEST = 3;
 
 describe("WorldScene", () => {
   it("becomes ready after startup and wires chunk entities", async () => {
@@ -257,7 +262,9 @@ describe("WorldScene", () => {
     const h = makeHarness({ spawn: { x: 7, y: 2 } });
     h.scene.enter({ bus: h.bus, state: h.state, logger: createNoopLogger() });
     await waitUntil(() => h.scene.isReady, "readiness");
+    for (let i = 0; i < 4; i++) h.scene.update(0.05); // prefetch settles
     step(h.scene, h.input, "right");
+    console.log("DBG cross pos", JSON.stringify(h.scene.playerPosition));
     expect(h.scene.playerPosition).toEqual({ x: 8, y: 2 }); // c_1_0 local (0,2)
     h.scene.exit();
   });
@@ -344,6 +351,7 @@ describe("WorldScene", () => {
     await waitUntil(() => h.scene.isReady, "readiness");
     step(h.scene, h.input, "down"); // (2,3)
     step(h.scene, h.input, "right"); // (3,3), facing right → slime at (4,3)
+    console.log("DBG pos", JSON.stringify(h.scene.playerPosition), h.scene.playerDirection);
     h.input.queueConfirm();
     h.scene.update(0.016); // swing 1 → hit
     const alive = h.scene.combatSystem.views().find((c) => c.docId === "slime_atk");
@@ -413,6 +421,71 @@ describe("WorldScene", () => {
     h.scene.update(0.016); // no combatant at (3,2) → sword declines → interact runs
     expect(h.scene.isDialogueOpen).toBe(true);
     expect(h.scene.currentDialogueText).toBe("Follow me.");
+    h.scene.exit();
+  });
+
+  it("held direction chains steps continuously (no per-step repeat pause)", async () => {
+    const h = makeHarness({ spawn: { x: 8, y: 1 } }); // clear lane toward the east edge
+    h.scene.enter({ bus: h.bus, state: h.state, logger: createNoopLogger() });
+    await waitUntil(() => h.scene.isReady, "readiness");
+    h.input.pressDirection("right");
+    for (let i = 0; i < 60; i++) {
+      h.scene.update(1 / 60); // one second of 60 fps frames
+    }
+    h.input.releaseDirection("right");
+    const x = h.scene.playerPosition.x;
+    expect(x).toBeGreaterThanOrEqual(14); // continuous walk (~11 tiles/s), not ~4 with pauses
+    expect(x).toBeLessThanOrEqual(25); // and never past the world wall
+    h.scene.exit();
+  });
+
+  it("a committed step does not chain within the same update frame (tap = 1 tile)", async () => {
+    const h = makeHarness({ spawn: { x: 8, y: 1 } });
+    h.scene.enter({ bus: h.bus, state: h.state, logger: createNoopLogger() });
+    await waitUntil(() => h.scene.isReady, "readiness");
+    h.input.pressDirection("right");
+    h.scene.update(0.2); // step starts AND completes inside this frame
+    h.scene.update(0.2);
+    h.input.releaseDirection("right");
+    expect(h.scene.playerPosition.x).toBe(9); // exactly one tile per press
+    h.scene.exit();
+  });
+
+  it("a sub-frame tap (press+release between updates) still steps once", async () => {
+    const h = makeHarness({ spawn: { x: 8, y: 1 } });
+    h.scene.enter({ bus: h.bus, state: h.state, logger: createNoopLogger() });
+    await waitUntil(() => h.scene.isReady, "readiness");
+    // E2E-style instant key press: down+up with NO update frame in between.
+    h.input.pressDirection("right");
+    h.input.releaseDirection("right");
+    h.scene.update(0.05);
+    h.scene.update(0.2);
+    expect(h.scene.playerPosition).toEqual({ x: 9, y: 1 }); // the tap was not eaten
+    h.scene.exit();
+  });
+
+  it("renders with a zoomed camera clamped inside the world bounds", async () => {
+    const h = makeHarness({ spawn: { x: 8, y: 1 } });
+    h.scene.enter({ bus: h.bus, state: h.state, logger: createNoopLogger() });
+    await waitUntil(() => h.scene.isReady, "readiness");
+    h.scene.update(1 / 60);
+    h.scene.render();
+    const camCalls = h.renderer.calls.filter(
+      (c): c is { method: "setCamera"; args: unknown[] } => c.method === "setCamera",
+    );
+    expect(camCalls.length).toBeGreaterThan(0);
+    const [viewport, zoom] = camCalls[camCalls.length - 1]!.args as [
+      { x: number; y: number; width: number; height: number },
+      number,
+    ];
+    expect(zoom).toBe(CAMERA_ZOOM_TEST); // playtest feedback: the character was too small
+    expect(viewport.width).toBe(Math.round(320 / CAMERA_ZOOM_TEST));
+    expect(viewport.height).toBe(Math.round(240 / CAMERA_ZOOM_TEST));
+    expect(viewport.x).toBeGreaterThanOrEqual(0);
+    expect(viewport.y).toBeGreaterThanOrEqual(0);
+    // World = 2×2 chunks × 16 tiles × 8 px.
+    expect(viewport.x).toBeLessThanOrEqual(256 - viewport.width);
+    expect(viewport.y).toBeLessThanOrEqual(256 - viewport.height);
     h.scene.exit();
   });
 });

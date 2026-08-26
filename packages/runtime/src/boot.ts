@@ -321,6 +321,8 @@ async function bootWorld(options: BootOptions): Promise<WorldGame> {
   game.start();
 
   // 7. Optional title screen (ADR-010 §3): "press any key" unlocks audio.
+  //    The world UI layer stays hidden while the title (or a CG) owns the
+  //    screen; pressing start reveals it with the world scene.
   if (options.worldTitle !== false) {
     const title = new TitleScene({
       renderer,
@@ -331,10 +333,14 @@ async function bootWorld(options: BootOptions): Promise<WorldGame> {
       subtitle: options.worldTitle?.subtitle,
       logger: logger.child("title"),
       onStart: () => {
+        game.setHudVisible(true);
         game.sceneManager.change(game.scene);
       },
     });
     game.sceneManager.change(title);
+    game.setHudVisible(false);
+  } else {
+    game.setHudVisible(true);
   }
   return game;
 }

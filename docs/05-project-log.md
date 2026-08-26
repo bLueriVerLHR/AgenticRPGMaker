@@ -5,6 +5,24 @@ Date format: `YYYY-MM-DD`.
 
 ---
 
+## 2026-08-26 — Open-world demo S6 playtest feedback pass 2 (feat/open-world-demo)
+
+Second leader playtest round: three issues, all fixed on the branch with docs
+synced ([09-open-world-rpg.md](./09-open-world-rpg.md), playtest pass 2).
+
+**Details**
+
+- **Camera**: world renders at zoom ×3 with smoothed, clamped follow — the
+  character reads at ~48 px instead of 16; fewer chunks drawn per frame.
+- **Movement**: continuous held-key walking (0.09 s glide → next step with no
+  forced pause), blocked-retry cadence 0.12 s, and sub-frame taps still step
+  (direction edges survive instant key releases — this also fixed the E2E's
+  eaten first move).
+- **Boot bars**: were the world HUD hint/objective strips rendering above
+  title/CG; the UI layer now stays hidden until the title/CG handoff.
+- Gold path E2E **14/14** again (approach helper updated: sprite props now
+  block movement); runtime unit suite green incl. three new regressions.
+
 ## 2026-08-26 — Open-world demo S6 playtest feedback pass (feat/open-world-demo)
 
 The leader playtested the served demo and filed eight issues; all eight were

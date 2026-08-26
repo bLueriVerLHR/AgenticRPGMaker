@@ -101,3 +101,6 @@ server/build-deploy/
 # Local tooling downloads (e.g. self-hosted CMake used in sandboxed builds)
 .tools/
 
+
+# Local playtest artifacts (screenshots, debug probes)
+.shots/

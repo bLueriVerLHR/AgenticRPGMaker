@@ -402,3 +402,32 @@ the S6 feedback pass on this branch:
    `sw_boss_defeated` is set).
 
 The world golden-path E2E stays 14/14 after the pass.
+
+**Playtest feedback pass 2 (2026-08-26, verified against the branch)**
+
+The leader's second playtest round produced three more items; all fixed here:
+
+1. **Camera too far out / character too small** — the world now renders through
+   a zoomed follow camera (`CAMERA_ZOOM = 3`, ~13×10 visible tiles on the
+   640×480 canvas): `setCamera(viewport, zoom)` drives the renderer projection
+   (ADR-002), the view eases toward the player (`CAMERA_LERP_RATE`), and is
+   clamped to world bounds. Zoom stays integer so rounded world-pixel camera
+   coordinates keep every rect on integer screen pixels (no shimmer/seams).
+   Small view volume = fewer resident chunks to draw per frame.
+2. **Movement stuttered (stop-start)** — the old model stepped only on press
+   edges plus a 0.2 s repeat delay; held directions paused between steps.
+   Walking is now continuous: while a direction stays held each completed glide
+   flows into the next attempt (blocked tiles retry on a 0.12 s cadence so
+   collision/log are not hammered per frame). A tap shorter than one simulation
+   frame still steps — direction edges survive release, fixing E2E-style
+   instant key presses that previously ate inputs.
+3. **"Two white bars" at boot** — not CG art at all: the world HUD hint +
+   objective strips stayed on screen above title/CG because the scene was
+   already mounted before the title. The UI layer (`uiRoot`) is now hidden
+   until the title hands off (`WorldGame.setHudVisible`, wired in boot +
+   CgScene handoff) — title/CG render alone.
+
+Tests: three new WorldScene unit regressions (continuous walk coverage,
+one-tile-per-tap, sub-frame tap) plus the zoomed-camera assertions; the world
+golden-path E2E stays 14/14 with the approach helper updated for solid chest/
+NPC tiles (sprites now block, so approach coordinates changed).

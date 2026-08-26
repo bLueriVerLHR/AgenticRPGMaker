@@ -316,9 +316,14 @@ async function main() {
     }
     report("2 opening CG skipped → village spawn (96,96)", "PASS", JSON.stringify(spawn?.pos));
 
-    // Chest at village-local (26,28) → global (90,92). Stand at (91,92)
-    // facing left (approach from (92,92)).
+    // Chest at village-local (26,28) → global (90,92). The chest sprite makes
+    // its tile solid now, so the player stands at (91,92) facing left — the
+    // approach helper must treat (90,92) as occupied and not try to overlap it.
     await approachAndFace(90, 92, "left", 91, 92);
+    const atChest = await game();
+    if (atChest?.pos.x !== 91 || atChest?.pos.y !== 92) {
+      throw new Error(`chest approach landed ${JSON.stringify(atChest?.pos)} (expected 91,92)`);
+    }
     await press("Enter");
     await sleep(300);
     const goldAfter = await hudGold();

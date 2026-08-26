@@ -173,7 +173,9 @@ async function createRuntimeRenderer(options: BootOptions, logger: Logger): Prom
 
 function rendererBackend(renderer: Renderer): string {
   const getBackend = (renderer as { getBackend?: () => string }).getBackend;
-  return typeof getBackend === "function" ? getBackend() : "unknown";
+  // Bind: the probe above detaches the method from its receiver, so a plain
+  // `getBackend()` call would run with `this === undefined` (playtest).
+  return typeof getBackend === "function" ? getBackend.call(renderer) : "unknown";
 }
 
 async function createNetworkClient(

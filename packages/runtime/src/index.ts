@@ -81,6 +81,8 @@ export { HttpChunkLoader, baseDirOfWorldUrl } from "./chunk-fetcher.js";
 export type { HttpChunkLoaderOptions } from "./chunk-fetcher.js";
 export { WorldScene } from "./world-scene.js";
 export type { WorldSceneOptions } from "./world-scene.js";
+export { CombatSystem } from "./world-combat.js";
+export type { CombatantView, CombatSystemDeps, ProjectileView } from "./world-combat.js";
 export { createWorldGame } from "./world-game.js";
 export type { CreateWorldGameOptions, WorldGame } from "./world-game.js";
 

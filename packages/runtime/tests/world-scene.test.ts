@@ -109,12 +109,26 @@ function makeFixture(intro: WorldData["intro"] = []): {
     chunkSize: SIZE,
     grid: { cols: 2, rows: 2 },
     chunks: [
-      { id: "c_0_0", file: "data/chunks/c_0_0.json", col: 0, row: 0 },
+      {
+        id: "c_0_0",
+        file: "data/chunks/c_0_0.json",
+        col: 0,
+        row: 0,
+        combatants: [
+          { id: "slime_atk", type: "slime", x: 4, y: 3 },
+          { id: "turret_doom", type: "turret", x: 2, y: 5 },
+          { id: "chaser", type: "slime_fast", x: 2, y: 6 },
+        ],
+      },
       { id: "c_0_1", file: "data/chunks/c_0_1.json", col: 0, row: 1 },
       { id: "c_1_0", file: "data/chunks/c_1_0.json", col: 1, row: 0 },
       { id: "c_1_1", file: "data/chunks/c_1_1.json", col: 1, row: 1 },
     ],
-    combatTypes: {},
+    combatTypes: {
+      slime: { hp: 2, damage: 1, behavior: "chase", speed: 0.1 },
+      slime_fast: { hp: 2, damage: 1, behavior: "chase", speed: 1.2 },
+      turret: { hp: 3, damage: 1, behavior: "turret", speed: 0 },
+    },
     spawn: { chunkId: "c_0_0", x: 2, y: 2, direction: "down" },
     tilesets: ["tilesets/placeholder"],
     global: { variables: {}, switches: {} },
@@ -315,6 +329,87 @@ describe("WorldScene", () => {
     h.scene.enter({ bus: h.bus, state: h.state, logger: createNoopLogger() });
     await waitUntil(() => h.scene.isReady, "readiness");
     expect(h.openedCg).toHaveLength(0); // switch set → no replay
+    h.scene.exit();
+  });
+
+  // ------------------------------------------------------------------
+  // Combat integration (ADR-009, S4)
+  // ------------------------------------------------------------------
+
+  it("sword kills the slime (2 hits) and the defeated id reaches the save", async () => {
+    const h = makeHarness();
+    h.scene.enter({ bus: h.bus, state: h.state, logger: createNoopLogger() });
+    await waitUntil(() => h.scene.isReady, "readiness");
+    step(h.scene, h.input, "down"); // (2,3)
+    step(h.scene, h.input, "right"); // (3,3), facing right → slime at (4,3)
+    h.input.queueConfirm();
+    h.scene.update(0.016); // swing 1 → hit
+    const alive = h.scene.combatSystem.views().find((c) => c.docId === "slime_atk");
+    expect(alive?.hp).toBe(1);
+    h.scene.update(0.4); // cooldown elapses (slime speed 0.1 → no contact)
+    h.input.queueConfirm();
+    h.scene.update(0.016); // swing 2 → kill + autosave
+    expect(h.scene.combatSystem.views().find((c) => c.docId === "slime_atk")).toBeUndefined();
+
+    const start = Date.now();
+    let stored: Awaited<ReturnType<MemoryWorldStorage["load"]>> = null;
+    while (Date.now() - start < 2000) {
+      stored = await h.storage.load();
+      if (stored?.chunkState["c_0_0"]?.defeatedIds.includes("slime_atk")) {
+        break;
+      }
+      await new Promise((resolve) => setTimeout(resolve, 5));
+    }
+    expect(stored?.chunkState["c_0_0"]?.defeatedIds).toContain("slime_atk");
+    h.scene.exit();
+  });
+
+  it("turret shots drain HP on deterministic ticks; death respawns at the spawn", async () => {
+    const h = makeHarness();
+    h.scene.enter({ bus: h.bus, state: h.state, logger: createNoopLogger() });
+    await waitUntil(() => h.scene.isReady, "readiness");
+
+    h.scene.update(2.5); // fire 1 → hit (i-frames on)
+    expect(h.scene.playerHp).toBe(2);
+    h.scene.update(2.5); // i-frames decayed → fire 2 → hit
+    expect(h.scene.playerHp).toBe(1);
+    h.scene.update(2.5); // fire 3 → defeated
+    expect(h.scene.isDead).toBe(true);
+    h.scene.update(1.3); // death fade elapses → respawn
+    expect(h.scene.isDead).toBe(false);
+    expect(h.scene.playerHp).toBe(3);
+    expect(h.scene.playerPosition).toEqual({ x: 2, y: 2 });
+    h.scene.exit();
+  });
+
+  it("combat freezes while a dialogue box is open", async () => {
+    const h = makeHarness();
+    h.scene.enter({ bus: h.bus, state: h.state, logger: createNoopLogger() });
+    await waitUntil(() => h.scene.isReady, "readiness");
+    step(h.scene, h.input, "right"); // blocked by the guide at (3,2), facing right
+    h.input.queueConfirm();
+    h.scene.update(0.016); // guide dialogue opens
+    expect(h.scene.isDialogueOpen).toBe(true);
+    h.scene.update(3.0); // would fire the turret / move the chaser — frozen
+    expect(h.scene.playerHp).toBe(3);
+    expect(h.scene.combatSystem.projectiles()).toHaveLength(0);
+    h.input.queueConfirm();
+    h.scene.update(0.016); // close dialogue
+    expect(h.scene.isDialogueOpen).toBe(false);
+    h.scene.exit();
+  });
+
+  it("Z talks when facing an NPC (no enemy: the sword does not fire)", async () => {
+    const h = makeHarness();
+    h.scene.enter({ bus: h.bus, state: h.state, logger: createNoopLogger() });
+    await waitUntil(() => h.scene.isReady, "readiness");
+    h.input.pressDirection("right");
+    h.scene.update(0.016); // face the guide at (3,2) — occupied, so we stay at (2,2)
+    h.input.releaseDirection("right");
+    h.input.queueConfirm();
+    h.scene.update(0.016); // no combatant at (3,2) → sword declines → interact runs
+    expect(h.scene.isDialogueOpen).toBe(true);
+    expect(h.scene.currentDialogueText).toBe("Follow me.");
     h.scene.exit();
   });
 });

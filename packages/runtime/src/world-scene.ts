@@ -11,10 +11,11 @@
  * `onOpenCg` (the game assembly switches to CgScene, which freezes this scene
  * by construction while it is current — the ADR-009 freeze gate).
  *
- * Scope note (S3c): combat systems (contact damage, attack, death flow) land
- * in S4; this scene ships movement/collision/dialogue/interaction/CG/audio/
- * save-v2. The world runs single-player (multiplayer stays on the mapData
- * path, ADR-008 §5).
+ * Scope note (S4): on-map combat (sword, contact damage, turret projectiles,
+ * death → respawn) is wired through the CombatSystem (world-combat.js); this
+ * scene ships movement/collision/dialogue/interaction/CG/audio/save-v2 and
+ * the combat integration. The world runs single-player (multiplayer stays on
+ * the mapData path, ADR-008 §5).
  */
 import type {
   Direction,
@@ -53,6 +54,7 @@ import type { Logger } from "./logger.js";
 import { createNoopLogger } from "./logger.js";
 import { buildCollisionGrid, type SolidTileGrid } from "./movement.js";
 import type { Scene, SceneContext } from "./scene.js";
+import { CombatSystem } from "./world-combat.js";
 import type { WorldStorage } from "./world-storage.js";
 
 export interface WorldSceneOptions {
@@ -146,9 +148,14 @@ export class WorldScene implements Scene {
   private entered = false;
   private ready = false;
   private hp = PLAYER_MAX_HP;
+  private playerIframes = 0;
+  private dead = false;
+  private deathTimer = 0;
   private tilesetsRegistered = false;
   /** Bus dialogue is suppressed while a CG-marked page runs (its lines replay inside the CG). */
   private suppressingDialogueForCg = false;
+  /** On-map combat (ADR-009, S4): enemies, projectiles, the player sword. */
+  private readonly combat: CombatSystem;
 
   private readonly busUnsubscribers: Array<() => void> = [];
   private readonly domCleanup: Array<() => void> = [];
@@ -172,6 +179,17 @@ export class WorldScene implements Scene {
     this.autoLoad = options.autoLoad ?? true;
     this.onOpenCg = options.onOpenCg;
     this.hp = options.playerHp ?? PLAYER_MAX_HP;
+    this.combat = new CombatSystem({
+      world: this.world,
+      sceneGraph: this.sceneGraph,
+      logger: this.logger,
+      playerTile: () => this.playerPosition,
+      playerDirection: () => this.playerDirection as InputDirection,
+      isTileBlocked: (tile) => this.isBlocked(tile),
+      applyDamageToPlayer: (amount) => this.applyDamageToPlayer(amount),
+      onCombatantDefeated: (chunkId, combatantId) => this.onCombatantDefeated(chunkId, combatantId),
+      sfx: (ref) => this.audio?.playSfx(ref),
+    });
   }
 
   // ------------------------------------------------------------------
@@ -187,6 +205,16 @@ export class WorldScene implements Scene {
   /** The player's current HP (hearts in HUD; save-v2 persists it). */
   get playerHp(): number {
     return this.hp;
+  }
+
+  /** True while the player is down (before the respawn fade completes). */
+  get isDead(): boolean {
+    return this.dead;
+  }
+
+  /** The on-map combat system (enemies, projectiles, sword). */
+  get combatSystem(): CombatSystem {
+    return this.combat;
   }
 
   /** The player's current facing direction. */
@@ -256,6 +284,15 @@ export class WorldScene implements Scene {
     this.handleMovement(dt);
     this.handleConfirm();
     this.handleCancel();
+    this.playerIframes = Math.max(0, this.playerIframes - dt);
+    if (this.dead) {
+      this.deathTimer -= dt;
+      if (this.deathTimer <= 0) {
+        this.respawnAtSpawn();
+      }
+    } else if (!this.isDialogueOpen) {
+      this.combat.update(dt); // frozen during dialogue/CG (ADR-009 §5.5)
+    }
     this.updateHud();
   }
 
@@ -454,6 +491,7 @@ export class WorldScene implements Scene {
       this.sceneGraph.addEntity(entity);
       this.entityChunk.set(entityId, chunkId);
     }
+    this.combat.spawnForChunk(chunkId);
     this.logger.debug("world: chunk entities wired", { chunkId, events: map.events.length });
   }
 
@@ -468,6 +506,7 @@ export class WorldScene implements Scene {
     }
     this.grids.delete(chunkId);
     this.chunkEvents.delete(chunkId);
+    this.combat.despawnForChunk(chunkId);
     this.logger.debug("world: chunk entities removed", { chunkId });
   }
 
@@ -572,6 +611,9 @@ export class WorldScene implements Scene {
         return true;
       }
     }
+    if (this.combat.atTile(at) !== null) {
+      return true; // enemies are solid (contact happens when THEY step in)
+    }
     return false;
   }
 
@@ -637,8 +679,14 @@ export class WorldScene implements Scene {
       this.advanceDialogue();
       return;
     }
+    if (this.dead) {
+      return;
+    }
     if (this.step !== null) {
       return;
+    }
+    if (this.combat.attack()) {
+      return; // a sword swing happened (hit or whiff) — no interaction this press
     }
     this.tryInteract();
   }
@@ -701,6 +749,60 @@ export class WorldScene implements Scene {
       return true;
     }
     return true; // facing an event with no active page still consumes the press
+  }
+
+  // ------------------------------------------------------------------
+  // Combat integration (ADR-009 §5, S4)
+  // ------------------------------------------------------------------
+
+  /** The combat system asks the scene to damage the player (i-frames/HP/death). */
+  private applyDamageToPlayer(amount: number): void {
+    if (this.dead || this.playerIframes > 0) {
+      return;
+    }
+    this.hp = Math.max(0, this.hp - amount);
+    this.playerIframes = 0.5;
+    this.audio?.playSfx("hit");
+    this.updateHud();
+    this.logger.warn("combat: player hit", { hp: this.hp, amount });
+    if (this.hp <= 0) {
+      this.hp = 0;
+      this.dead = true;
+      this.deathTimer = 1.2;
+      this.step = null;
+      this.dialogueQueue.length = 0;
+      this.renderDialogue();
+      this.logger.warn("combat: player defeated", {});
+    }
+  }
+
+  /** A combatant died: remember it (save-v2 delta) and autosave the victory. */
+  private onCombatantDefeated(chunkId: string, combatantId: string): void {
+    const set = this.defeatedByChunk.get(chunkId) ?? new Set<string>();
+    set.add(combatantId);
+    this.defeatedByChunk.set(chunkId, set);
+    void this.save().then((ok) => {
+      if (ok) {
+        this.logger.info("combat: victory autosave", { combatantId, chunkId });
+      }
+    });
+  }
+
+  /** Death flow (ADR-009 §5.4): back to the spawn, full HP, progress kept. */
+  private respawnAtSpawn(): void {
+    this.dead = false;
+    this.hp = PLAYER_MAX_HP;
+    this.playerIframes = 1.0;
+    const transform = this.playerTransform;
+    const spawn = this.world.spawn;
+    transform?.setPosition(spawn.x, spawn.y);
+    transform?.setDirection(spawn.direction);
+    this.step = null;
+    this.clearInput();
+    void this.chunkStore.updateTo(chunkCellAt(spawn.x, spawn.y, this.world.chunkSize));
+    this.updateHud();
+    this.showToast("respawning");
+    this.logger.info("combat: player respawned", { spawn });
   }
 
   // ------------------------------------------------------------------
@@ -963,12 +1065,48 @@ export class WorldScene implements Scene {
       renderer.drawRect(t.x * tileSize, t.y * tileSize, tileSize, tileSize, "#c9a227");
     }
 
-    // Player.
+    // Combatants (ADR-009): chasers red, turrets purple.
+    for (const enemy of this.combat.views()) {
+      renderer.drawRect(
+        enemy.x * tileSize,
+        enemy.y * tileSize,
+        tileSize,
+        tileSize,
+        enemy.behavior === "turret" ? "#7b1fa2" : "#d84315",
+      );
+    }
+    // Projectiles: small white darts.
+    for (const projectile of this.combat.projectiles()) {
+      renderer.drawRect(
+        projectile.x * tileSize + tileSize / 2 - 2,
+        projectile.y * tileSize + tileSize / 2 - 2,
+        5,
+        5,
+        "#ffffff",
+      );
+    }
+
+    // Player (blinks while the post-hit i-frames last).
     const pos = this.renderPosition();
     const px = pos.x * tileSize;
     const py = pos.y * tileSize;
-    renderer.drawRect(px, py, tileSize, tileSize, "#4caf50");
-    renderer.drawRect(px + 2, py - 2, tileSize - 4, 2, "#c8e6c9");
+    const blink = this.playerIframes > 0 && Math.floor(this.playerIframes * 8) % 2 === 0;
+    if (!blink) {
+      renderer.drawRect(px, py, tileSize, tileSize, "#4caf50");
+      renderer.drawRect(px + 2, py - 2, tileSize - 4, 2, "#c8e6c9");
+    }
+
+    // Death fade (black ramp while down; the respawn happens in update()).
+    if (this.dead) {
+      const alpha = Math.min(1, Math.max(0, (1.2 - this.deathTimer) / 1.2 + 0.05));
+      renderer.drawRect(
+        0,
+        0,
+        this.canvas.width,
+        this.canvas.height,
+        `rgba(0,0,0,${alpha.toFixed(3)})`,
+      );
+    }
 
     renderer.endFrame();
   }

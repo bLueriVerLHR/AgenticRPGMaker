@@ -138,4 +138,19 @@ describe("parseProjectPackage validation", () => {
     const restored = parseProjectPackage(files);
     expect(restored.maps).toHaveLength(2);
   });
+
+  it("accepts a folder import wrapped in a root directory (webkitRelativePath)", () => {
+    const { project, maps, tilesets } = makeProjectWithContent();
+    const files = buildProjectPackage(project, maps, tilesets);
+    // Simulate a `webkitdirectory` pick: every path gains the picked root
+    // folder as a prefix, plus a stray non-package file.
+    const wrapped = new Map(
+      [...files.entries()].map(([path, bytes]) => [`MyProject/${path}`, bytes] as const),
+    );
+    wrapped.set("MyProject/notes.txt", new TextEncoder().encode("not a package file"));
+    const restored = parseProjectPackage(wrapped);
+    expect(restored.maps).toHaveLength(maps.length);
+    expect(restored.maps[0]!.layers[0]!.data).toEqual(maps[0]!.layers[0]!.data);
+    expect(restored.tilesets).toHaveLength(tilesets.length);
+  });
 });

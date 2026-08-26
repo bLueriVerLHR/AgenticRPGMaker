@@ -128,12 +128,37 @@ export function unzipProjectPackage(bytes: Uint8Array): ProjectPackageFiles {
 }
 
 /**
+ * Normalise package paths: a folder import (`webkitdirectory`) prefixes every
+ * `webkitRelativePath` with the picked root folder name, and a ZIP may wrap
+ * everything in a single top-level directory. When the manifest is not at the
+ * expected root but exactly one `…/data/project.json` exists, that common
+ * leading directory is stripped from every entry.
+ */
+function normalizePackageFiles(files: ProjectPackageFiles): ProjectPackageFiles {
+  if (files.has(PROJECT_MANIFEST_PATH)) {
+    return files;
+  }
+  const suffix = `/${PROJECT_MANIFEST_PATH}`;
+  const candidates = [...files.keys()].filter((path) => path.endsWith(suffix));
+  if (candidates.length !== 1) {
+    return files; // missing (or ambiguous) manifest — reported by the caller
+  }
+  const prefix = candidates[0]!.slice(0, candidates[0]!.length - PROJECT_MANIFEST_PATH.length);
+  const normalized: ProjectPackageFiles = new Map();
+  for (const [path, bytes] of files) {
+    normalized.set(path.startsWith(prefix) ? path.slice(prefix.length) : path, bytes);
+  }
+  return normalized;
+}
+
+/**
  * Parse a project package (from ZIP or folder import) into a validated
  * `StoredProject`. The project document, every map, and every tileset are
  * validated against the core schemas; a fresh project id is assigned on
  * import so an import never overwrites an existing project.
  */
-export function parseProjectPackage(files: ProjectPackageFiles): StoredProject {
+export function parseProjectPackage(inputFiles: ProjectPackageFiles): StoredProject {
+  const files = normalizePackageFiles(inputFiles);
   const manifest = files.get(PROJECT_MANIFEST_PATH);
   if (manifest === undefined) {
     throw new ProjectPackageError(`package is missing ${PROJECT_MANIFEST_PATH}`);

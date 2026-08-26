@@ -7,12 +7,14 @@
     </linearGradient>
   </defs>
   <rect width="640" height="480" fill="url(#dawn)"/>
-  <circle cx="320" cy="240" r="90" fill="#fff8dc" opacity="0.9"/>
+  <circle cx="320" cy="200" r="92" fill="#fff8dc" opacity="0.95"/>
   <path d="M0 320 L120 260 L240 320 L400 250 L520 320 L640 270 L640 480 L0 480 Z" fill="#3a4a2a"/>
-  <rect x="150" y="180" width="26" height="90" fill="#333"/>
-  <rect x="470" y="170" width="26" height="100" fill="#333"/>
-  <rect x="156" y="184" width="14" height="90" fill="#ffd54f"/>
-  <rect x="476" y="174" width="14" height="100" fill="#ffb300"/>
+  <!-- The beacon burns bright on its tower. -->
+  <rect x="300" y="120" width="40" height="120" fill="#2c2c34"/>
+  <rect x="288" y="232" width="64" height="10" fill="#2c2c34"/>
+  <ellipse cx="320" cy="244" rx="20" ry="7" fill="#1c1c22"/>
+  <path d="M308 130 Q300 104 320 96 Q340 104 332 130 Z" fill="#ffb300"/>
+  <path d="M314 122 Q310 106 320 100 Q330 106 326 122 Z" fill="#ffd54f"/>
   <text x="320" y="440" font-family="monospace" font-size="30" fill="#2b1e0a" text-anchor="middle" letter-spacing="6">THE END</text>
   <text x="320" y="468" font-family="monospace" font-size="13" fill="#3a4a2a" text-anchor="middle">the beacon burns again</text>
 </svg>

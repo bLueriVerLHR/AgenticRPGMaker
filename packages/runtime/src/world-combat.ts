@@ -202,6 +202,23 @@ export class CombatSystem {
     return null;
   }
 
+  /** Remaining white-hit-flash seconds for a combatant entity (render). */
+  flashOf(entityId: string): number {
+    return this.combatants.get(entityId)?.flash ?? 0;
+  }
+
+  /**
+   * Turret charge (0..1): how close the turret is to its next shot — renders
+   * as a growing telegraph so the player can dodge (ADR-009 §5).
+   */
+  chargeOf(entityId: string): number {
+    const state = this.combatants.get(entityId);
+    if (state === undefined || state.behavior !== "turret" || !state.alive) {
+      return 0;
+    }
+    return Math.max(0, Math.min(1, 1 - state.fireIn / TURRET_FIRE_INTERVAL_SECONDS));
+  }
+
   /**
    * Player sword toward the facing tile. Returns true (press consumed) only
    * when an actual swing at a combatant happened — facing an NPC/tile falls

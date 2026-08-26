@@ -369,3 +369,36 @@ both backends; cover/fit math shared (`fit.ts`).
   test:world`) automates the full §1 acceptance path — **14/14 steps green**:
   title → opening CG → village chest/elder → seamless village→wilds crossing →
   two slimes → guard branch → turret sentinel → ending CG → F5/reload restore.
+
+**Playtest feedback pass (2026-08-26, verified against the branch)**
+
+The leader's first playtest produced eight feedback items; all are addressed in
+the S6 feedback pass on this branch:
+
+1. **Walls invisible** — the demo previously referenced an atlas PNG that was
+   never emitted (404), so tiles rendered as a flat background and solids were
+   unreadable. The generator now paints and writes a real 128×128 atlas
+   (`img/tilesets/placeholder.png`, pure-Node PNG encoder + deterministic pixel
+   painters: grass / path / water / masonry rock / flowers). Wall faces keep a
+   bright crest (top edge of a solid run); open water needs no overlay.
+2. **Movement too slow** — step duration 0.15 s → 0.09 s, repeat delay
+   0.25 s → 0.20 s.
+3. **Opening CG unclear** — the stills were redesigned in the generator: the
+   opening now shows the cold beacon over village roofs ("the beacon has gone
+   dark — light it in the north"), the ending a burning beacon on its tower.
+4. **Player facing unclear** — a white chevron on the hero sprite always points
+   where the player looks.
+5. **Swing invisible** — a sword slash mark flashes on the facing tile while a
+   swing is live (`world-combat.attack()` reporting + `SWING_FLASH_SECONDS`).
+6. **Enemy attacks unclear** — turret shots are telegraphed by a growing charge
+   core (yellow → red at release), hits flash white on enemies / red on the
+   player, projectiles render as bright bolts with white cores.
+7. **No guidance** — an objective line (`hud-objective`, `objectiveHint`)
+   driven by the story switches states the current goal at all times.
+8. **Everything is abstract squares** — composed rect mini-sprites
+   (`world-sprites.ts`, unit-tested): hero (tunic/sword hilt/facing chevron),
+   villagers tinted per role, slimes with eyes and hit-flash, turret sentries,
+   plus props drawn for chest/signpost/beacon (the beacon flames once
+   `sw_boss_defeated` is set).
+
+The world golden-path E2E stays 14/14 after the pass.

@@ -18,6 +18,7 @@
  */
 import { mkdirSync, writeFileSync } from "node:fs";
 import path from "node:path";
+import { deflateSync } from "node:zlib";
 import { fileURLToPath } from "node:url";
 
 import {
@@ -64,6 +65,211 @@ const FLOWER = 5;
 
 function solidOf(tile) {
   return tile === WATER || tile === ROCK ? 1 : 0;
+}
+
+// ---------------------------------------------------------------------------
+// Minimal deterministic PNG encoder (RGBA, no interlace) — pure Node
+// (zlib.deflateSync), so the demo ships real terrain art with zero
+// dependencies and byte-identical output. Used for the ground atlas below;
+// the P5 pipeline (`build-www.mjs`) keeps its own generated placeholder.
+// ---------------------------------------------------------------------------
+const CRC32_TABLE = (() => {
+  const table = new Uint32Array(256);
+  for (let n = 0; n < 256; n++) {
+    let c = n;
+    for (let k = 0; k < 8; k++) {
+      c = c & 1 ? 0xedb88320 ^ (c >>> 1) : c >>> 1;
+    }
+    table[n] = c >>> 0;
+  }
+  return table;
+})();
+
+function crc32(bytes) {
+  let c = 0xffffffff;
+  for (let i = 0; i < bytes.length; i++) {
+    c = CRC32_TABLE[(c ^ bytes[i]) & 0xff] ^ (c >>> 8);
+  }
+  return (c ^ 0xffffffff) >>> 0;
+}
+
+function pngChunk(type, data) {
+  const len = Buffer.alloc(4);
+  len.writeUInt32BE(data.length, 0);
+  const body = Buffer.concat([Buffer.from(type, "ascii"), data]);
+  const crc = Buffer.alloc(4);
+  crc.writeUInt32BE(crc32(body), 0);
+  return Buffer.concat([len, body, crc]);
+}
+
+/** Encode an RGBA Uint8Array (w*h*4 bytes) as a PNG buffer. */
+function encodePng(width, height, rgba) {
+  const ihdr = Buffer.alloc(13);
+  ihdr.writeUInt32BE(width, 0);
+  ihdr.writeUInt32BE(height, 4);
+  ihdr[8] = 8; // bit depth
+  ihdr[9] = 6; // color type: RGBA
+  const raw = Buffer.alloc(height * (width * 4 + 1));
+  for (let y = 0; y < height; y++) {
+    raw[y * (width * 4 + 1)] = 0; // filter: none
+    Buffer.from(rgba.buffer, rgba.byteOffset + y * width * 4, width * 4).copy(
+      raw,
+      y * (width * 4 + 1) + 1,
+    );
+  }
+  return Buffer.concat([
+    Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]),
+    pngChunk("IHDR", ihdr),
+    pngChunk("IDAT", deflateSync(raw, { level: 9 })),
+    pngChunk("IEND", Buffer.alloc(0)),
+  ]);
+}
+
+// ---------------------------------------------------------------------------
+// Ground atlas painters. The atlas is 128×128 (8×8 cells of 16 px); cells are
+// laid out to match map tile indices minus one: cell 0 = grass, 1 = path,
+// 2 = water, 3 = rock (masonry — doubles as fortress wall), 4 = flowers.
+// ---------------------------------------------------------------------------
+const ATLAS_SIZE = 128;
+const ATLAS_CELL = 16;
+
+/** Create a fully transparent RGBA canvas. */
+function makeAtlas() {
+  return new Uint8Array(ATLAS_SIZE * ATLAS_SIZE * 4);
+}
+
+function px(atlas, x, y, [r, g, b], a = 255) {
+  if (x < 0 || y < 0 || x >= ATLAS_SIZE || y >= ATLAS_SIZE) {
+    return;
+  }
+  const i = (y * ATLAS_SIZE + x) * 4;
+  atlas[i] = r;
+  atlas[i + 1] = g;
+  atlas[i + 2] = b;
+  atlas[i + 3] = a;
+}
+
+function fillRect(atlas, cx, cy, w, h, color) {
+  for (let y = cy; y < cy + h; y++) {
+    for (let x = cx; x < cx + w; x++) {
+      px(atlas, x, y, color);
+    }
+  }
+}
+
+function paintGrass(atlas, ox, oy, rng) {
+  const base = [62, 125, 58];
+  fillRect(atlas, ox, oy, ATLAS_CELL, ATLAS_CELL, base);
+  // Subtle horizontal striping for texture without noise.
+  for (let y = 0; y < ATLAS_CELL; y += 2) {
+    for (let x = 0; x < ATLAS_CELL; x++) {
+      if ((x * 7 + y * 3) % 5 === 0) {
+        px(atlas, ox + x, oy + y, [55, 112, 52]);
+      }
+    }
+  }
+  // Sparse blades (lighter green).
+  for (let n = 0; n < 7; n++) {
+    const bx = Math.floor(rng() * ATLAS_CELL);
+    const by = Math.floor(rng() * ATLAS_CELL);
+    px(atlas, ox + bx, oy + by, [111, 174, 75]);
+    px(atlas, ox + bx, oy + by - 1, [86, 146, 63]);
+  }
+  // A dark speck or two.
+  for (let n = 0; n < 2; n++) {
+    px(
+      atlas,
+      ox + Math.floor(rng() * ATLAS_CELL),
+      oy + Math.floor(rng() * ATLAS_CELL),
+      [44, 94, 43],
+    );
+  }
+}
+
+function paintPath(atlas, ox, oy, rng) {
+  fillRect(atlas, ox, oy, ATLAS_CELL, ATLAS_CELL, [200, 164, 100]);
+  // Sandy grain.
+  for (let n = 0; n < 14; n++) {
+    px(
+      atlas,
+      ox + Math.floor(rng() * ATLAS_CELL),
+      oy + Math.floor(rng() * ATLAS_CELL),
+      [182, 147, 87],
+    );
+  }
+  // Pebbles.
+  for (let n = 0; n < 3; n++) {
+    const bx = 1 + Math.floor(rng() * (ATLAS_CELL - 4));
+    const by = 1 + Math.floor(rng() * (ATLAS_CELL - 4));
+    fillRect(atlas, ox + bx, oy + by, 2, 2, [168, 131, 74]);
+    px(atlas, ox + bx, oy + by, [219, 184, 122]);
+  }
+}
+
+function paintWater(atlas, ox, oy) {
+  fillRect(atlas, ox, oy, ATLAS_CELL, ATLAS_CELL, [43, 90, 166]);
+  // Wave bands.
+  fillRect(atlas, ox, oy + 3, ATLAS_CELL, 1, [74, 127, 208]);
+  fillRect(atlas, ox + 5, oy + 4, 6, 1, [96, 149, 226]);
+  fillRect(atlas, ox, oy + 10, ATLAS_CELL, 1, [74, 127, 208]);
+  fillRect(atlas, ox + 9, oy + 11, 5, 1, [96, 149, 226]);
+  // Sparkles.
+  px(atlas, ox + 3, oy + 6, [214, 232, 255]);
+  px(atlas, ox + 12, oy + 1, [214, 232, 255]);
+  px(atlas, ox + 7, oy + 13, [214, 232, 255]);
+}
+
+function paintRock(atlas, ox, oy) {
+  // Masonry: reads as both natural cliff and fortress wall.
+  fillRect(atlas, ox, oy, ATLAS_CELL, ATLAS_CELL, [71, 76, 86]); // mortar
+  const brickTop = [123, 132, 148];
+  const brickLite = [152, 162, 179];
+  const brickDark = [95, 102, 115];
+  // Two rows of offset bricks (row heights 8 px, joints staggered).
+  const rows = [
+    { y: 1, joints: [5, 11] },
+    { y: 9, joints: [2, 8, 14] },
+  ];
+  for (const row of rows) {
+    fillRect(atlas, ox + 1, oy + row.y, ATLAS_CELL - 2, 6, brickTop);
+    fillRect(atlas, ox + 1, oy + row.y, ATLAS_CELL - 2, 1, brickLite);
+    fillRect(atlas, ox + 1, oy + row.y + 5, ATLAS_CELL - 2, 1, brickDark);
+    for (const j of row.joints) {
+      fillRect(atlas, ox + j, oy + row.y, 1, 6, [71, 76, 86]);
+    }
+  }
+}
+
+function paintFlowers(atlas, ox, oy, rng) {
+  paintGrass(atlas, ox, oy, rng);
+  const colors = [
+    [229, 107, 140],
+    [242, 193, 78],
+    [245, 245, 245],
+  ];
+  for (let n = 0; n < 3; n++) {
+    const fx = 2 + Math.floor(rng() * (ATLAS_CELL - 4));
+    const fy = 2 + Math.floor(rng() * (ATLAS_CELL - 4));
+    const color = colors[n % colors.length];
+    // Plus-shaped bloom + petal ring on 16 px it reads as a flower dot.
+    px(atlas, ox + fx, oy + fy, color);
+    px(atlas, ox + fx - 1, oy + fy, color);
+    px(atlas, ox + fx + 1, oy + fy, color);
+    px(atlas, ox + fx, oy + fy - 1, color);
+    px(atlas, ox + fx, oy + fy + 1, color);
+    px(atlas, ox + fx, oy + fy, [250, 240, 160]); // center
+  }
+}
+
+/** Paint the shared ground atlas (cells in map-index-minus-one order). */
+function buildGroundAtlas() {
+  const atlas = makeAtlas();
+  paintGrass(atlas, 0, 0, mulberry32(101));
+  paintPath(atlas, ATLAS_CELL, 0, mulberry32(202));
+  paintWater(atlas, ATLAS_CELL * 2, 0);
+  paintRock(atlas, ATLAS_CELL * 3, 0);
+  paintFlowers(atlas, ATLAS_CELL * 4, 0, mulberry32(303));
+  return encodePng(ATLAS_SIZE, ATLAS_SIZE, atlas);
 }
 
 function makeChunk(name) {
@@ -321,18 +527,27 @@ function openingCg() {
   <defs>
     <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1">
       <stop offset="0" stop-color="#0b1026"/>
+      <stop offset="0.7" stop-color="#1c1e33"/>
       <stop offset="1" stop-color="#2b1e3a"/>
     </linearGradient>
   </defs>
   <rect width="640" height="480" fill="url(#sky)"/>
-  <circle cx="540" cy="120" r="42" fill="#3a3a4a"/>
-  <rect x="516" y="90" width="48" height="120" fill="#1c1c28"/>
-  <rect x="502" y="200" width="76" height="10" fill="#1c1c28"/>
-  <rect x="520" y="206" width="40" height="120" fill="#2a2a38"/>
-  <rect x="522" y="212" width="12" height="120" fill="#ffd54f"/>
-  <rect x="546" y="212" width="12" height="120" fill="#ffb300"/>
+  <circle cx="120" cy="120" r="60" fill="#1a1c2e"/>
+  <circle cx="120" cy="120" r="44" fill="#2a2c44"/>
+  <circle cx="320" cy="110" r="26" fill="#3a3a4a"/>
+  <rect x="300" y="70" width="40" height="110" fill="#1c1c28"/>
+  <rect x="288" y="170" width="64" height="10" fill="#1c1c28"/>
+  <!-- The beacon brazier: cold and dark (this is the "beacon has gone out" shot). -->
+  <ellipse cx="320" cy="188" rx="20" ry="8" fill="#11131c"/>
+  <rect x="312" y="178" width="16" height="10" fill="#2a2a38"/>
+  <!-- Village roofs along the bottom. -->
+  <path d="M0 360 L80 300 L160 360 Z" fill="#262a3c"/>
+  <path d="M90 366 L170 306 L250 366 Z" fill="#2e3348"/>
+  <path d="M240 360 L320 302 L400 360 Z" fill="#262a3c"/>
+  <path d="M460 366 L540 310 L620 366 Z" fill="#2e3348"/>
+  <rect x="0" y="360" width="640" height="120" fill="#10121c"/>
   <text x="320" y="430" font-family="monospace" font-size="26" fill="#e8e6df" text-anchor="middle" letter-spacing="4">THE CROSSROADS</text>
-  <text x="320" y="458" font-family="monospace" font-size="13" fill="#8d99ae" text-anchor="middle">the beacon has gone dark</text>
+  <text x="320" y="458" font-family="monospace" font-size="13" fill="#8d99ae" text-anchor="middle">the beacon has gone dark — light it in the north</text>
 </svg>
 `;
 }
@@ -347,12 +562,14 @@ function endingCg() {
     </linearGradient>
   </defs>
   <rect width="640" height="480" fill="url(#dawn)"/>
-  <circle cx="320" cy="240" r="90" fill="#fff8dc" opacity="0.9"/>
+  <circle cx="320" cy="200" r="92" fill="#fff8dc" opacity="0.95"/>
   <path d="M0 320 L120 260 L240 320 L400 250 L520 320 L640 270 L640 480 L0 480 Z" fill="#3a4a2a"/>
-  <rect x="150" y="180" width="26" height="90" fill="#333"/>
-  <rect x="470" y="170" width="26" height="100" fill="#333"/>
-  <rect x="156" y="184" width="14" height="90" fill="#ffd54f"/>
-  <rect x="476" y="174" width="14" height="100" fill="#ffb300"/>
+  <!-- The beacon burns bright on its tower. -->
+  <rect x="300" y="120" width="40" height="120" fill="#2c2c34"/>
+  <rect x="288" y="232" width="64" height="10" fill="#2c2c34"/>
+  <ellipse cx="320" cy="244" rx="20" ry="7" fill="#1c1c22"/>
+  <path d="M308 130 Q300 104 320 96 Q340 104 332 130 Z" fill="#ffb300"/>
+  <path d="M314 122 Q310 106 320 100 Q330 106 326 122 Z" fill="#ffd54f"/>
   <text x="320" y="440" font-family="monospace" font-size="30" fill="#2b1e0a" text-anchor="middle" letter-spacing="6">THE END</text>
   <text x="320" y="468" font-family="monospace" font-size="13" fill="#3a4a2a" text-anchor="middle">the beacon burns again</text>
 </svg>
@@ -420,6 +637,7 @@ function main() {
   mkdirSync(CHUNKS, { recursive: true });
   mkdirSync(TILESETS, { recursive: true });
   mkdirSync(IMG, { recursive: true });
+  mkdirSync(path.join(OUT, "img", "tilesets"), { recursive: true });
 
   const chunkEntries = buildChunks();
   const world = buildWorld(chunkEntries);
@@ -441,11 +659,12 @@ function main() {
     path.join(TILESETS, "placeholder.tileset.json"),
     `${JSON.stringify(TILESET_DOC, null, 2)}\n`,
   );
+  writeFileSync(path.join(OUT, "img", "tilesets", "placeholder.png"), buildGroundAtlas());
   writeFileSync(path.join(IMG, "opening.svg"), openingCg());
   writeFileSync(path.join(IMG, "ending.svg"), endingCg());
 
   console.log(
-    `[gen-open-world] wrote world.json (${world.chunks.length} chunks) + ${maps.length} maps + tileset + 2 CGs → ${path.relative(REPO, DATA)}`,
+    `[gen-open-world] wrote world.json (${world.chunks.length} chunks) + ${maps.length} maps + tileset + atlas.png + 2 CGs → ${path.relative(REPO, DATA)}`,
   );
 }
 

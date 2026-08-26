@@ -2,16 +2,25 @@
   <defs>
     <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1">
       <stop offset="0" stop-color="#0b1026"/>
+      <stop offset="0.7" stop-color="#1c1e33"/>
       <stop offset="1" stop-color="#2b1e3a"/>
     </linearGradient>
   </defs>
   <rect width="640" height="480" fill="url(#sky)"/>
-  <circle cx="540" cy="120" r="42" fill="#3a3a4a"/>
-  <rect x="516" y="90" width="48" height="120" fill="#1c1c28"/>
-  <rect x="502" y="200" width="76" height="10" fill="#1c1c28"/>
-  <rect x="520" y="206" width="40" height="120" fill="#2a2a38"/>
-  <rect x="522" y="212" width="12" height="120" fill="#ffd54f"/>
-  <rect x="546" y="212" width="12" height="120" fill="#ffb300"/>
+  <circle cx="120" cy="120" r="60" fill="#1a1c2e"/>
+  <circle cx="120" cy="120" r="44" fill="#2a2c44"/>
+  <circle cx="320" cy="110" r="26" fill="#3a3a4a"/>
+  <rect x="300" y="70" width="40" height="110" fill="#1c1c28"/>
+  <rect x="288" y="170" width="64" height="10" fill="#1c1c28"/>
+  <!-- The beacon brazier: cold and dark (this is the "beacon has gone out" shot). -->
+  <ellipse cx="320" cy="188" rx="20" ry="8" fill="#11131c"/>
+  <rect x="312" y="178" width="16" height="10" fill="#2a2a38"/>
+  <!-- Village roofs along the bottom. -->
+  <path d="M0 360 L80 300 L160 360 Z" fill="#262a3c"/>
+  <path d="M90 366 L170 306 L250 366 Z" fill="#2e3348"/>
+  <path d="M240 360 L320 302 L400 360 Z" fill="#262a3c"/>
+  <path d="M460 366 L540 310 L620 366 Z" fill="#2e3348"/>
+  <rect x="0" y="360" width="640" height="120" fill="#10121c"/>
   <text x="320" y="430" font-family="monospace" font-size="26" fill="#e8e6df" text-anchor="middle" letter-spacing="4">THE CROSSROADS</text>
-  <text x="320" y="458" font-family="monospace" font-size="13" fill="#8d99ae" text-anchor="middle">the beacon has gone dark</text>
+  <text x="320" y="458" font-family="monospace" font-size="13" fill="#8d99ae" text-anchor="middle">the beacon has gone dark — light it in the north</text>
 </svg>

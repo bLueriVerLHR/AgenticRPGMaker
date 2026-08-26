@@ -55,6 +55,15 @@ import { createNoopLogger } from "./logger.js";
 import { buildCollisionGrid, type SolidTileGrid } from "./movement.js";
 import type { Scene, SceneContext } from "./scene.js";
 import { CombatSystem } from "./world-combat.js";
+import {
+  drawBeacon,
+  drawChest,
+  drawHero,
+  drawSignpost,
+  drawSlime,
+  drawTurret,
+  drawVillager,
+} from "./world-sprites.js";
 import type { WorldStorage } from "./world-storage.js";
 
 export interface WorldSceneOptions {
@@ -89,11 +98,19 @@ interface Step {
   t: number;
 }
 
-const REPEAT_DELAY_SECONDS = 0.25;
-const DEFAULT_STEP_DURATION = 0.15;
+const REPEAT_DELAY_SECONDS = 0.2;
+const DEFAULT_STEP_DURATION = 0.09;
 const PLAYER_MAX_HP = 3;
 /** Chunk-local event entity id prefix: `${chunkId}:${event.id}`. */
 const ENTITY_SEP = ":";
+/** How long the sword slash mark is visible after a swing (seconds). */
+const SWING_FLASH_SECONDS = 0.14;
+/** Player hit-flash (red) duration in seconds. */
+const PLAYER_HIT_FLASH_SECONDS = 0.25;
+/** Bright crest color for wall-face tiles (top edge of a solid run). */
+const WALL_CREST = "#aeb6c4";
+/** Ground tile values from the generator that read as liquid, not wall. */
+const GROUND_WATER = 3;
 
 /** Commands whose presence marks a page as a CG presentation (ADR-010 §6). */
 const CG_COMMAND_NAMES = new Set(["showCg", "fadeOut", "fadeIn", "cg_end"]);
@@ -103,6 +120,7 @@ interface HudElements {
   position: HTMLElement;
   status: HTMLElement;
   gold: HTMLElement;
+  objective: HTMLElement;
 }
 
 function isColliderLayer(layer: { id: string; name: string }): boolean {
@@ -149,6 +167,9 @@ export class WorldScene implements Scene {
   private ready = false;
   private hp = PLAYER_MAX_HP;
   private playerIframes = 0;
+  private playerHitFlash = 0;
+  private swingFlash = 0;
+  private swingDir: InputDirection | null = null;
   private dead = false;
   private deathTimer = 0;
   private tilesetsRegistered = false;
@@ -260,6 +281,11 @@ export class WorldScene implements Scene {
     return this.state.getVariable(name);
   }
 
+  /** Current objective hint text (guidance; E2E/tests). */
+  get objectiveHint(): string {
+    return this.objectiveText();
+  }
+
   /** The live input instance (the CG scene reuses it during handoff). */
   get inputInstance(): Input | null {
     return this.input;
@@ -306,6 +332,8 @@ export class WorldScene implements Scene {
     this.handleConfirm();
     this.handleCancel();
     this.playerIframes = Math.max(0, this.playerIframes - dt);
+    this.playerHitFlash = Math.max(0, this.playerHitFlash - dt);
+    this.swingFlash = Math.max(0, this.swingFlash - dt);
     if (this.dead) {
       this.deathTimer -= dt;
       if (this.deathTimer <= 0) {
@@ -725,7 +753,11 @@ export class WorldScene implements Scene {
       return;
     }
     if (this.combat.attack()) {
-      return; // a sword swing happened (hit or whiff) — no interaction this press
+      // A real sword swing: show the slash and remember its direction.
+      // (combat.attack() already plays the sword sfx.)
+      this.swingDir = this.playerDirection as InputDirection;
+      this.swingFlash = SWING_FLASH_SECONDS;
+      return; // a sword swing happened — no interaction this press
     }
     this.tryInteract();
   }
@@ -801,6 +833,7 @@ export class WorldScene implements Scene {
     }
     this.hp = Math.max(0, this.hp - amount);
     this.playerIframes = 0.5;
+    this.playerHitFlash = PLAYER_HIT_FLASH_SECONDS;
     this.audio?.playSfx("hit");
     this.updateHud();
     this.logger.warn("combat: player hit", { hp: this.hp, amount });
@@ -913,6 +946,19 @@ export class WorldScene implements Scene {
     const hint = document.createElement("span");
     hint.dataset.testid = "hud-hint";
     hint.textContent = "Arrows/WASD move · Z/Enter talk/attack · X/Esc close · F5 save · F9 load";
+    const objective = document.createElement("div");
+    objective.dataset.testid = "hud-objective";
+    objective.style.cssText = [
+      "position:fixed",
+      "left:0.6rem",
+      "top:2.2rem",
+      "padding:0.3rem 0.6rem",
+      "background:rgba(0,0,0,0.5)",
+      "color:#ffe082",
+      "font:12px/1.5 system-ui,sans-serif",
+      "z-index:61",
+      "pointer-events:none",
+    ].join(";");
     const sep = (): HTMLElement => {
       const s = document.createElement("span");
       s.textContent = " · ";
@@ -920,7 +966,8 @@ export class WorldScene implements Scene {
     };
     hud.append(backend, sep(), position, sep(), status, sep(), gold, sep(), hint);
     this.uiRoot.appendChild(hud);
-    this.hud = { root: hud, position, status, gold };
+    this.uiRoot.appendChild(objective);
+    this.hud = { root: hud, position, status, gold, objective };
 
     const dialogue = document.createElement("div");
     dialogue.dataset.testid = "dialogue-box";
@@ -1020,6 +1067,24 @@ export class WorldScene implements Scene {
     if (this.hud.gold.textContent !== gold) {
       this.hud.gold.textContent = gold;
     }
+    const objective = this.objectiveText();
+    if (this.hud.objective.textContent !== objective) {
+      this.hud.objective.textContent = objective;
+    }
+  }
+
+  /**
+   * Current objective text (demo content), driven by the story switches so the
+   * player always knows the next goal (guidance, feedback item 7).
+   */
+  private objectiveText(): string {
+    if (this.state.getSwitch("sw_boss_defeated")) {
+      return "任务:北关已照亮 —— THE END(按 F5 存档后可重新开始)";
+    }
+    if (this.state.getSwitch("sw_wilds_cleared")) {
+      return "任务:向东进入要塞,击败哨兵,点亮烽火";
+    }
+    return "任务:先和村里的长老对话,再向北穿过荒野,点亮北关的烽火";
   }
 
   private showToast(text: string): void {
@@ -1097,31 +1162,108 @@ export class WorldScene implements Scene {
           }
           tilemap.drawTileLayer(layer, map.tileset, tileSize);
         }
+        // Solid tiles: the ground atlas already paints water (liquid) and
+        // rock/masonry (walls) distinctly, so only a bright crest is added on
+        // wall-face tiles (solid with an open tile above) — water stays bare.
+        const grid = this.grids.get(chunkId);
+        if (grid !== undefined) {
+          const groundData = this.groundLayerOf(map);
+          for (let ly = 0; ly < map.height; ly++) {
+            for (let lx = 0; lx < map.width; lx++) {
+              if (!grid.isSolid(lx, ly)) {
+                continue;
+              }
+              if (
+                groundData !== undefined &&
+                groundData[ly]?.[lx] === GROUND_WATER &&
+                !grid.isSolid(lx, ly - 1)
+              ) {
+                continue; // open water reads as impassable on its own
+              }
+              if (!grid.isSolid(lx, ly - 1)) {
+                // Wall crest: the top-facing edge of a solid run.
+                renderer.drawRect(
+                  lx * tileSize,
+                  ly * tileSize,
+                  tileSize,
+                  Math.max(2, Math.round(tileSize * 0.22)),
+                  WALL_CREST,
+                );
+              }
+            }
+          }
+        }
+
+        // Event props (signposts, chests, beacons) — drawn inside this chunk's
+        // transform using chunk-local coordinates.
+        for (const event of map.events) {
+          if (event.sprite !== undefined) {
+            continue; // blocking NPCs draw in the global NPC pass below
+          }
+          const ex = event.x * tileSize;
+          const ey = event.y * tileSize;
+          switch (event.name.toLowerCase()) {
+            case "signpost":
+              drawSignpost(renderer, ex, ey, tileSize);
+              break;
+            case "chest":
+              drawChest(renderer, ex, ey, tileSize);
+              break;
+            case "beacon":
+              drawBeacon(renderer, ex, ey, tileSize, this.state.getSwitch("sw_boss_defeated"));
+              break;
+            default:
+              break; // unknown sprite-less events stay invisible (as before)
+          }
+        }
         renderer.popTransform();
       }
     }
 
-    // NPCs (global coordinates, no transform).
+    // NPCs (global coordinates, no transform): villagers as little people,
+    // tinted by their sprite role ("characters/elder" → elder tunic).
     for (const blocker of this.blockByEntity.values()) {
       const t = blocker.getComponent("transform");
       if (t === null) {
         continue;
       }
-      renderer.drawRect(t.x * tileSize, t.y * tileSize, tileSize, tileSize, "#c9a227");
-    }
-
-    // Combatants (ADR-009): chasers red, turrets purple.
-    for (const enemy of this.combat.views()) {
-      renderer.drawRect(
-        enemy.x * tileSize,
-        enemy.y * tileSize,
+      const sprite = blocker.getComponent("sprite");
+      drawVillager(
+        renderer,
+        t.x * tileSize,
+        t.y * tileSize,
         tileSize,
-        tileSize,
-        enemy.behavior === "turret" ? "#7b1fa2" : "#d84315",
+        sprite?.texture ?? "characters/villager",
       );
     }
-    // Projectiles: small white darts.
+
+    // Combatants (ADR-009): chasers render as slimes, turrets as sentry
+    // cannons; recently-hit ones flash white; turret cores telegraph the next
+    // shot (drawn inside drawTurret).
+    for (const enemy of this.combat.views()) {
+      const flash = this.combat.flashOf(enemy.entityId) > 0;
+      if (enemy.behavior === "turret") {
+        drawTurret(
+          renderer,
+          enemy.x * tileSize,
+          enemy.y * tileSize,
+          tileSize,
+          this.combat.chargeOf(enemy.entityId),
+          flash,
+        );
+      } else {
+        drawSlime(renderer, enemy.x * tileSize, enemy.y * tileSize, tileSize, flash);
+      }
+    }
+    // Projectiles: bright red bolts (bigger than before) with a white core.
     for (const projectile of this.combat.projectiles()) {
+      renderer.drawRect(
+        projectile.x * tileSize + 2,
+        projectile.y * tileSize + 2,
+        tileSize - 4,
+        tileSize - 4,
+        "#ff5252",
+      );
       renderer.drawRect(
         projectile.x * tileSize + tileSize / 2 - 2,
         projectile.y * tileSize + tileSize / 2 - 2,
@@ -1131,14 +1273,37 @@ export class WorldScene implements Scene {
       );
     }
 
-    // Player (blinks while the post-hit i-frames last).
+    // Sword slash mark on the facing tile while the swing is visible.
+    if (this.swingFlash > 0 && this.swingDir !== null) {
+      const v = DIRECTION_VECTORS[this.swingDir];
+      const tx = Math.round(this.renderPosition().x) + v.x;
+      const ty = Math.round(this.renderPosition().y) + v.y;
+      renderer.drawRect(tx * tileSize, ty * tileSize, tileSize, tileSize, "#fff3b0");
+    }
+
+    // Player (red flash when hit, blink while the post-hit i-frames last):
+    // a little hero sprite — tunic, sword hilt, face — plus the facing
+    // chevron that always points where the player looks.
     const pos = this.renderPosition();
     const px = pos.x * tileSize;
     const py = pos.y * tileSize;
     const blink = this.playerIframes > 0 && Math.floor(this.playerIframes * 8) % 2 === 0;
     if (!blink) {
-      renderer.drawRect(px, py, tileSize, tileSize, "#4caf50");
-      renderer.drawRect(px + 2, py - 2, tileSize - 4, 2, "#c8e6c9");
+      drawHero(renderer, px, py, tileSize, { flashing: this.playerHitFlash > 0 });
+      // Facing indicator: a small white chevron points where the player looks.
+      const dir = this.playerDirection as InputDirection;
+      const facing = DIRECTION_VECTORS[dir];
+      const cx = px + tileSize / 2;
+      const cy = py + tileSize / 2;
+      if (facing.y === -1) {
+        renderer.drawRect(cx - 2, py - 3, 5, 4, "#ffffff");
+      } else if (facing.y === 1) {
+        renderer.drawRect(cx - 2, py + tileSize - 1, 5, 4, "#ffffff");
+      } else if (facing.x === -1) {
+        renderer.drawRect(px - 3, cy - 2, 4, 5, "#ffffff");
+      } else {
+        renderer.drawRect(px + tileSize - 1, cy - 2, 4, 5, "#ffffff");
+      }
     }
 
     // Death fade (black ramp while down; the respawn happens in update()).
@@ -1160,6 +1325,20 @@ export class WorldScene implements Scene {
   private chunkTileSize(): number {
     const first = this.tilesets?.values().next().value;
     return (first as TilesetData | undefined)?.tileSize ?? 16;
+  }
+
+  /**
+   * The first visible tile layer of a chunk map (the generator's "ground"
+   * layer) — used to tell water solids from wall solids when drawing crests.
+   */
+  private groundLayerOf(map: { layers: ReadonlyArray<unknown> }): number[][] | undefined {
+    for (const layer of map.layers) {
+      const candidate = layer as { type?: string; data?: unknown };
+      if (candidate.type === "tile" && Array.isArray(candidate.data)) {
+        return candidate.data as number[][];
+      }
+    }
+    return undefined;
   }
 
   private computeCameraViewport(mapPx: Vec2): {

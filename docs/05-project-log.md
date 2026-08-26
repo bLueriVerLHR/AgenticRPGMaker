@@ -5,6 +5,29 @@ Date format: `YYYY-MM-DD`.
 
 ---
 
+## 2026-08-26 — Open-world demo S6 playtest feedback pass (feat/open-world-demo)
+
+The leader playtested the served demo and filed eight issues; all eight were
+fixed on the branch and the docs synced in the same change
+([09-open-world-rpg.md](./09-open-world-rpg.md) §13, playtest pass).
+
+**Details**
+
+- Fixes: visible walls + real ground-atlas art (the demo atlas PNG was 404 —
+  the generator now paints and emits it via a pure-Node PNG encoder), faster
+  movement (0.15 s → 0.09 s steps), redesigned opening/ending CG stills, hero
+  facing chevron, sword-slash flash, turret charge telegraph + hit flashes,
+  story-switch-driven objective line, and composed rect mini-sprites for the
+  hero/villagers/slimes/turret/chest/signpost/beacon (`world-sprites.ts`,
+  unit-tested — no more abstract squares).
+- World golden-path E2E stays **14/14** after the pass; runtime unit suite
+  green (147 tests incl. the new sprite suite).
+- In parallel, map-mode playtest fixes landed on `feat/p6-playtest-fixes`:
+  renderer tile indices are 1-based (tiles sampled one atlas cell off), F5/F9
+  save keys replace S/L, boot tears down a failed network client, tilesets
+  register once per scene, and editor imports accept folder picks wrapped in a
+  root directory.
+
 ## 2026-08-26 — Open-world demo implemented: S1–S5 shipped, golden-path E2E green
 
 The seamless open-world RPG demo is built and verified on

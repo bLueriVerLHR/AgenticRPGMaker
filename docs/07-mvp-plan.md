@@ -31,10 +31,10 @@ end.
 | WS3 | **server** — C++ (CMake, Asio+websocketpp, HTTP static, relay) — **optional (D22)** | P3 | server member(s) |
 | WS4 | **qa/tests** — Vitest, Catch2, Playwright, multiplayer smoke, **`pnpm validate` data gate (D24)** | P1–P4 (continuous) | qa member(s) |
 | WS5 | **packaging/deploy** — `www` portable folder + single binary | P5 | packaging member(s) |
-| WS6 | **merge-manager** — merges member branches to `main` | P1–P6 (continuous) | merge-manager |
+| WS6 | **owner merge** — the owner merges changes to `main` (no separate merge-manager; see 03-wal-process.md §4) | P1–P6 (continuous) | owner |
 
 Dependency spine: `core → renderer → runtime → (server || packaging)`, with
-`qa/tests` running alongside every phase and `merge-manager` continuously
+`qa/tests` running alongside every phase and the owner continuously
 absorbing completed work. *(The editor was on this spine pre-re-orientation; it is
 archived per D20.)*
 
@@ -175,7 +175,7 @@ phase below — repeated for emphasis, not per-phase ceremony:
   loop). E2E: single-player walk/collide/dialogue booted in Playwright.
 - Logs: boot, scene transitions, event errors, network events present (structured
   JSON on web).
-- QA checklist §5 ticked; engine-core branches ready for merge-manager (WS6).
+- QA checklist §5 ticked; engine-core changes ready for the owner to merge.
 
 ---
 
@@ -248,7 +248,7 @@ phase below — repeated for emphasis, not per-phase ceremony:
   (players only — D16).
 - **Data gate (D24):** `pnpm validate` on all game data — validate-first step of the
   dev workflow ([03-wal-process.md](./03-wal-process.md) §4).
-- Test-gate wiring so the merge-manager only merges green branches.
+- Test-gate wiring so only green changes merge to `main`.
 
 **Dependencies:** P1, P3 (exercises their outputs; P2/editor is archived — D20).
 
@@ -292,7 +292,7 @@ phase below — repeated for emphasis, not per-phase ceremony:
 
 ---
 
-## 8. P6 — Merge & release (merge-manager)
+## 8. P6 — Merge & release (owner)
 
 > **Workstream:** WS6. **Depends on:** P1–P5 all green; continuous throughout.
 
@@ -300,7 +300,8 @@ phase below — repeated for emphasis, not per-phase ceremony:
 - Merge member branches to `main` **only** when the phase DoD + QA checklist §5 are
   green ([03-wal-process.md](./03-wal-process.md) §4 — nobody else merges).
 - Maintain the branch strategy: feature branches (`design/a`, `feat/engine-core`,
-  …) pushed to the shared remote, reviewed, merged by the merge-manager.
+  …) reviewed and merged by the owner (no separate merge-manager — see
+  [03-wal-process.md](./03-wal-process.md) §4).
 - Tag the MVP release once P5 ships and all suites are green.
 
 **Dependencies:** every phase (absorbed incrementally, not batched at the end).
@@ -310,9 +311,8 @@ phase below — repeated for emphasis, not per-phase ceremony:
   docs corrected to match reality (WAL). *(The editor is archived — D20.)*
 
 **WAL/testing gate**
-- The merge-manager enforces: docs/ADR finalized in the same change; unit +
-  integration + E2E green; logs checked; QA checklist §5 ticked — for **every**
-  merged branch.
+- The owner enforces, for every merged change: docs/ADR finalized in the same change; unit +
+  integration + E2E green; logs checked; QA checklist §5 ticked.
 
 ---
 
@@ -365,8 +365,8 @@ re-decides it in [02-open-questions.md](./02-open-questions.md).
 > style below. Keep this historical note for context.
 
 - One feature branch per phase/workstream (e.g. `feat/engine-core`,
-  `feat/server-relay`), pushed to the shared remote; merged only
-  by the merge-manager (WS6).
+  `feat/server-relay`), merged by the owner (no separate merge-manager — see
+  [03-wal-process.md](./03-wal-process.md) §4).
 - All subagent commits use the single repo-local bot identity (RQ5).
 - Docs are **corrected in the same change as the code** (WAL) — a phase is not
   "done" until `docs/` matches what was built.

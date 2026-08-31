@@ -367,7 +367,8 @@ layers, plus the QA gate:
 
 ### QA gate (per [03-wal-process.md](./03-wal-process.md) §5)
 
-Every change, before merge to `main` via the merge-manager:
+Every change, before merge to `main` (owner-driven; see
+[03-wal-process.md](./03-wal-process.md) §4):
 
 - [ ] Build passes (clean build, warnings-as-errors per config).
 - [ ] Unit tests green (affected modules; full suite if cheap).

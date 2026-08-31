@@ -83,9 +83,9 @@ ctest --test-dir build --output-on-failure   # run the Catch2 unit tests
 ./build/agenticrpg-server --help
 ```
 
-## The QA gate (order to run before handing a branch to the merge-manager)
+## The QA gate
 
-Run in this order on the member branch — the whole gate must be green:
+Run in this order before any change lands on `main` — the whole gate must be green:
 
 1. `pnpm install` (fresh resolves; supply-chain policy checked)
 2. **clean-state check**: from a fresh worktree with no `packages/*/dist`, run
@@ -125,7 +125,7 @@ same change.
   level is runtime-configurable, never hard-coded. **Never log secrets.**
 - **Tests are mandatory** before any merge to `main` or any real-environment
   run (§3).
-- **QA checklist** (§5) must pass before handing a branch to the merge-manager:
+- **QA checklist** (§5) must pass before a change merges to `main`:
   build passes / unit green / E2E run / logs checked / docs updated in the same
   change.
 
@@ -138,10 +138,17 @@ identity is set by tooling). Do not commit as a personal identity.
 
 ## Branch / merge rules
 
-- Members work on **feature branches** (`feat/...`, `docs/...`) pushed to the
-  shared remote (`origin` = `https://github.com/bLueriVerLHR/AgenticRPGMaker`).
-- **Only the merge-manager merges to `main`** (`docs/03-wal-process.md` §4).
-  Never commit directly to `main`.
-- Work in git **worktrees** (`work/<member>/`) so members do not collide.
-- A task is complete when its DoD is met, the QA checklist is ticked, and the
-  branch is pushed for the merge-manager.
+This project is **owner-driven** (the preset's "members + merge-manager" model is
+**not** adopted — see [`docs/temp/preset-branch-merge-rules.md`](./docs/temp/preset-branch-merge-rules.md)):
+
+- The **owner merges to `main`** — directly, or through an agent the owner
+  directs. There is no separate merge-manager role and no hard "never commit to
+  `main`" rule.
+- Prefer **short-lived branches** (`feat/...`, `docs/...`) for non-trivial work,
+  merged **and deleted** once the change lands; small changes may land directly
+  on `main`.
+- **Keep `main` green**: run the QA gate (above) before any change merges.
+- **Historical branches are archived via local git tags, not deleted remotely**
+  (C3): e.g. `archive/design-a`, `archive/feat-p2-editor`.
+- **Remote branches are never deleted without explicit user authorization.**
+- A task is complete when its DoD is met and the QA checklist is ticked.

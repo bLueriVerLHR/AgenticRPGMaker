@@ -103,9 +103,13 @@ Re-orientation (D25, 2026-08-31) replaced the original phase-branch style with a
   3. `pnpm -r test` — unit/integration green;
   4. `pnpm lint` / `pnpm format:check` / `pnpm doc:lint` green;
   5. merge → delete the branch.
-- A designated **merge-manager** merges to `main`. **Nobody else merges.**
-- Feature branches are pushed to the shared remote so the merge-manager can
-  review and merge. Never commit directly to `main`.
+- **The owner merges to `main`.** This project is owner-driven; the preset's
+  "merge-manager" role is **not** adopted (see
+  [docs/temp/preset-branch-merge-rules.md](./temp/preset-branch-merge-rules.md)).
+  The owner (or an agent the owner directs) merges directly; there is no separate
+  merge-manager gate and no hard "never commit to `main`" rule.
+- Branches are preferred for non-trivial work but optional; small changes may
+  land directly on `main`, gated by the QA checklist (§5).
 - **Historical branches are archived via local git tags, not deleted remotely**
   (C3): e.g. `archive/design-a`, `archive/feat-p2-editor`. A branch that is
   superseded by merged `main` history is tagged and the local branch is removed,
@@ -116,7 +120,7 @@ Re-orientation (D25, 2026-08-31) replaced the original phase-branch style with a
 ## 5. QA checklist template
 
 Every feature/change must pass this checklist before it is considered complete and
-handed to the merge-manager:
+merged to `main`:
 
 - [ ] **Build passes** (clean build, no warnings treated as errors per config).
 - [ ] **Unit tests green** (all affected modules; full suite if cheap).

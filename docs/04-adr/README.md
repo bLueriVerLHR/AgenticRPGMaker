@@ -14,8 +14,9 @@ same change.
    `ADR-000` is reserved for the template itself.
 4. **Status lifecycle:** `proposed` → `accepted` → (later) `superseded`. A superseded
    ADR is kept for history and points at what replaced it.
-5. ADRs are reviewed like code and merged through the same branch strategy
-   (feature branch → merge-manager → `main`).
+5. ADRs are reviewed like code and merged through the same workflow as other
+   changes (owner-driven: owner merges to `main` after the QA gate — see
+   `docs/03-wal-process.md` §4).
 
 ## ADR index
 

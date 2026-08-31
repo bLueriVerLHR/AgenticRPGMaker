@@ -5,10 +5,10 @@ Date format: `YYYY-MM-DD`.
 
 ---
 
-## 2026-08-31 — Engine optimization batch 1 (tasks 06–11): defects, seams, customizability, perf
+## 2026-08-31 — Engine optimization batch 1 (tasks 06–13): defects, seams, customizability, perf
 
 Goal-driven optimization session (goal `goal-116db185`, "优化 AgenticRPGMaker 引擎
-core/renderer/runtime") delivered six WAL-following tasks, each with docs-first task
+core/renderer/runtime") delivered eight WAL-following tasks, each with docs-first task
 docs, QA gate green (build/typecheck/lint/format/doc:lint/test/validate), committed
 and pushed to `main`:
 
@@ -34,10 +34,17 @@ and pushed to `main`:
 - **Task 11** (`ca8a4a8`) — boot no longer probes the renderer twice: the platform
   probe accepts the already-known backend (`rendererBackend`), skipping a duplicate
   WebGL/2D context creation on weak JoiPlay runtimes.
+- **Task 12** (`df356d3`) — runtime caches sprite/behavior entity lists at scene enter:
+  `drawNpcs`/`updateBehaviors` no longer re-walk the scene tree per frame
+  (`findEntitiesByComponent` only at `enter()`, not in the per-frame path).
+- **Task 13** (`199f38c`) — Canvas2D backend (JoiPlay fallback) caches static tile
+  layers offscreen: build once, blit the visible region per frame in ONE `drawImage`
+  (was one per visible tile, ~300/frame at 320×240/16px); pixel-budget cap falls back
+  to the per-tile path for huge maps; rebuilt on atlas revision change.
 
-Test counts at this batch's end: **263 web** (core 107 + renderer 63 + runtime 93) +
-C++ ctest (41) green; `pnpm validate` green on samples (incl. the new merchant
-behavior); doc-lint green (31 docs).
+Test counts at this batch's end: **268 web** (core 107 + renderer 68 + runtime 93) +
+C++ ctest (41) green; `pnpm validate` green on samples (incl. the merchant behavior);
+doc-lint green (34 docs).
 
 ## 2026-08-31 — Repository re-orientation: editor-less portable-first engine (D20–D25, ADR-008)
 

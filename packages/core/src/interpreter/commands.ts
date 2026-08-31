@@ -217,37 +217,97 @@ export class MoveCommand implements Command {
 }
 
 // ---------------------------------------------------------------------------
-// Factory: map-schema command lines → Command objects
+// Command registry: built-in commands + author-registered custom commands
 // ---------------------------------------------------------------------------
+
+/**
+ * Builds one `Command` from a map-schema command line. Custom commands are
+ * registered by name; unknown names fail fast (ADR-003 fail-fast philosophy).
+ */
+export type CommandFactory = (command: EventCommand) => Command;
+
+/**
+ * The command catalog (RPG-Maker plugin-command model). Seeds the built-in
+ * commands; `register` opens the catalog to game-specific commands authored
+ * by humans or AI-generated data (D24). `build` fails fast on unknown names.
+ */
+export class CommandRegistry {
+  private readonly factories = new Map<string, CommandFactory>();
+
+  constructor(entries?: ReadonlyArray<readonly [string, CommandFactory]>) {
+    if (entries !== undefined) {
+      for (const [name, factory] of entries) {
+        this.factories.set(name, factory);
+      }
+    }
+  }
+
+  /** Whether a factory is registered for `cmd`. */
+  has(cmd: string): boolean {
+    return this.factories.has(cmd);
+  }
+
+  /** Register (or replace) the factory for `cmd`. */
+  register(cmd: string, factory: CommandFactory): void {
+    this.factories.set(cmd, factory);
+  }
+
+  /** Build a `Command` for a schema line; unknown names fail fast. */
+  build(command: EventCommand): Command {
+    const factory = this.factories.get(command.cmd);
+    if (factory === undefined) {
+      throw new UnknownCommandError(command.cmd);
+    }
+    return factory(command);
+  }
+}
+
+const builtInFactories: ReadonlyArray<readonly [string, CommandFactory]> = [
+  ["showText", (command) => new ShowTextCommand(asString(command.args[0], "showText"))],
+  [
+    "setVariable",
+    (command) => {
+      const name = asString(command.args[0], "setVariable");
+      const op = command.args[1];
+      if (op !== "set" && op !== "add") {
+        throw new UnknownCommandError(`setVariable: op must be "set" or "add", got ${String(op)}`);
+      }
+      return new SetVariableCommand(name, op, asNumber(command.args[2], "setVariable"));
+    },
+  ],
+  [
+    "setSwitch",
+    (command) =>
+      new SetSwitchCommand(asString(command.args[0], "setSwitch"), Boolean(command.args[1])),
+  ],
+  ["playSound", (command) => new PlaySoundCommand(asString(command.args[0], "playSound"))],
+  [
+    "walk",
+    (command) =>
+      new WalkCommand(asNumber(command.args[0], "walk"), asNumber(command.args[1], "walk")),
+  ],
+  [
+    "move",
+    (command) => {
+      const targetId = typeof command.args[2] === "string" ? command.args[2] : undefined;
+      return new MoveCommand(
+        asNumber(command.args[0], "move"),
+        asNumber(command.args[1], "move"),
+        targetId,
+      );
+    },
+  ],
+];
+
+/** The shared default catalog (used by `commandFromSchema` and by default). */
+export const defaultCommandRegistry = new CommandRegistry(builtInFactories);
 
 /**
  * Builds a `Command` from a map-schema command line (ADR-003). Unknown `cmd`
  * names fail fast (mirroring the ADR-003 version/fail-fast philosophy).
+ * Uses the shared `defaultCommandRegistry`; games that need custom commands
+ * should pass their own `CommandRegistry` to `EventInterpreter` instead.
  */
 export function commandFromSchema(command: EventCommand): Command {
-  const args = command.args;
-  switch (command.cmd) {
-    case "showText":
-      return new ShowTextCommand(asString(args[0], "showText"));
-    case "setVariable": {
-      const name = asString(args[0], "setVariable");
-      const op = args[1];
-      if (op !== "set" && op !== "add") {
-        throw new UnknownCommandError(`setVariable: op must be "set" or "add", got ${String(op)}`);
-      }
-      return new SetVariableCommand(name, op, asNumber(args[2], "setVariable"));
-    }
-    case "setSwitch":
-      return new SetSwitchCommand(asString(args[0], "setSwitch"), Boolean(args[1]));
-    case "playSound":
-      return new PlaySoundCommand(asString(args[0], "playSound"));
-    case "walk":
-      return new WalkCommand(asNumber(args[0], "walk"), asNumber(args[1], "walk"));
-    case "move": {
-      const targetId = typeof args[2] === "string" ? args[2] : undefined;
-      return new MoveCommand(asNumber(args[0], "move"), asNumber(args[1], "move"), targetId);
-    }
-    default:
-      throw new UnknownCommandError(command.cmd);
-  }
+  return defaultCommandRegistry.build(command);
 }

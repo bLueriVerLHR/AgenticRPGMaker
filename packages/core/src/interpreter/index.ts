@@ -4,10 +4,13 @@
 export { GameState, EMPTY_SNAPSHOT, type GameStateSnapshot } from "./game-state.js";
 export {
   CompositeCommand,
+  CommandRegistry,
   commandFromSchema,
+  defaultCommandRegistry,
   UnknownCommandError,
   type Command,
   type CommandContext,
+  type CommandFactory,
   type GameEffect,
   type CommandPosition,
   ShowTextCommand,

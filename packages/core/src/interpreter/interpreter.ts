@@ -18,9 +18,10 @@ import { SceneGraph } from "../scene/scene-graph.js";
 import type { EventPage, EventPageCondition, MapEvent } from "../schema/index.js";
 import {
   CompositeCommand,
-  commandFromSchema,
+  defaultCommandRegistry,
   type Command,
   type CommandContext,
+  type CommandRegistry,
   type GameEffect,
 } from "./commands.js";
 import { GameState } from "./game-state.js";
@@ -43,6 +44,12 @@ export interface InterpreterDeps {
   bus?: GameEventBus;
   /** Scene whose entities commands act on (created empty when omitted). */
   scene?: SceneGraph;
+  /**
+   * Command catalog. Defaults to `defaultCommandRegistry` (the six built-in
+   * commands); games / AI-authored data pass a registry with custom commands
+   * registered (D24, RPG-Maker plugin-command model).
+   */
+  registry?: CommandRegistry;
 }
 
 export interface RunEventOptions {
@@ -66,11 +73,13 @@ export class EventInterpreter {
   private readonly state: GameState;
   private readonly bus: GameEventBus;
   private readonly scene: SceneGraph;
+  private readonly registry: CommandRegistry;
 
   constructor(deps: InterpreterDeps = {}) {
     this.state = deps.state ?? new GameState();
     this.bus = deps.bus ?? new TypedEventBus<GameEventMap>();
     this.scene = deps.scene ?? new SceneGraph();
+    this.registry = deps.registry ?? defaultCommandRegistry;
   }
 
   get gameState(): GameState {
@@ -107,7 +116,7 @@ export class EventInterpreter {
       return { ran: false, page: null, effects: [] };
     }
 
-    const commands: Command[] = page.commands.map((line) => commandFromSchema(line));
+    const commands: Command[] = page.commands.map((line) => this.registry.build(line));
     const composite = new CompositeCommand(commands);
     const context: CommandContext = {
       state: this.state,

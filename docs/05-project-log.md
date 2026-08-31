@@ -5,6 +5,26 @@ Date format: `YYYY-MM-DD`.
 
 ---
 
+## 2026-08-31 — Engine optimization batch 2 (task 14): map transfer — multi-map worlds
+
+Continuing the goal-driven optimization session (`goal-116db185`), one more
+WAL-following task, QA gate green, committed and pushed to `main`:
+
+- **Task 14** (`df30d36`) — **map transfer** (the engine left single-map
+  territory): an event-page `transfer` command (`{ cmd: "transfer", args:
+  [mapId, x?, y?, direction?] }`) publishes a typed `transfer` gameplay event;
+  `createGame` listens, async-loads the target map (new `CreateGameOptions.
+  loadMap` callback — boot injects the real loader, tests inject stubs),
+  rebuilds SceneGraph/interpreter/MapScene, and `SceneManager.change`s — with a
+  `transferInFlight` guard and `autoLoad:false` so the transfer position wins.
+  `game.scene` + `save`/`load` now follow the live scene after a swap. Sample:
+  `house.map.json` (interior with exit door) + a House Door event in
+  town-square; `build:www` ships both maps.
+
+Test counts at this batch's end: **272 web** (core 109 + renderer 68 +
+runtime 95) + C++ ctest (41) green; `pnpm validate` green on 4 sample documents;
+doc-lint green (36 docs).
+
 ## 2026-08-31 — Engine optimization batch 1 (tasks 06–13): defects, seams, customizability, perf
 
 Goal-driven optimization session (goal `goal-116db185`, "优化 AgenticRPGMaker 引擎

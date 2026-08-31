@@ -35,3 +35,13 @@ See `AGENTS.md` → "Branch / merge rules" and `docs/03-wal-process.md` §4:
   run `pnpm validate` + `pnpm -r test` + `pnpm lint` before landing.
 - The owner merges; agents do not block on a merge-manager.
 - Remote branches are never deleted without explicit user authorization (C3).
+
+## Follow-up (2026-08-31): multi-member/leader descriptions kept, with a qualifier
+
+The owner chose to **keep** the multi-member team + leader division-of-labor
+descriptions in `AGENTS.md` (WAL rule #4's "docs/design workstream / member /
+leader", the `pnpm format` note) and in `docs/03-wal-process.md` ("team member",
+§6 "Reporting to the leader") — **not** delete them — but to add an **Operating
+model qualifier** at the top of both files stating these are the multi-member
+team pattern and are **not binding** while the project runs as a single agent.
+If the project later expands to a multi-agent team, those provisions apply.

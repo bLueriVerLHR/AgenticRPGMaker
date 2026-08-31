@@ -3,6 +3,14 @@
 Concrete rules every team member follows. If you join this project, read this file
 **before** writing any code, and follow it on every change.
 
+> **Operating model.** Wording here that speaks of "team member" or a "leader"
+> (§6) describes the **multi-member team + leader division-of-labor pattern** this
+> repository was scaffolded for (an agentic-team preset). This project currently
+> runs as a **single agent** (one owner + one agent), so those multi-member
+> provisions are **not binding in this mode** — follow the owner-driven rules in
+> `AGENTS.md` (Branch / merge rules) instead. See also
+> [docs/temp/preset-branch-merge-rules.md](./temp/preset-branch-merge-rules.md).
+
 ---
 
 ## 1. What "WAL" means here

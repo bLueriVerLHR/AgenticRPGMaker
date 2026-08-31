@@ -5,6 +5,16 @@ repository. It follows ADR-007 (agentic operability): agents must be able to
 onboard, read the docs, and run the toolchain without asking a human. Read
 `docs/README.md` and `docs/03-wal-process.md` before writing any code.
 
+> **Operating model — read this first.** Some wording in this file (and in
+> `docs/03-wal-process.md`) speaks of "members", a "leader", a "docs/design
+> workstream", or a "merge-manager". That is the **multi-member team + leader
+> division-of-labor pattern** this repository was scaffolded for (an
+> agentic-team preset). This project currently runs as a **single agent** (one
+> owner + one agent), so in this mode those multi-member provisions are **not
+> binding and need not be followed** — the operative rules are the owner-driven
+> ones below (especially "Branch / merge rules"). If the project later expands
+> to a multi-agent team, the multi-member provisions apply.
+
 ## Repository layout
 
 | Path                | Purpose                                                                                                                                                                     |

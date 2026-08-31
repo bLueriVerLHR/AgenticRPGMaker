@@ -17,6 +17,9 @@ again after the work actually completes.
 | [`06-architecture.md`](./06-architecture.md) | System architecture: components, boundaries, and data flow. | Read before starting any component work; update as the architecture evolves. |
 | [`07-mvp-plan.md`](./07-mvp-plan.md) | MVP implementation plan: phases, milestones, task breakdown. | Consult when planning/scheduling implementation work; update as the plan changes. |
 | [`08-compatibility-checklist.md`](./08-compatibility-checklist.md) | Portable/runtime compatibility: banned APIs, weak-device/JoiPlay constraints, user verification checklist. | Run before every release; update as the target matrix changes. |
+| [`discussion/`](./discussion/) | Recorded discussions and the user's explicit choices (source of new decisions). | Append a file when a discussion reaches consensus; decisions flow into `02-open-questions.md`. |
+| [`principle/`](./principle/) | Reusable rules distilled from discussions ("always X / never Y" for future tasks). | Add/extend when a discussion yields a durable rule. |
+| [`task/`](./task/) | One file per unit of work (Goal / Why / Approach / Files touched / Acceptance criteria / Status). | Create before starting a task; mark `done` only when the QA gate passes. |
 
 ### ADR index
 
@@ -27,8 +30,9 @@ again after the work actually completes.
 | [ADR-003](./04-adr/ADR-003.md) | Versioned JSON Data Formats (Shared TS Types + Validation in packages/core) | proposed | 2026-08-25 |
 | [ADR-004](./04-adr/ADR-004.md) | Multiplayer protocol v1 (WebSocket + JSON) | proposed | 2026-08-25 |
 | [ADR-005](./04-adr/ADR-005.md) | C++ relay / state-sync server (C++20 + Asio + websocketpp) | proposed | 2026-08-25 |
-| [ADR-006](./04-adr/ADR-006.md) | Web editor (React + TypeScript + Vite) | proposed | 2026-08-25 |
+| [ADR-006](./04-adr/ADR-006.md) | Web editor (React + TypeScript + Vite) | **superseded** (by ADR-008; editor archived) | 2026-08-25 |
 | [ADR-007](./04-adr/ADR-007.md) | Agentic operability & agent-readable docs | accepted | 2026-08-25 |
+| [ADR-008](./04-adr/ADR-008.md) | Portable-First Engine: Editor-less Authoring & Multi-Backend Abstraction | proposed | 2026-08-31 |
 
 ## The WAL process in this project
 

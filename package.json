@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "description": "AgenticRPGMaker monorepo: a portable HTML5 RPG engine (core/renderer/runtime), a Web editor (editor), a C++ relay/hosting server (server/), and samples.",
+  "description": "AgenticRPGMaker monorepo: a portable-first HTML5 RPG engine (core/renderer/runtime), an optional C++ relay/hosting server (server/), and samples. Editor-less authoring: game content is AI/hand-written versioned JSON validated by core (D24).",
   "packageManager": "pnpm@11.22.0",
   "engines": {
     "node": ">=20.19.0",
@@ -17,6 +17,7 @@
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "doc:lint": "node scripts/doc-lint.mjs",
+    "validate": "node scripts/validate.mjs",
     "build:www": "node scripts/build-www.mjs",
     "build:deploy": "node scripts/build-deploy.mjs",
     "verify:deploy": "node scripts/verify-deploy.mjs"

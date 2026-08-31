@@ -67,8 +67,8 @@ function fail(message) {
 }
 
 // ---------------------------------------------------------------------------
-// Deterministic placeholder atlas (replicates packages/editor/src/tileset/
-// placeholder.ts colors so the shipped image matches the editor's preview).
+// Deterministic placeholder atlas (kept in sync with the sample tileset's
+// placeholder document; the atlas is generated here at build time).
 // ---------------------------------------------------------------------------
 const TILE_SIZE = 16;
 const COLUMNS = 8;
@@ -627,7 +627,7 @@ back to the Canvas2D renderer (RQ2).
 ### Via the C++ server (local launcher mode)
 
 \`\`\`sh
-agenticrpg-server --www-root ${relOut} --editor-root editor --port 8080
+agenticrpg-server --www-root ${relOut} --port 8080
 # open http://localhost:8080/
 \`\`\`
 

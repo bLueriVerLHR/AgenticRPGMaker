@@ -12,11 +12,16 @@ onboard, read the docs, and run the toolchain without asking a human. Read
 | `packages/core`     | Shared engine core: data model, event interpreter (later), versioned JSON schemas (ADR-001 / ADR-003). Vanilla TypeScript, **zero DOM/browser dependencies**, runs in Node. |
 | `packages/renderer` | Renderer interface + (P1b) WebGL / Canvas2D backends (ADR-002). Vanilla TypeScript.                                                                                         |
 | `packages/runtime`  | Playable game: boot sequence, game loop, scenes, saves, multiplayer client (ADR-001 / ADR-004). Vanilla TypeScript.                                                         |
-| `packages/editor`   | Web editor (Game Maker): React + TypeScript + Vite (ADR-006).                                                                                                               |
-| `server/`           | C++20 relay/state-sync server: CMake, standalone Asio, websocketpp, spdlog, Catch2 (ADR-005 / RQ3).                                                                         |
-| `samples/`          | Sample maps / projects exercising the editor → core → runtime → server pipeline.                                                                                            |
-| `docs/`             | Single source of truth: vision, decision log, WAL process, architecture, MVP plan, compatibility checklist, ADRs.                                                           |
-| `scripts/`          | Repo tooling (e.g. `doc-lint.mjs`).                                                                                                                                         |
+| `server/`           | C++20 relay/state-sync server (**optional**): CMake, standalone Asio, websocketpp, spdlog, Catch2 (ADR-005 / RQ3 / D22).                                                    |
+| `samples/`          | Sample maps / projects exercising the core → runtime → server pipeline (data-first authoring, D24).                                                                         |
+| `docs/`             | Single source of truth: vision, decision log, WAL process, architecture, MVP plan, compatibility checklist, ADRs, discussion/principle/task.                                |
+| `scripts/`          | Repo tooling (e.g. `doc-lint.mjs`, `validate.mjs`).                                                                                                                         |
+
+> **The Web editor (`packages/editor`, ADR-006) was removed from `main` and
+> archived via git tag `archive/editor-0.1.0`** (D20, 2026-08-31). Restore with
+> `git checkout archive/editor-0.1.0` when a real game justifies it. Authoring is
+> **data-first**: AI/agents write versioned JSON (maps/events/dialogue) →
+> `pnpm validate` → the runtime runs it (D24).
 
 ## How to read the docs
 
@@ -32,6 +37,12 @@ onboard, read the docs, and run the toolchain without asking a human. Read
   gate in §1 applies to every phase).
 - `docs/03-wal-process.md` — the WAL / logging / testing / branch / QA
   playbook. Mandatory reading.
+- `docs/discussion/` — recorded discussions and the user's explicit choices
+  (source of new decisions).
+- `docs/principle/` — reusable rules distilled from discussions ("always X /
+  never Y" for future tasks).
+- `docs/task/` — one file per unit of work (Goal/Why/Approach/Files/Acceptance/
+  Status).
 
 ## The WAL rule (docs before code)
 
@@ -49,18 +60,19 @@ onboard, read the docs, and run the toolchain without asking a human. Read
 Prerequisite: Node.js ≥ 20 and pnpm. If `pnpm` is missing, enable it with
 `corepack enable` (comes with Node).
 
-| Command             | What it does                                                                                                                                                                                                                                                               |
-| ------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `pnpm install`      | Install all workspace dependencies (pnpm workspaces).                                                                                                                                                                                                                      |
-| `pnpm build`        | Build all TypeScript packages (`core`, `renderer`, `runtime`, `editor`).                                                                                                                                                                                                   |
-| `pnpm test`         | Run the Vitest unit suites across the web packages.                                                                                                                                                                                                                        |
-| `pnpm lint`         | ESLint over the repo (packages + scripts + configs).                                                                                                                                                                                                                       |
-| `pnpm format`       | Prettier over the repo (`docs/` excluded — docs are owned by the docs workstream).                                                                                                                                                                                         |
-| `pnpm format:check` | Prettier check-only (the CI/gate form; fails on any unformatted file).                                                                                                                                                                                                     |
-| `pnpm doc:lint`     | Check every doc for broken internal links and invalid status fields (ADR-007).                                                                                                                                                                                             |
-| `pnpm typecheck`    | Type-check every package without emitting.                                                                                                                                                                                                                                 |
-| `pnpm build:www`    | P5 packaging: build the portable game folder `www/` (bundle runtime+core+renderer via esbuild, copy+validate sample data, generate the placeholder atlas, run the banned-API smoke check). Requires a `packages/core` dist (built on demand).                              |
-| `pnpm build:deploy` | P5 deploy: assemble `deploy/` = C++ server binary + `www/` + editor build + README. Runs `build:www`; builds the server via cmake (pinned cmake under `.tools/` preferred; set `AGENTICRPG_FETCHCONTENT_DIR` to reuse a teammate's populated `_deps/` for offline builds). |
+| Command             | What it does                                                                                                                                                                                                                                                |
+| ------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `pnpm install`      | Install all workspace dependencies (pnpm workspaces).                                                                                                                                                                                                       |
+| `pnpm build`        | Build all TypeScript packages (`core`, `renderer`, `runtime`).                                                                                                                                                                                              |
+| `pnpm test`         | Run the Vitest unit suites across the web packages.                                                                                                                                                                                                         |
+| `pnpm lint`         | ESLint over the repo (packages + scripts + configs).                                                                                                                                                                                                        |
+| `pnpm format`       | Prettier over the repo (`docs/` excluded — docs are owned by the docs workstream).                                                                                                                                                                          |
+| `pnpm format:check` | Prettier check-only (the CI/gate form; fails on any unformatted file).                                                                                                                                                                                      |
+| `pnpm doc:lint`     | Check every doc for broken internal links and invalid status fields (ADR-007).                                                                                                                                                                              |
+| `pnpm typecheck`    | Type-check every package without emitting.                                                                                                                                                                                                                  |
+| `pnpm validate`     | **Agent-facing data gate (D24):** validate `samples/` (or given dirs) against the `core` schemas — the validate-first step of the dev workflow. Requires a `packages/core` dist (built on demand).                                                          |
+| `pnpm build:www`    | P5 packaging: build the portable game folder `www/` (bundle runtime+core+renderer via esbuild, copy+validate sample data, generate the placeholder atlas, run the banned-API smoke check). Requires a `packages/core` dist (built on demand).               |
+| `pnpm build:deploy` | P5 deploy: assemble `deploy/` = C++ server binary + `www/` + README. Runs `build:www`; builds the server via cmake (pinned cmake under `.tools/` preferred; set `AGENTICRPG_FETCHCONTENT_DIR` to reuse a teammate's populated `_deps/` for offline builds). |
 
 C++ server (run from `server/`):
 
@@ -87,7 +99,6 @@ Run in this order on the member branch — the whole gate must be green:
 9. C++ server: `cmake -B build && cmake --build build && ctest --test-dir build --output-on-failure` (run from `server/`); reuse the pinned cmake under `.tools/` when no system cmake exists
 10. E2E runners (skipped gracefully when Playwright browsers are unavailable):
     `pnpm --filter @agenticrpg/runtime test:e2e`,
-    `pnpm --filter @agenticrpg/editor test:e2e`,
     `pnpm --filter @agenticrpg/runtime test:multiplayer` (two-context smoke ↔ C++ server)
 
 The QA checklist ([docs/03-wal-process.md](./docs/03-wal-process.md) §5) must be

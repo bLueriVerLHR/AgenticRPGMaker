@@ -261,6 +261,95 @@ history and add a **resolution** note recording what was actually decided.
 
 ---
 
+# Round 4 — decided (D20–D25, repository re-orientation 2026-08-31)
+
+> **Repository re-orientation.** The user asked to survey open-source projects
+> (Tyrano, open-source RPG engines/games), re-organize the docs and development
+> branches, and re-examine the repository design. Because development is
+> primarily auto-generated code, the editor is removed until a real game exists.
+> The engine should be RPG-Maker-like but more customizable, and abstracted to
+> run on more backends (browser + JoiPlay today). The full verbatim discussion is
+> in [docs/discussion/2026-08-31-reorg.md](./discussion/2026-08-31-reorg.md);
+> reusable rules in [docs/principle/](./principle/). All entries below are
+> `decided` (user answered directly).
+
+## D20 — editor disposition
+
+- **status:** decided
+- **question:** How is the editor (packages/editor, ADR-006) handled?
+- **options:**
+  - **(a)** remove from `main`, archive via git tag, add back when a real game takes shape — *[user's choice]*
+  - **(b)** keep an `archive/` copy in the tree
+  - **(c)** keep in place, mark deprecated
+- **resolution:** **remove `packages/editor` from `main`**; history archived via a
+  git tag (`archive/editor-0.1.0`); restore = `git checkout <tag>` + move the
+  package back onto the same `core` model. **No file copy kept in the tree.**
+
+## D21 — multi-backend scope
+
+- **status:** decided
+- **question:** What does "support more backends" mean (Q4 clarification)?
+- **options:**
+  - **(a)** portable-first: one engine that runs on every target component/environment (browser + JoiPlay today, more later); performance (vgpu, wasm) researched after — *[user's choice]*
+  - **(b)** model each runtime (JoiPlay etc.) as a separate backend
+  - **(c)** no explicit backend modeling yet
+- **resolution:** **portable-first engine** that runs, unmodified, on every
+  target environment in scope (browser + JoiPlay today). JoiPlay runs our
+  portable `www` package directly (it runs MV/MZ from their `www` HTML5 folder —
+  verified from JoiPlay's own FAQ). Backends are **configurations of the same
+  runtime**, selected by a thin platform-capability layer.
+
+## D22 — C++ server
+
+- **status:** decided
+- **question:** How is the C++ relay/hosting server (ADR-005) positioned after the re-orientation?
+- **options:**
+  - **(a)** keep but demote to an optional component — single-player portable engine is the core — *[user's choice]*
+  - **(b)** archive/remove alongside the editor
+  - **(c)** keep as a first-class MVP target
+- **resolution:** **keep but demote to an optional component.** The portable
+  single-player engine is the core; the C++ relay server is a later/optional
+  piece, never required by the portable engine.
+
+## D23 — performance route
+
+- **status:** decided
+- **question:** When do we invest in higher-performance rendering/core (vgpu/WebGPU, wasm)?
+- **options:**
+  - **(a)** portable first (Canvas2D + WebGL running today); reserve WebGPU renderer backend + WASM core as future switching points (seams now, no investment now) — *[user's choice]*
+  - **(b)** implement WebGPU/WASM now, performance first
+  - **(c)** no reservation at all
+- **resolution:** **portable first**, with **reserved seams**: the Renderer
+  interface (ADR-002) admits a future WebGPU backend; the core interpreter is
+  kept separable for a future WASM build. Design the seams now, do not invest now.
+
+## D24 — authoring mainline (auto-code)
+
+- **status:** decided
+- **question:** With the editor removed and development auto-generated, what is the game-authoring path?
+- **options:**
+  - **(a)** AI/agent-authored versioned JSON (maps/events/dialogue) → `core` validates → runtime runs; data format AI/hand-write friendly + strictly validated; a CLI validation entry point is the agent gate — *[user's choice]*
+  - **(b)** JSON only, no CLI
+  - **(c)** JSON + a scripting DSL
+- **resolution:** **AI/agent-authored JSON is the primary creation path**, with a
+  **CLI validation entry point** (`pnpm validate`, Task 03) as the agent-facing
+  gate. Data format is designed to be AI/hand-write friendly + strictly validated
+  by `core` (see [docs/principle/editor-less-authoring.md](./principle/editor-less-authoring.md)).
+
+## D25 — development workflow & branches
+
+- **status:** decided
+- **question:** How should branches and the dev loop be re-organized (Q8)?
+- **options:**
+  - **(a)** module-scoped short-lived branches + validate-first workflow: `main` long-lived stable; `feat/<module>/<change>` merged-then-deleted; flow = AI generates JSON → `pnpm validate` → tests → merge; archive history via local tags, no remote branch deletion — *[user's choice]*
+  - **(b)** keep the existing branch style, only clean up history
+- **resolution:** **module-scoped short-lived branches + validate-first**
+  workflow (documented in [docs/03-wal-process.md](./03-wal-process.md) §4).
+  Historical branches are **archived via local tags**; **no remote branches are
+  deleted** (C3).
+
+---
+
 ## Decision log history
 
 | # | Question | Status | Resolution / decided option | Date |
@@ -284,3 +373,9 @@ history and add a **resolution** note recording what was actually decided.
 | D17 | all-English | decided | engineering fully English (docs/code/comments/commits/UI strings); game content text unrestricted (player data) | round 3 |
 | D18 | agent-operable scope | decided | baseline tier in MVP (AGENTS.md + doc conventions + one-command build/test/lint + doc lint CI); upper tiers designed-now/implemented-later via reserved interfaces | round 3 |
 | D19 | docs form | decided | AGENTS.md + doc structure conventions + link/status lint in CI | round 3 |
+| D20 | editor disposition | decided | remove packages/editor from main; archive via git tag; add back when a real game takes shape (opt a) | round 4 |
+| D21 | multi-backend scope | decided | portable-first engine on every target (browser + JoiPlay today); performance (vgpu/wasm) researched after (opt a) | round 4 |
+| D22 | C++ server | decided | keep but demote to optional component; portable single-player engine is core (opt a) | round 4 |
+| D23 | performance route | decided | portable first (Canvas2D/WebGL); reserve WebGPU renderer + WASM core as seams, no investment now (opt a) | round 4 |
+| D24 | authoring mainline | decided | AI/agent-authored versioned JSON → core validates → runtime runs; CLI validation entry point (opt a) | round 4 |
+| D25 | dev workflow & branches | decided | module-scoped short-lived branches + validate-first; archive history via local tags; no remote branch deletion (opt a) | round 4 |

@@ -6,7 +6,6 @@
  * HTTP:
  *   - `/` serves the game index.html (200, text/html)
  *   - `/js/runtime.js` serves the bundle (200, text/javascript)
- *   - `/editor/` serves the editor index (200, text/html) and its assets
  *   - static data (map/tileset/manifest/image) resolves with correct MIME
  *   - unknown paths → 404
  *   - path traversal (`..`, encoded `%2e%2e`, backslash, NUL) → 4xx
@@ -66,13 +65,13 @@ async function main() {
     process.exit(1);
   }
   report("deploy layout", true, `${outDir}`);
-  for (const rel of ["www/index.html", "www/js/runtime.js", "editor/index.html", "README.md"]) {
+  for (const rel of ["www/index.html", "www/js/runtime.js", "README.md"]) {
     if (!existsSync(path.join(outDir, rel))) {
       report(`deploy file ${rel}`, false, "missing");
       process.exit(1);
     }
   }
-  report("deploy layout files", true, "www/, editor/, README.md present");
+  report("deploy layout files", true, "www/, README.md present");
 
   // --help
   const { spawnSync } = await import("node:child_process");
@@ -175,7 +174,6 @@ async function main() {
     const checks = [
       ["/", 200, "text/html; charset=utf-8"],
       ["/js/runtime.js", 200, "text/javascript; charset=utf-8"],
-      ["/editor/", 200, "text/html; charset=utf-8"],
       ["/data/manifest.json", 200, "application/json; charset=utf-8"],
       ["/data/maps/town-square.map.json", 200, "application/json; charset=utf-8"],
       ["/data/tilesets/placeholder.tileset.json", 200, "application/json; charset=utf-8"],
@@ -191,26 +189,8 @@ async function main() {
       );
     }
 
-    // Editor asset (relativized URL).
-    const html = await (await fetch(BASE + "/editor/index.html")).text();
-    const asset = /src="(\.\/assets\/[^"]+\.js)"/.exec(html)?.[1];
-    if (asset) {
-      const { status, type } = await request("/editor/" + asset);
-      report(
-        `editor asset ${asset}`,
-        status === 200 && type.startsWith("text/javascript"),
-        `${status} ${type}`,
-      );
-    } else {
-      report(
-        "editor asset reference",
-        false,
-        "no relative ./assets/ URL found in editor index.html",
-      );
-    }
-
     // 404s.
-    for (const p of ["/nope.txt", "/editor/assets/missing.js"]) {
+    for (const p of ["/nope.txt", "/www/missing.js"]) {
       const { status } = await request(p);
       report(`404 ${p}`, status === 404, `status ${status}`);
     }
@@ -222,7 +202,7 @@ async function main() {
       "/..%2f..%2fetc/passwd",
       "/..\\..\\etc\\passwd",
       "/%00",
-      "/editor/../../server/src/main.cpp",
+      "/www/../../server/src/main.cpp",
     ];
     for (const p of hostile) {
       const { status } = await request(p);

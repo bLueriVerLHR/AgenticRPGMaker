@@ -1,8 +1,10 @@
 # AgenticRPGMaker — Compatibility Checklist (Portable / Runtime)
 
 > Status: **DRAFT — for the user to verify on real devices/browsers.** Part of the
-> WAL docs; pairs with [ADR-006](./04-adr/ADR-006.md) (editor) and the decided
-> portable target (Q1/RQ1, docs/02-open-questions.md).
+> WAL docs; pairs with [ADR-008](./04-adr/ADR-008.md) (portable-first, multi-backend)
+> and the decided portable target (Q1/RQ1, docs/02-open-questions.md). The editor
+> (ADR-006) is **archived** (D20) — this checklist covers the **portable runtime**
+> and the **data-first authoring** path.
 
 ## 1. What this checklist covers
 
@@ -13,8 +15,10 @@ states what the portable build must **avoid**, what constraints weak devices /
 JoiPlay impose, and gives the **user a concrete verification procedure** for desktop
 browsers and a real JoiPlay device.
 
-The **editor** (ADR-006) is developer tooling, not the portable runtime — but its
-import/export path follows the same portability rules for its project files.
+**JoiPlay is a first-class target** (D21): it runs RPG Maker MV/MZ from their
+`www` HTML5 folder (verified from JoiPlay's own FAQ), so our portable package is
+exactly what JoiPlay executes. Browser and JoiPlay are **configurations of the same
+runtime** — see [ADR-008](./04-adr/ADR-008.md).
 
 ## 2. Target matrix
 
@@ -142,6 +146,7 @@ device/browser + version).
 | B4 | Play, exit to the JoiPlay menu, relaunch. | Saves persist (IndexedDB) and load. |
 | B5 | Leave it running ~5 min (screen may sleep). | No crash; returning resumes; heartbeat reconnects if needed (check server logs). |
 | B6 | System fonts render all text (title, dialogue, chat, menus). | No missing/tofu glyphs. |
+| B7 | **IndexedDB on the JoiPlay WebView** (pending real-device verification, D21). | Saves survive a relaunch and are re-created if storage is cleared; the runtime logs a warn and never crashes when IndexedDB is unavailable/cleared (§4.7). |
 
 ### C. Multiplayer session (desktop + device)
 
@@ -179,5 +184,5 @@ Append a dated result block to this file (or the project log,
 ---
 
 *Pairs with [ADR-004](./04-adr/ADR-004.md), [ADR-005](./04-adr/ADR-005.md) and
-[ADR-006](./04-adr/ADR-006.md); decided by Q1/RQ1, Q3/RQ2, Q5 in
+[ADR-008](./04-adr/ADR-008.md); decided by Q1/RQ1, Q3/RQ2, Q5, D21 in
 [docs/02-open-questions.md](./02-open-questions.md).*

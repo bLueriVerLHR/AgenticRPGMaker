@@ -1,15 +1,18 @@
 # AgenticRPGMaker — Vision
 
-> **status: consensus confirmed (2026-08-25)**
+> **status: consensus confirmed (2026-08-25); re-oriented (2026-08-31)**
 > This document records the user's stated vision as of kickoff and its evolution
 > through the discussion rounds. **The user signed off on all decisions D1–D16 at
 > the consensus gate**, chose **Phase A — detailed design docs before code**, and
 > **approved the Phase A design docs** (2026-08-25) plus new Round 3 decisions
 > **D17–D19** (agentic operability & all-English — see
-> [02-open-questions.md](./02-open-questions.md)). The vision is agreed at the
-> decision level; Phase A design docs (`06-architecture.md`, `ADR-001..006`,
-> `07-mvp-plan.md`, `08-compatibility-checklist.md`) are approved and being merged
-> to main by the merge-manager.
+> [02-open-questions.md](./02-open-questions.md)). On **2026-08-31 the vision was
+> re-oriented** (Round 4, **D20–D25**): the editor is removed/archived, authoring is
+> **data-first (AI/agent-authored JSON)**, and the engine is **portable-first**
+> (browser + JoiPlay today) with reserved WebGPU/WASM seams — see
+> [02-open-questions.md](./02-open-questions.md) Round 4,
+> [discussion/2026-08-31-reorg.md](./discussion/2026-08-31-reorg.md) and
+> [ADR-008](./04-adr/ADR-008.md).
 
 ## 1. What it is
 

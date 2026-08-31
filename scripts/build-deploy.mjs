@@ -8,36 +8,32 @@
  *   deploy/
  *     agenticrpg-server        the C++20 server binary (ADR-005 / RQ3)
  *     www/                     the portable game package (from build-www)
- *     editor/                  the editor production build (vite)
  *     README.md                run instructions (local + VPS modes)
  *
- * The editor's vite build emits absolute `/assets/...` URLs, which would
- * resolve to the www root when the server mounts the editor under `/editor/`.
- * This script rewrites them to relative (`./assets/...`) URLs in the deployed
- * copy, so the editor works under any mount prefix (assembly-level fix; no
- * package source is modified).
+ * The editor (ADR-006) was removed from `main` and archived via git tag
+ * (`archive/editor-0.1.0`) on 2026-08-31 (D20) — this script no longer builds
+ * or mounts an editor under `/editor`.
  *
  * Requirements: all workspace packages built (`pnpm -r build`, run up front
- * in dependency order so core → renderer → runtime → editor dists exist), the
+ * in dependency order so core → renderer → runtime dists exist), the
  * C++ toolchain. cmake is resolved as: $AGENTICRPG_CMAKE → the pinned
  * self-hosted cmake under .tools → PATH.
  *
  * Clean-state contract: `pnpm -r build` runs first so this script works from a
  * fresh clone where no package `dist/` output exists yet. The later "build if
- * missing" checks (editor dist, packages/core dist for build-www validation)
+ * missing" checks (packages/core dist for build-www validation)
  * are kept as no-op safety nets rather than the primary build path.
  *
  * Usage:
  *   node scripts/build-deploy.mjs [--out <dir>] [--server-build <dir>] [--skip-server-build]
  */
 import { execFileSync } from "node:child_process";
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = path.resolve(__dirname, "..");
-const PACKAGES = path.join(REPO_ROOT, "packages");
 const SERVER_DIR = path.join(REPO_ROOT, "server");
 
 const args = process.argv.slice(2);
@@ -91,49 +87,20 @@ function copyTree(src, dest) {
   execFileSync("cp", ["-r", ".", dest], { cwd: src, stdio: "inherit" });
 }
 
-/** Rewrite absolute /assets/ URLs to relative ./assets/ in the editor index. */
-function relativizeEditorAssets(editorDir) {
-  const indexPath = path.join(editorDir, "index.html");
-  if (!existsSync(indexPath)) {
-    fail("editor build missing index.html at " + indexPath);
-  }
-  let html = readFileSync(indexPath, "utf8");
-  const before = html;
-  html = html
-    .replaceAll('src="/assets/', 'src="./assets/')
-    .replaceAll('href="/assets/', 'href="./assets/');
-  if (html === before) {
-    console.warn("[build-deploy] warn: no /assets/ URLs found to relativize in " + indexPath);
-  }
-  writeFileSync(indexPath, html);
-  console.log("[build-deploy] editor index asset URLs relativized (works under /editor/)");
-}
-
 async function main() {
   console.log(`[build-deploy] output: ${outDir}`);
 
   // 0. Build ALL workspace packages in dependency order (pnpm resolves the
-  // topological order core → renderer → runtime → editor). This guarantees the
-  // editor's tsc step can resolve `@agenticrpg/runtime` (and renderer/core) from
-  // a clean clone where no packages/*/dist exist yet — previously the editor
-  // build ran first and failed with TS2307 "Cannot find module '@agenticrpg/runtime'".
+  // topological order core → renderer → runtime). This guarantees the
+  // packages' tsc steps can resolve their workspace deps from
+  // a clean clone where no packages/*/dist exist yet.
   // The per-step "build if missing" checks below remain as no-op safety nets.
   run("pnpm", ["-r", "build"], REPO_ROOT);
 
   // 1. www — portable game package (Task 1).
   run(process.execPath, [path.join(__dirname, "build-www.mjs")], REPO_ROOT);
 
-  // 2. editor — production build (tsc + vite), then relativize assets.
-  const editorDist = path.join(PACKAGES, "editor", "dist");
-  if (!existsSync(path.join(editorDist, "index.html"))) {
-    console.log("[build-deploy] editor build missing — building…");
-    run("pnpm", ["--filter", "@agenticrpg/editor", "build"], REPO_ROOT);
-  }
-  if (!existsSync(path.join(editorDist, "index.html"))) {
-    fail("editor build still missing after pnpm build");
-  }
-
-  // 3. C++ server binary (build on demand into server/build-deploy).
+  // 2. C++ server binary (build on demand into server/build-deploy).
   const serverBin = path.join(serverBuildDir, "agenticrpg-server");
   if (!skipServerBuild && !existsSync(serverBin)) {
     const cmake = resolveCmake();
@@ -176,18 +143,14 @@ async function main() {
     console.log(`[build-deploy] reusing server binary ${serverBin}`);
   }
 
-  // 4. Assemble deploy/.
+  // 3. Assemble deploy/.
   rmrfSync(outDir);
-  mkdirSync(path.join(outDir, "editor"), { recursive: true });
+  mkdirSync(outDir, { recursive: true });
   execFileSync("cp", [serverBin, path.join(outDir, "agenticrpg-server")], { stdio: "inherit" });
   execFileSync("chmod", ["+x", path.join(outDir, "agenticrpg-server")], { stdio: "inherit" });
   copyTree(path.join(REPO_ROOT, "www"), path.join(outDir, "www"));
-  copyTree(editorDist, path.join(outDir, "editor"));
 
-  // Relativize the deployed editor's asset URLs (must happen after the copy).
-  relativizeEditorAssets(path.join(outDir, "editor"));
-
-  // 5. README with run instructions.
+  // 4. README with run instructions.
   writeFileSync(path.join(outDir, "README.md"), deployReadme());
 
   console.log(`[build-deploy] done. deploy layout:\n${layout(outDir)}`);
@@ -195,13 +158,7 @@ async function main() {
 
 function layout(outDir) {
   const entries = [];
-  for (const entry of [
-    "agenticrpg-server",
-    "www/index.html",
-    "www/js/runtime.js",
-    "editor/index.html",
-    "README.md",
-  ]) {
+  for (const entry of ["agenticrpg-server", "www/index.html", "www/js/runtime.js", "README.md"]) {
     entries.push(`  ${entry} (${existsSync(path.join(outDir, entry)) ? "ok" : "MISSING"})`);
   }
   return entries.join("\n");
@@ -211,8 +168,10 @@ function deployReadme() {
   return `# AgenticRPGMaker — deployment folder
 
 Single C++ Linux binary + static files (docs/06-architecture.md §6). One
-process serves the portable game (\`www/\`), the editor (\`editor/\` under
-\`/editor\`), and the multiplayer WebSocket relay (\`/ws\`) on one port.
+process serves the portable game (\`www/\`) and the multiplayer WebSocket relay
+(\`/ws\`) on one port. The Web editor (ADR-006) was removed from \`main\` and
+archived via git tag \`archive/editor-0.1.0\` (D20) — there is no \`editor/\`
+mount in this deployment.
 
 ## Layout
 
@@ -220,14 +179,12 @@ process serves the portable game (\`www/\`), the editor (\`editor/\` under
 | ------------------- | ---------------------------------------------- |
 | \`agenticrpg-server\` | The C++20 relay/state-sync server (ADR-005).  |
 | \`www/\`             | Portable game package (\`index.html\` + \`data/\` + \`js/\` + \`img/\` + \`audio/\`). |
-| \`editor/\`          | Editor production build (served under \`/editor\`). |
 
 ## Local launcher mode (single player, localhost)
 
 \`\`\`sh
-./agenticrpg-server --www-root www --editor-root editor --port 8080
+./agenticrpg-server --www-root www --port 8080
 # game:   http://localhost:8080/
-# editor: http://localhost:8080/editor/
 \`\`\`
 
 ## VPS mode (remote multiplayer WebSocket host)
@@ -237,7 +194,7 @@ same binary is already reachable from the network. Open the server port (8080,
 or via \`--port\`) in the firewall, then players join with the relay URL:
 
 \`\`\`sh
-./agenticrpg-server --www-root www --editor-root editor --port 8080
+./agenticrpg-server --www-root www --port 8080
 # player 1: http://<host>:8080/?server=ws://<host>:8080/ws&room=demo&name=Alice
 # player 2: http://<host>:8080/?server=ws://<host>:8080/ws&room=demo&name=Bob
 \`\`\`
@@ -253,15 +210,18 @@ Caddy, which also terminates TLS) in front — TLS is out of scope for the MVP
 ./agenticrpg-server --help
 # --port <port>            default 8080 (env AGENTICRPG_PORT)
 # --www-root <dir>         default "www"
-# --editor-root <dir>      default "editor"
 # --log-level <level>      trace|debug|info|warn|error|critical (env AGENTICRPG_LOG_LEVEL)
 # --max-players-per-room <n> default 16
 \`\`\`
 
+> \`--editor-root\` still exists in the server binary but is **unused**: the Web
+> editor (ADR-006) was removed from \`main\` and archived via git tag
+> \`archive/editor-0.1.0\` (D20).
+
 ## Rebuilding
 
 \`pnpm build:deploy\` in the repo regenerates this folder from source
-(www bundle + editor build + C++ server binary).
+(www bundle + C++ server binary).
 `;
 }
 

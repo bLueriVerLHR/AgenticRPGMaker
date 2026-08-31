@@ -1,11 +1,19 @@
 # AgenticRPGMaker — MVP Implementation Plan
 
-> **status: DECIDED (plan for implementation)**
+> **status: DECIDED (plan for implementation); re-oriented (2026-08-31)**
 > Written by design-a against the **settled decision set** (Q1–Q6, RQ1–RQ5 decided;
 > D12–D16 treated as decided — see [02-open-questions.md](./02-open-questions.md)).
 > The architecture this plan builds is [06-architecture.md](./06-architecture.md).
 > Every phase below obeys the WAL/testing gate from
 > [03-wal-process.md](./03-wal-process.md).
+>
+> **Re-orientation (2026-08-31, D20–D25):** the editor workstream (**WS2 / P2 /
+> milestone M4**) is **archived** (editor removed from `main`, git tag
+> `archive/editor-0.1.0`, D20). The MVP already shipped P0–P5; the forward plan
+> re-prioritizes the **portable engine + data-first authoring** (D21/D24) with the
+> editor as a **restorable later phase**. See
+> [discussion/2026-08-31-reorg.md](./discussion/2026-08-31-reorg.md) and
+> [ADR-008](./04-adr/ADR-008.md).
 
 This plan is **dependency-ordered and phased**. Phases map to workstreams; a phase
 may not start until its stated dependencies are done (Definition of Done of the
@@ -19,22 +27,25 @@ end.
 | # | Workstream | Phase(s) | Owner-type |
 |---|-----------|----------|------------|
 | WS1 | **engine-core** — `packages/core` + `packages/renderer` + `packages/runtime` | P1 (P0 scaffold) | engine member(s) |
-| WS2 | **editor** — `packages/editor` | P2 | editor member(s) |
-| WS3 | **server** — C++ (CMake, Asio+websocketpp, HTTP static, relay) | P3 | server member(s) |
-| WS4 | **qa/tests** — Vitest, Catch2, Playwright, multiplayer smoke | P1–P4 (continuous) | qa member(s) |
+| WS2 | **editor** — ~~`packages/editor`~~ **ARCHIVED (D20)** — removed from `main` (tag `archive/editor-0.1.0`); restore when a real game justifies it | (was P2) | — |
+| WS3 | **server** — C++ (CMake, Asio+websocketpp, HTTP static, relay) — **optional (D22)** | P3 | server member(s) |
+| WS4 | **qa/tests** — Vitest, Catch2, Playwright, multiplayer smoke, **`pnpm validate` data gate (D24)** | P1–P4 (continuous) | qa member(s) |
 | WS5 | **packaging/deploy** — `www` portable folder + single binary | P5 | packaging member(s) |
 | WS6 | **merge-manager** — merges member branches to `main` | P1–P6 (continuous) | merge-manager |
 
-Dependency spine: `core → renderer → runtime → editor → (server || packaging)`,
-with `qa/tests` running alongside every phase and `merge-manager` continuously
-absorbing completed work.
+Dependency spine: `core → renderer → runtime → (server || packaging)`, with
+`qa/tests` running alongside every phase and `merge-manager` continuously
+absorbing completed work. *(The editor was on this spine pre-re-orientation; it is
+archived per D20.)*
 
 ```
-P0 scaffold ─► P1 engine-core ─► P2 editor ─► P5 packaging ─► MVP release
+P0 scaffold ─► P1 engine-core ─► P5 packaging ─► MVP release
                 │                │
-                └─► P3 server ───┘  (may overlap P1 once protocol schema is frozen)
+                └─► P3 server ───┘  (may overlap P1 once protocol schema is frozen;
+                                     server is optional per D22)
                 │
-                └─► P4 qa/tests  (continuous, gates every phase)
+                └─► P4 qa/tests  (continuous, gates every phase; includes the
+                                  pnpm validate data gate, D24)
 ```
 
 ---
@@ -70,6 +81,8 @@ phase below — repeated for emphasis, not per-phase ceremony:
   shared TS/tsconfig base, workspace tooling (pnpm).
 - Scaffold `packages/core`, `packages/renderer`, `packages/runtime`,
   `packages/editor`, `server/` (empty CMake skeleton), `samples/`.
+  *(Historical: `packages/editor` was later archived — D20; it is no longer in
+  `main`.)*
 - Pin the **versioned JSON schema strategy** (D14): shared TS types in `core`,
   schema versioning convention, `protocol.v1` envelope shape.
 - Set up CI-or-checks baseline: lint, format, and the two unit-test runners
@@ -166,34 +179,20 @@ phase below — repeated for emphasis, not per-phase ceremony:
 
 ---
 
-## 4. P2 — Editor (`packages/editor`)
+## 4. P2 — Editor (`packages/editor`) — ARCHIVED (D20)
 
-> **Workstream:** WS2. **Depends on:** P1a (`core`) — editor never touches
-> renderer/runtime internals except the embedded preview bundle.
-
-**Tasks**
-- React + TS + Vite app shell (D13).
-- **Project storage**: IndexedDB (D12) + **import/export to folder** (portable
-  `data/` JSON matching the `www` layout).
-- Map editor: **tile layers + event placement** (Q6) — all mutations go through
-  `core` model APIs (single source of truth).
-- **Runtime preview**: embed the runtime bundle over the current map; edits reflect
-  immediately (WYSIWYG, same model).
-- Editor operations logged via structured logger.
-
-**Dependencies:** P1a (frozen core model/schemas); P1c runtime bundle for preview.
-
-**Definition of Done**
-- Create a map with tile layers and placed events in the editor; play it in the
-  embedded preview with correct behavior.
-- Save project to IndexedDB, export to a folder, re-import, and rebuild the same map.
-- Editor unit/component tests green (Vitest); integration: editor writes core model
-  → preview reads same model.
-
-**WAL/testing gate**
-- ADR(s) for D12 (storage) / D13 (editor UI) reviewed before code.
-- Unit + integration green; E2E: editor build-a-map → play scenario in Playwright.
-- Logs: editor operations present; QA checklist §5 ticked.
+> **Archived (D20).** The editor phase (Workstream WS2) was **removed from the
+> plan and from `main`** on 2026-08-31 (D20): `packages/editor` is archived via git
+> tag `archive/editor-0.1.0`. The MVP editor (tile layers + events, IndexedDB
+> project, import/export, runtime preview) was **implemented and shipped** in the
+> original P2 (merged to main, branch `feat/p2-editor` @ `b4deb1f`); it is now
+> archived because development is **data-first / auto-code** (D24) and a visual
+> editor is not needed until a real game exists.
+>
+> **Restore path:** `git checkout archive/editor-0.1.0`, re-attach `packages/editor`
+> onto the same `core` model (no parallel data format), and update
+> `06-architecture.md` §2 / `03-wal-process.md` accordingly. Until then, authoring
+> is JSON + `pnpm validate` (D24) — see [06-architecture.md](./06-architecture.md) §4.
 
 ---
 
@@ -205,7 +204,8 @@ phase below — repeated for emphasis, not per-phase ceremony:
 **Tasks**
 - CMake build with **FetchContent**: standalone Asio + websocketpp + spdlog +
   Catch2 (RQ3); C++20.
-- **Custom HTTP static hosting**: serve `www/` and `editor/` (Q1/RQ1).
+- **Custom HTTP static hosting**: serve `www/` (Q1/RQ1). *(The `editor/` static
+  root is unused after the editor was archived — D20.)*
 - **WebSocket relay / state-sync**: versioned handshake, message validation,
   last-known-state store, relay/broadcast to peers, **heartbeat/keepalive**
   (Q2, RQ4, D16 — players only).
@@ -213,12 +213,13 @@ phase below — repeated for emphasis, not per-phase ceremony:
   envelopes) via spdlog ([03-wal-process.md](./03-wal-process.md) §2).
 - Optional local-file save endpoint (RQ1) — **phase-2 flag**, stubbed/skippable.
 
-**Dependencies:** P1a; P5 packaging for the `www`/editor static roots (or a stub
+**Dependencies:** P1a; P5 packaging for the `www` static root (or a stub
 `www` for dev). Playwright multiplayer smoke (P4) needs this phase running.
 
 **Definition of Done**
-- Single binary serves static `www/` + `editor/` over HTTP and a `/ws` endpoint on
-  the same port (configurable).
+- Single binary serves static `www/` over HTTP and a `/ws` endpoint on
+  the same port (configurable). *(The `--editor-root` mount is unused after the
+  editor was archived — D20.)*
 - Two WebSocket clients connect, handshake versioned, relay `player.state` to each
   other; heartbeat cleans up a dead session.
 - Catch2 tests green: protocol parser, relay/state store, HTTP static handler.
@@ -239,15 +240,17 @@ phase below — repeated for emphasis, not per-phase ceremony:
 > this phase consolidates and hardens.
 
 **Tasks**
-- Consolidate the three-layer suite: Vitest unit (core/renderer/runtime/editor),
+- Consolidate the three-layer suite: Vitest unit (core/renderer/runtime),
   Catch2 unit (server), integration harnesses, Playwright E2E.
 - Maintain the **multiplayer smoke test** (two browser contexts ↔ local C++ server).
 - Edge cases: renderer fallback (simulate no-WebGL), save/load round-trips,
   protocol version mismatch, heartbeat timeout, world-state **documented limitation**
   (players only — D16).
+- **Data gate (D24):** `pnpm validate` on all game data — validate-first step of the
+  dev workflow ([03-wal-process.md](./03-wal-process.md) §4).
 - Test-gate wiring so the merge-manager only merges green branches.
 
-**Dependencies:** P1, P2, P3 (exercises their outputs).
+**Dependencies:** P1, P3 (exercises their outputs; P2/editor is archived — D20).
 
 **Definition of Done**
 - Full suite green in CI-equivalent local run; QA checklist §5 passing across all
@@ -262,7 +265,7 @@ phase below — repeated for emphasis, not per-phase ceremony:
 
 ## 7. P5 — Packaging / deploy (portable `www` + single binary)
 
-> **Workstream:** WS5. **Depends on:** P1c (runtime), P2 (editor build), P3 (server).
+> **Workstream:** WS5. **Depends on:** P1c (runtime), P3 (server).
 
 **Tasks**
 - Build the **portable `www` folder**: `index.html` + `data/` + `js/` + `img/` +
@@ -270,17 +273,16 @@ phase below — repeated for emphasis, not per-phase ceremony:
   JoiPlay-type runtime as far as locally verifiable (compatibility checklist —
   owned by another member — referenced here, not authored by design-a).
 - Produce the **single C++ binary** + static files deployment layout
-  ([06-architecture.md](./06-architecture.md) §6): `server/` (binary) + `www/` +
-  `editor/`.
+  ([06-architecture.md](./06-architecture.md) §6): `server/` (binary) + `www/`.
 - Local launcher mode (localhost serving) and VPS mode (remote WebSocket host) both
   verified from the same artifact (RQ4).
 - `samples/` populated with runnable example maps/projects demonstrating the
   pipeline.
 
-**Dependencies:** P1c, P2, P3.
+**Dependencies:** P1c, P3.
 
 **Definition of Done**
-- One command produces `www/` + binary; the binary serves both game and editor;
+- One command produces `www/` + binary; the binary serves the portable game;
   a sample game runs end-to-end (walk/collide/dialogue + 2-player sync).
 
 **WAL/testing gate**
@@ -304,8 +306,8 @@ phase below — repeated for emphasis, not per-phase ceremony:
 **Dependencies:** every phase (absorbed incrementally, not batched at the end).
 
 **Definition of Done**
-- `main` contains the full MVP: engine-core + editor + server + tests + packaging,
-  docs corrected to match reality (WAL).
+- `main` contains the full MVP: engine-core + optional server + tests + packaging,
+  docs corrected to match reality (WAL). *(The editor is archived — D20.)*
 
 **WAL/testing gate**
 - The merge-manager enforces: docs/ADR finalized in the same change; unit +
@@ -324,7 +326,7 @@ phase below — repeated for emphasis, not per-phase ceremony:
 | **M1 — Core complete** | Data model, event interpreter, entity/component, Behavior interface, `protocol.v1` | P1a |
 | **M2 — Renderer complete** | WebGL + Canvas2D fallback behind `Renderer` interface | P1b |
 | **M3 — Single-player runtime playable** | Walk / collide / dialogue, IndexedDB saves | P1c |
-| **M4 — Editor MVP** | Tile layers + events, IndexedDB project, import/export, runtime preview | P2 |
+| **M4 — Editor MVP** | Tile layers + events, IndexedDB project, import/export, runtime preview — **ARCHIVED (D20)**; implemented + shipped in original P2, then removed from `main` (tag `archive/editor-0.1.0`) | ~~P2~~ (was) |
 | **M5 — Server + 2-player sync** | HTTP static + WS relay, handshake/heartbeat, versioning | P3 |
 | **M6 — QA hardened** | Full suite green incl. two-context multiplayer smoke | P4 |
 | **M7 — Portable package + binary** | `www` + single binary, local & VPS modes, samples | P5 |
@@ -358,8 +360,12 @@ re-decides it in [02-open-questions.md](./02-open-questions.md).
 
 ## 10. Suggested branch / commit hygiene for this plan
 
+> **Updated for D25 (2026-08-31):** the module-scoped short-lived branch workflow
+> in [03-wal-process.md](./03-wal-process.md) §4 supersedes the phase-per-branch
+> style below. Keep this historical note for context.
+
 - One feature branch per phase/workstream (e.g. `feat/engine-core`,
-  `feat/editor-map`, `feat/server-relay`), pushed to the shared remote; merged only
+  `feat/server-relay`), pushed to the shared remote; merged only
   by the merge-manager (WS6).
 - All subagent commits use the single repo-local bot identity (RQ5).
 - Docs are **corrected in the same change as the code** (WAL) — a phase is not

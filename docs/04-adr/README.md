@@ -27,8 +27,9 @@ same change.
 | [ADR-003](./ADR-003.md) | Versioned JSON Data Formats (Shared TS Types + Validation in packages/core) | proposed | 2026-08-25 |
 | [ADR-004](./ADR-004.md) | Multiplayer protocol v1 (WebSocket + JSON) | proposed | 2026-08-25 |
 | [ADR-005](./ADR-005.md) | C++ relay / state-sync server (single binary, Linux) | proposed | 2026-08-25 |
-| [ADR-006](./ADR-006.md) | Web editor (React + TypeScript + Vite) | proposed | 2026-08-25 |
+| [ADR-006](./ADR-006.md) | Web editor (React + TypeScript + Vite) | **superseded** (by ADR-008; editor archived) | 2026-08-25 |
 | [ADR-007](./ADR-007.md) | Agentic operability & agent-readable docs | accepted | 2026-08-25 |
+| [ADR-008](./ADR-008.md) | Portable-First Engine: Editor-less Authoring & Multi-Backend Abstraction | proposed | 2026-08-31 |
 
 > As decisions land from the kickoff discussion (see
 > [docs/02-open-questions.md](../02-open-questions.md)), each becomes an ADR in this

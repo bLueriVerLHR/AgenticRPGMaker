@@ -5,6 +5,52 @@ Date format: `YYYY-MM-DD`.
 
 ---
 
+## 2026-08-31 — Repository re-orientation: editor-less portable-first engine (D20–D25, ADR-008)
+
+The user asked to survey open-source projects (Tyrano, open-source RPG
+engines/games), then re-organize the docs and development branches, and
+re-examine the repository design. Because development is primarily auto-generated
+code, the editor is removed until a real game exists; the engine is portable-first
+(browser + JoiPlay today) with reserved WebGPU/WASM seams.
+
+**Decisions (Round 4, D20–D25 — all user-confirmed; full verbatim record in
+[docs/discussion/2026-08-31-reorg.md](./discussion/2026-08-31-reorg.md))**
+
+- **D20 — editor disposition:** removed `packages/editor` from `main`; archived
+  via git tag `archive/editor-0.1.0`; restore when a real game justifies it.
+- **D21 — multi-backend scope:** portable-first engine on every target (browser +
+  JoiPlay today); performance (vgpu/wasm) researched after.
+- **D22 — C++ server:** kept but demoted to an optional component.
+- **D23 — performance route:** portable first; reserve WebGPU renderer backend +
+  WASM core as seams, no investment now.
+- **D24 — authoring mainline:** AI/agent-authored versioned JSON → `core`
+  validates → runtime runs; `pnpm validate` is the agent-facing gate.
+- **D25 — dev workflow & branches:** module-scoped short-lived branches +
+  validate-first; historical branches archived via local tags; **no remote branch
+  deletion** (C3).
+
+**What changed (this pass)**
+
+- **Code/tooling:** `packages/editor` deleted (tag `archive/editor-0.1.0`);
+  `scripts/build-deploy.mjs` and `scripts/verify-deploy.mjs` no longer build/mount
+  the editor; new `scripts/validate.mjs` + `pnpm validate` (agent data gate, D24);
+  root `package.json` description updated; `AGENTS.md` layout/scripts/QA updated.
+- **Docs:** `02-open-questions.md` gains Round 4 (D20–D25); new `ADR-008`
+  (portable-first, editor-less, multi-backend); `ADR-006` marked superseded;
+  `03-wal-process.md` §4 rewritten to the new workflow (§3 stack confirmed, §8
+  seams updated); `docs/discussion/2026-08-31-reorg.md`, `docs/principle/*`,
+  `docs/task/*` added (discussion/principle/task records per D18/D19 form).
+- **Branches:** local archive tags for all historical remote branches
+  (`archive/design-a` … `archive/feat-p6-playtest-fixes`); remote branches left
+  untouched (C3).
+- **Survey takeaways** recorded in the discussion doc (TyranoScript = VN engine
+  with tag+plugin model; RPG Paper Maker = separate editor/runtime over JSON;
+  JoiPlay runs MV/MZ from their `www` HTML5 folder; `rpg-maker-agent` /
+  `Shinsekai` show AI-authored games need only schema + interpreter).
+
+**Gate:** `pnpm doc:lint` green; full QA gate re-run (build/typecheck/lint/
+format/test/validate/deploy) — see the re-org task docs in `docs/task/`.
+
 ## 2026-08-25 — MVP implementation complete (P0–P5 merged to main @ 94da8da); P6 release: docs aligned to implementation
 
 MVP implementation phases **P0–P5 are all merged to main** (`origin/main` @

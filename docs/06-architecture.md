@@ -8,9 +8,9 @@
 > process it is corrected/finalized in the same change as the code it describes.
 
 This is the single architecture reference for AgenticRPGMaker: the monorepo layout,
-the runtime and editor boot flows, the multiplayer data flow, the deployment model,
-the design-pattern catalog, logging/observability, and the testing strategy. All
-product decisions live in [01-vision.md](./01-vision.md) and
+the runtime boot flow and the editor-less authoring flow, the multiplayer data flow,
+the deployment model, the design-pattern catalog, logging/observability, and the
+testing strategy. All product decisions live in [01-vision.md](./01-vision.md) and
 [02-open-questions.md](./02-open-questions.md) — this file does not re-decide them,
 it makes them concrete.
 
@@ -24,8 +24,14 @@ that share one data model:
 | Piece | What it is | Where it runs |
 |-------|-----------|---------------|
 | **The game (runtime)** | The playable RPG — a **portable HTML package** (`index.html` + `data/` + `js/` + `img/` + `audio/`, Q1/RQ1) | Any modern browser, any static host, JoiPlay-type mobile runtimes |
-| **The editor (Game Maker)** | A **web app** for building maps/events (Q5, D13) | Browser; React + TypeScript + Vite |
-| **The server** | **C++ Linux** binary: HTTP static host + WebSocket **relay / state-sync** (Q2, RQ3, RQ4) | Linux box, VPS, or localhost |
+| **The server** *(optional, D22)* | **C++ Linux** binary: HTTP static host + WebSocket **relay / state-sync** (Q2, RQ3, RQ4) | Linux box, VPS, or localhost — never required by the portable engine |
+
+> **Re-orientation (2026-08-31, D20–D25):** the **editor (Game Maker)** was removed
+> from `main` and archived via git tag `archive/editor-0.1.0` (D20); authoring is
+> **data-first** (AI/agents write versioned JSON → `core` validates → runtime runs,
+> D24); the engine is **portable-first** with reserved WebGPU/WASM seams (D21/D23).
+> See [ADR-008](./04-adr/ADR-008.md) and
+> [02-open-questions.md](./02-open-questions.md) Round 4.
 
 All three speak the **same versioned JSON data formats** (D14) and share the
 **data model + event interpreter** that live in `packages/core`.
@@ -34,20 +40,25 @@ All three speak the **same versioned JSON data formats** (D14) and share the
 
 ## 2. Monorepo layout (D15)
 
-pnpm workspaces monorepo: four TypeScript packages, one C++ server, one samples
-folder:
+pnpm workspaces monorepo: three TypeScript packages, one optional C++ server, one
+samples folder:
 
 ```
 AgenticRPGMaker/
 ├── packages/
 │   ├── core/       # data model, event interpreter, shared types/schemas  (vanilla TS)
 │   ├── renderer/   # Renderer interface + WebGL & Canvas2D backends        (vanilla TS)
-│   ├── runtime/    # game loop, scenes, save/load, multiplayer client      (vanilla TS)
-│   └── editor/     # React map/event editor + runtime preview              (React + TS + Vite)
-├── server/         # C++20: Asio + websocketpp, HTTP static, relay, spdlog, Catch2, CMake
+│   └── runtime/    # game loop, scenes, save/load, multiplayer client      (vanilla TS)
+├── server/         # C++20 (optional, D22): Asio + websocketpp, HTTP static, relay, spdlog, Catch2, CMake
 ├── samples/        # sample maps/projects/www bundles exercising the pipeline
 └── docs/           # this tree
 ```
+
+> **`packages/editor` (React map/event editor, ADR-006) was removed from `main`**
+> and archived via git tag `archive/editor-0.1.0` (D20, 2026-08-31). Authoring is
+> data-first (D24): AI/agents write versioned JSON; `pnpm validate` gates it. If a
+> real game later justifies a visual editor, restore the tag and re-attach it to the
+> same `core` model.
 
 ### 2.1 Package responsibilities & dependencies
 
@@ -55,10 +66,9 @@ AgenticRPGMaker/
 |---------|----------------|------------|------------------|
 | **`packages/core`** | Ground truth: map/tile/event/save/player **data model**; the **event interpreter** (event pages → commands → effects); shared **JSON schemas** and types (D14); validation; protocol message schema `protocol.v1`. | nothing (zero browser/DOM deps; runs in Node for tests too) | — |
 | **`packages/renderer`** | Draws a scene to a canvas behind the **Renderer interface**: `WebGLRenderer` (default) + `Canvas2DRenderer` (fallback), chosen by capability detection (RQ2); sprite/tile batching, camera, object pooling. | `core` (reads the model; knows nothing about game systems) | `runtime`, DOM beyond the canvas element |
-| **`packages/runtime`** | The playable game: boot sequence, **game loop** (update → render), scene/state management, player movement / collision / dialogue, **IndexedDB saves**, **multiplayer client** (transport abstraction → WebSocket). Framework-free vanilla TS for portability (D13). | `core` (model + event interpreter) and `renderer` (paint the scene) | `editor`, React, any browser-chrome-specific API outside the boot seam |
-| **`packages/editor`** | The Game Maker: tile layers + event placement (Q6), project stored in **IndexedDB** with **import/export to folder** (D12); **embedded runtime preview**; writes only through `core` APIs. | `core` (single source of truth) + the runtime bundle (preview) / `core`'s own scene runner | — |
-| **`server/`** | C++ Linux binary: **custom HTTP static hosting** of `www/` and the editor build; **WebSocket relay/state-sync** endpoint; optional local-file save endpoint (RQ1, phase 2); spdlog logging; Catch2 tests; CMake (RQ3). | nothing from the TS workspace at build time — only the **protocol schema** (frozen `protocol.v1`, defined in `core`) | the TS packages (it is a network peer, not a library) |
-| **`samples/`** | Runnable example maps/events and generated `www` bundles proving the editor → core → runtime → server pipeline end to end. | the packages | — |
+| **`packages/runtime`** | The playable game: boot sequence, **game loop** (update → render), scene/state management, player movement / collision / dialogue, **IndexedDB saves**, **multiplayer client** (transport abstraction → WebSocket). Framework-free vanilla TS for portability (D13). | `core` (model + event interpreter) and `renderer` (paint the scene) | React, any browser-chrome-specific API outside the boot seam |
+| **`server/`** *(optional, D22)* | C++ Linux binary: **custom HTTP static hosting** of `www/`; **WebSocket relay/state-sync** endpoint; optional local-file save endpoint (RQ1, phase 2); spdlog logging; Catch2 tests; CMake (RQ3). **Never required by the portable single-player engine.** | nothing from the TS workspace at build time — only the **protocol schema** (frozen `protocol.v1`, defined in `core`) | the TS packages (it is a network peer, not a library) |
+| **`samples/`** | Runnable example maps/events and generated `www` bundles proving the core → runtime → server pipeline end to end (data-first authoring, D24). | the packages | — |
 
 ### 2.2 Dependency graph (text diagram)
 
@@ -71,39 +81,36 @@ AgenticRPGMaker/
                 │                  │
         ┌───────▼───────┐   ┌──────▼────────┐
         │ packages/     │   │ packages/     │
-        │ renderer      │   │ editor        │
-        │ WebGL+Canvas2D│   │ React app     │
+        │ renderer      │   │ runtime       │
+        │ WebGL+Canvas2D│   │ loop·scenes   │
+        │               │   │ saves·net     │
         └───────────────┘   └──────┬────────┘
-                                   │ (embeds runtime for preview)
-        ┌──────────────────────────▼──────────┐
-        │            packages/runtime          │◄────┐
-        │ game loop · scenes · saves · net     │     │
-        └───────────────┬──────────────────────┘     │
-                        │ WebSocket (versioned JSON, │
-                        │ protocol.v1)               │
-          ┌─────────────▼──────────────┐              │
-          │       server/ (C++)        │              │
-          │ HTTP static + WS relay     │              │
-          └────────────────────────────┘              │
-                                                      │
-   editor→core, runtime→core+renderer, renderer→core, │
-   server↔runtime via WS protocol (bidirectional) ────┘
+                                   │ WebSocket (versioned JSON,
+                                   │ protocol.v1)
+          ┌────────────────────────▼──────────────┐
+          │       server/ (C++) — OPTIONAL (D22)  │
+          │ HTTP static + WS relay                │
+          └───────────────────────────────────────┘
+
+   runtime→core+renderer, renderer→core,
+   server↔runtime via WS protocol (bidirectional)
 ```
 
 Edge list (the same graph in text):
 
-- `editor → core` — the editor mutates only core-owned model objects.
 - `runtime → core + renderer` — the runtime drives the model and asks the renderer
   to paint it.
 - `renderer → core` — the renderer reads the model to know what to draw.
 - `server ↔ runtime` — **WebSocket**, versioned JSON messages (`protocol.v1`). Not a
   package dependency: an agreed wire contract.
-- `editor → runtime (preview)` — the editor embeds the runtime bundle to preview the
-  current map inside the same core model; no format conversion.
 - `samples → packages` — build-time only.
 
 Rule: **arrows point downward only** — nothing in `core` knows about renderer,
-runtime, editor, or server. This keeps the single source of truth clean and testable.
+runtime, or server. This keeps the single source of truth clean and testable.
+
+> The **editor** was part of this graph before the re-orientation (`editor → core`,
+> `editor → runtime (preview)`); it was removed from `main` and archived via git tag
+> `archive/editor-0.1.0` (D20, [ADR-008](./04-adr/ADR-008.md)).
 
 ---
 
@@ -152,27 +159,30 @@ index.html → core.init → detect.renderer (WebGL? → WebGLRenderer
 
 ---
 
-## 4. Editor boot flow (the Game Maker)
+## 4. Authoring flow (editor-less, data-first)
 
-1. Browser loads the **editor build** (React + TS + Vite, D13) — served by the C++
-   server in production, by Vite dev server in development. The editor is
-   editor-only: it never runs the full game's boot sequence.
-2. **Project storage** — the editor keeps the project (maps, tilesets, events,
-   settings) in **IndexedDB** (D12): portable, offline-capable. **Import/export to
-   folder** turns the project into/from the standard portable formats (a folder
-   bundle or a directory of `data/` JSON, matching the `www` layout), so a project
-   can move between machines and into the C++ server's file persistence later.
-3. **Editing through core** — every editor operation (place tile, place event, edit
-   event page) calls `core`'s model APIs and validator. The editor holds no
-   second copy of the world; **core is the single source of truth** — data model and
-   event interpreter both live in `packages/core`.
-4. **Runtime preview** — the editor embeds the runtime (same bundle a player would
-   run) over the current map. Because both sides share the core model, the preview
-   is WYSIWYG: no export/import round trip, no drift between "what I edited" and
-   "what plays".
-5. **Map data flow editor ↔ runtime** — all through shared core. The editor mutates
-   the model in place; the preview (and, at deploy time, the exported `www/data/`)
-   consume exactly that model.
+> **Re-orientation (D20, D24):** the **editor boot flow** described in the original
+> design is archived — the editor was removed from `main` (git tag
+> `archive/editor-0.1.0`). Authoring is now **data-first**: game content is written
+> as versioned JSON and validated by `core` before the runtime runs it. The editor's
+> core design principle survives unchanged: **`core` is the single source of truth**
+> — data model and event interpreter both live in `packages/core`.
+
+The authoring flow today:
+
+1. **Author (AI/agent or human) writes versioned JSON** — maps, events, dialogue,
+   tilesets, project documents (ADR-003 schemas). No visual editor; content is
+   data in the `data/` layout that the portable `www` package consumes.
+2. **`pnpm validate` gates it** — the CLI runs every JSON document through `core`'s
+   parsers (`parseMapDocument`, `parseProjectDocument`, `parseTilesetDocument`,
+   D24). What was the editor's "what is legal" knowledge is **validation in `core`**
+   (see [docs/principle/editor-less-authoring.md](./principle/editor-less-authoring.md)).
+3. **The runtime runs it** — `www/index.html` → `boot()` loads `data/`, validates
+   again, and interprets events through `core`'s event interpreter. Editor preview
+   (WYSIWYG) is replaced by **validate-then-run** as the feedback loop.
+
+If a visual editor is restored later, it must attach to this same `core` model
+(no parallel data format), which keeps the restore path cheap.
 
 ---
 
@@ -231,14 +241,13 @@ reverse-proxy requirement in the MVP (RQ3/RQ4).
 ```
 server/   (the binary, e.g. agenticrpgmaker-server)
 www/      ← portable game package (freshly built: index.html + data/ + js/ + img/ + audio/)
-editor/   ← editor build (static assets from packages/editor)
-assets/   ← shared static assets served to both (optional)
+assets/   ← shared static assets served (optional)
 ```
 
-- The binary serves **HTTP static content** (`www/` and `editor/`) and a
+- The binary serves **HTTP static content** (`www/`) and a
   **WebSocket endpoint** (`/ws`) — same process, same port (configurable).
-- A player opens `http://host/` → the game. An editor user opens
-  `http://host/editor` → the Game Maker.
+- A player opens `http://host/` → the game. (The **editor** is archived — D20 — so
+  there is no `/editor` mount; the `--editor-root` flag on the server is unused.)
 - The same binary works:
   - **locally** — the launcher/single-player use case: `localhost`, serve the www
     package, optional local-file saves (Q1, RQ1);
@@ -253,7 +262,8 @@ assets/   ← shared static assets served to both (optional)
 > `--log-level`, `--max-players-per-room` exist). VPS mode therefore works out of
 > the box (the process listens on `0.0.0.0`); for public deployments a **reverse
 > proxy should front the server** and terminate TLS (TLS/WSS remains out of MVP
-> scope, as documented in ADR-005).
+> scope, as documented in ADR-005). `--editor-root` is **unused** after D20 (the
+> editor was archived) but the flag remains in the binary.
 
 ---
 
@@ -268,11 +278,12 @@ pattern below is a **planned, named** element of the implementation, not an acci
 |---------|------------------|------------------------|
 | **Renderer interface** (Adapter / Strategy) | `packages/renderer`: `Renderer` interface with `WebGLRenderer` (default) and `Canvas2DRenderer` (fallback), selected by capability detection (RQ2) | WebGL availability varies wildly (JoiPlay WebViews, weak devices); upper layers and the game loop stay identical across backends; a fake renderer makes tests fast |
 | **Event bus** (Observer / Pub-Sub) | `packages/runtime`: systems (input → movement → animation → dialogue → network) publish/subscribe through a central bus | Decouples systems so one subsystem (e.g. networking) can be added/removed without touching gameplay code; natural fit for log/telemetry hooks |
-| **Event command system** (Command + Composite) | `packages/core`: each event-page line is a **Command** object; a page is a **Composite** (an ordered command list) interpreted by the event interpreter | Event pages are pure data (JSON — D14) yet behave like code: commands are scriptable, serializable, replayable, and could be redone/undone by the editor; the interpreter is the only executor |
-| **Entity / Component model** (Component pattern) | `packages/core` + `packages/runtime`: entities (player, NPC, trigger) composed of components (position, sprite, collider, behavior) | Data-driven and flexible: the same entity shape serves editor, runtime, and (future) authoritative server; avoids deep inheritance trees |
+| **Event command system** (Command + Composite) | `packages/core`: each event-page line is a **Command** object; a page is a **Composite** (an ordered command list) interpreted by the event interpreter | Event pages are pure data (JSON — D14) yet behave like code: commands are scriptable, serializable, replayable, and (if a visual editor returns) redoable/undoable; the interpreter is the only executor |
+| **Entity / Component model** (Component pattern) | `packages/core` + `packages/runtime`: entities (player, NPC, trigger) composed of components (position, sprite, collider, behavior) | Data-driven and flexible: the same entity shape serves runtime and (future) authoritative server; avoids deep inheritance trees |
 | **NPC behavior** (Strategy) | `packages/core`: `Behavior` interface with a rule-based strategy now; **LLM strategy later via C++ server proxy** (Q4) | The Q4 decision: design the pluggable intelligence interface NOW so LLM-NPCs (out of MVP) slot in by adding a strategy, not by rewriting NPCs |
 | **Scene management** (State) | `packages/runtime`: `Scene` states (map, dialogue, menu; title/future battle) with a state manager; `update/render` delegated to the active scene | Predictable lifecycle (enter/update/exit), clean transitions, no god-object game class |
-| **Storage abstraction** (Adapter) | `packages/runtime` + `packages/editor`: `Storage` interface with an **IndexedDB adapter** (web/portable, RQ1) and a **file adapter via the C++ server** (Linux, optional, phase 2) | Saves must stay portable (IndexedDB) while the C++ path is an option later; swap adapters without touching game logic |
+| **Storage abstraction** (Adapter) | `packages/runtime`: `Storage` interface with an **IndexedDB adapter** (web/portable, RQ1) and a **file adapter via the C++ server** (Linux, optional, phase 2) | Saves must stay portable (IndexedDB) while the C++ path is an option later; swap adapters without touching game logic |
+| **Platform capability** (Strategy / Feature-detect, D21/D23) | `packages/runtime`: a thin `PlatformCapabilities` probe (renderer support, input devices, storage, audio) selects among the existing seams — **browser and JoiPlay are configurations of the same runtime** | Portability-first (D21): the same engine runs on every target; weak/JoiPlay WebViews configure themselves (WebGL→Canvas2D fallback, touch input, storage limits) instead of forking the engine; future WebGPU/WASM slot in behind the same seams (D23) |
 | **Object pooling** | `packages/renderer` + `packages/runtime`: pooled sprites/entities (projectiles, effects, respawning entities) | Avoids GC hitches and allocation churn inside the hot game loop on weak mobile runtimes |
 | **Transport / protocol abstraction** (Adapter / Strategy) | `packages/runtime`: `Transport` interface with a **WebSocket relay client now**; authoritative/proxy transports later | Q2's "versioned protocol so an authoritative server can be added later" — the client code talks to the interface, not to sockets; protocol versioning (v1) rides on top |
 
@@ -326,7 +337,7 @@ Mandatory per the user's engineering rules and
   (per [03-wal-process.md](./03-wal-process.md)).
 - Levels mirror C++: `trace`, `debug`, `info`, `warn`, `error`.
 - **What to log:** game lifecycle, scene transitions, event/script execution errors,
-  network events (connect/disconnect/send-recv at debug), editor operations.
+  network events (connect/disconnect/send-recv at debug), data validation outcomes.
 
 ### Level policy
 
@@ -350,8 +361,9 @@ layers, plus the QA gate:
 | Layer | Tool | What is covered |
 |-------|------|-----------------|
 | **Unit** | **Vitest** (web packages) / **Catch2** (C++) | core model + validation + **event interpreter** (pages → commands → effects); renderer logic against a fake/fixture scene; C++ protocol parser, relay state store, HTTP static handler |
-| **Integration** | Vitest + Catch2 (+ small harness) | core ↔ runtime boot with a fixture map; runtime ↔ renderer draw loop; **server handshake/versioning**; editor writes core model → runtime preview reads same model |
-| **E2E** | **Playwright** | Boot the game: walk / collide / dialogue; editor: build a map with events → play it; **multiplayer smoke test: two browser contexts** connect to a local C++ server and observe each other moving |
+| **Data gate** | **`pnpm validate`** (D24) | every game-data JSON document validates against the `core` schemas — the validate-first step of the dev workflow (§4, 03-wal-process.md) |
+| **Integration** | Vitest + Catch2 (+ small harness) | core ↔ runtime boot with a fixture map; runtime ↔ renderer draw loop; **server handshake/versioning**; authored data → runtime plays it (same `core` model) |
+| **E2E** | **Playwright** | Boot the game: walk / collide / dialogue from authored data; **multiplayer smoke test: two browser contexts** connect to a local C++ server and observe each other moving |
 
 ### QA gate (per [03-wal-process.md](./03-wal-process.md) §5)
 
@@ -369,10 +381,12 @@ Every change, before merge to `main` via the merge-manager:
 
 | Seam | Interface | MVP implementation | Future option |
 |------|-----------|--------------------|---------------|
-| Renderer | `Renderer` | WebGL default + Canvas2D fallback | more backends |
+| Renderer | `Renderer` | WebGL default + Canvas2D fallback | more backends (**WebGPU reserved**, D23) |
+| Platform capability | `PlatformCapabilities` | browser + JoiPlay as configurations of the same runtime (D21) | more targets; audio backend |
 | Transport | `Transport` | WebSocket relay client | authoritative/proxy transports |
 | NPC intelligence | `Behavior` | rule-based | LLM via C++ server proxy |
 | Storage | `Storage` | IndexedDB | C++ local-file adapter |
+| Core interpreter | (module boundary) | TS, portable | **WASM build reserved** (D23) |
 | Save sync scope | (protocol) | players only (D16) | world-state sync |
 
 *Follow-on: each significant decision above becomes an ADR in

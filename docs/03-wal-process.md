@@ -76,24 +76,40 @@ Tests are a hard requirement (user rule). Two gate conditions:
 2. **Tests before any "real environment" run** — a real-environment run (real servers,
    real hardware, a live session) is only allowed after the test suite passes locally.
 
-### Testing stack (placeholder — to be confirmed)
+### Testing stack (confirmed, D15)
 
 | Layer | Candidate | Status |
 |-------|-----------|--------|
-| C++ unit tests | **Catch2** or **GoogleTest** | to be confirmed |
-| Web unit/component tests | **Vitest** | to be confirmed |
-| E2E | **Playwright** | to be confirmed |
-
-Update this table once the leader confirms the stack.
+| C++ unit tests | **Catch2** | confirmed |
+| Web unit/component tests | **Vitest** | confirmed |
+| E2E | **Playwright** | confirmed |
+| Data gate | **`pnpm validate`** (core schemas, D24) | confirmed |
 
 ---
 
-## 4. Branch strategy
+## 4. Branch strategy & dev workflow
 
-- Members work on **feature branches** (e.g. `docs/wal-init`, `feat/editor-map`, `fix/collision`).
-- A designated **merge-manager** merges feature branches to `main`. **Nobody else merges.**
-- Feature branches are pushed to the shared remote so the merge-manager can review and merge.
-- Never commit directly to `main`.
+Re-orientation (D25, 2026-08-31) replaced the original phase-branch style with a
+**module-scoped short-lived branch + validate-first** workflow:
+
+- `main` is the **long-lived stable** branch; it is always buildable and green.
+- Work happens on **short-lived feature branches scoped to one module**:
+  `feat/<module>/<change>` (e.g. `feat/core/collision-rewrite`,
+  `feat/runtime/save-roundtrip`, `docs/reorg-portable-first`). A branch is
+  merged **and deleted** once its change lands — no historical branch pile-up.
+- **Validate-first loop** (D24, the auto-code mainline):
+  1. AI/agent authors versioned JSON (maps/events/dialogue) or code;
+  2. `pnpm validate` — the data gate — passes on the change's data;
+  3. `pnpm -r test` — unit/integration green;
+  4. `pnpm lint` / `pnpm format:check` / `pnpm doc:lint` green;
+  5. merge → delete the branch.
+- A designated **merge-manager** merges to `main`. **Nobody else merges.**
+- Feature branches are pushed to the shared remote so the merge-manager can
+  review and merge. Never commit directly to `main`.
+- **Historical branches are archived via local git tags, not deleted remotely**
+  (C3): e.g. `archive/design-a`, `archive/feat-p2-editor`. A branch that is
+  superseded by merged `main` history is tagged and the local branch is removed,
+  but **remote branches are never deleted without explicit user authorization**.
 
 ---
 
@@ -141,9 +157,13 @@ The system must be operable by agents, not only by humans clicking a GUI.
   [02-open-questions.md](./02-open-questions.md) and the ADR template).
 - **Doc link/status lint runs in CI** — broken links and invalid status fields
   fail the build.
-- **Reserved seams (designed now, implemented later, NOT in MVP):** editor headless
-  CLI (`create-project` / `add-map` / `set-tile` / `place-event` / `export-www`),
-  runtime headless test mode, server control API (rooms / status / kick over
-  HTTP/CLI, JSON in/out). These must not be implemented prematurely in the MVP.
-  (Decisions: **D18/D19** — see [02-open-questions.md](./02-open-questions.md);
-  [ADR-007](./04-adr/ADR-007.md).)
+- **Agent-facing data gate (implemented, D24):** `pnpm validate` validates
+  game data (maps/events/dialogue) against the `core` schemas — the validate-first
+  step of the dev workflow (§4). This replaces the editor-headless-CLI seam that
+  was reserved before the editor was removed (D20).
+- **Reserved seams (designed now, implemented later, NOT now):** runtime headless
+  test mode, server control API (rooms / status / kick over HTTP/CLI, JSON in/out),
+  future WebGPU renderer backend + WASM core (D23). These must not be implemented
+  prematurely. (Decisions: **D18/D19/D23/D24** — see
+  [02-open-questions.md](./02-open-questions.md); [ADR-007](./04-adr/ADR-007.md),
+  [ADR-008](./04-adr/ADR-008.md).)

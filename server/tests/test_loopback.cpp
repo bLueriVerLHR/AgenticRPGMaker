@@ -256,6 +256,15 @@ TEST_CASE("integration: hello → welcome → relay player_state/chat → leave"
   auto kiboWelcomes = byType(kibo.drainMessages(), "welcome");
   REQUIRE(kiboWelcomes.size() == 1);
   REQUIRE(kiboWelcomes[0]["payload"]["players"].size() == 2);
+  // Regression: Aria has NOT sent player_state yet, but her welcome entry must
+  // still carry a valid `state` (protocol: welcomePlayer.state is required) so
+  // clients never crash on a state-less member ("reading 'x'").
+  for (const auto& member : kiboWelcomes[0]["payload"]["players"]) {
+    REQUIRE(member.contains("state"));
+    REQUIRE(member["state"]["x"].is_number());
+    REQUIRE(member["state"]["y"].is_number());
+    REQUIRE(member["state"]["direction"].is_string());
+  }
 
   // Aria broadcasts a player_state; Kibo receives it with sessionId added.
   const std::string psMsg =

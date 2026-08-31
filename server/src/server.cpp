@@ -396,6 +396,11 @@ void Server::handleHello(Session& s, const protocol::ParsedMessage& parsed) {
       entry["playerName"] = m.playerName;
       if (m.lastState.has_value()) {
         entry["state"] = *m.lastState;
+      } else {
+        // A member may have joined but not yet sent its first rate-limited
+        // player_state; still welcome them with a valid state so clients never
+        // see a state-less member (protocol: welcomePlayer.state is required).
+        entry["state"] = {{"x", 0}, {"y", 0}, {"direction", "down"}};
       }
       players.push_back(std::move(entry));
     }

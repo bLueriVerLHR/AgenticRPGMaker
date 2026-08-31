@@ -1,0 +1,10 @@
+# Task 06 — Fix multiplayer welcome state-less member crash (pageerror "reading 'x'")
+
+| Field | Value |
+|---|---|
+| **Goal** | The multiplayer client no longer throws `TypeError: Cannot read properties of undefined (reading 'x')` when a `welcome` (or `player_state`) payload arrives for a member that has **no `state` yet**; the C++ server's `welcome` always carries a `state` per member (protocol-consistent). |
+| **Why** | Recorded in `docs/temp/pre-existing-boot-renderer-backend-bug.md` (follow-up observation): the two-context multiplayer smoke test logs `pageB pageerror: Cannot read properties of undefined (reading 'x')`. Root cause verified: `server/src/server.cpp` welcome construction only sets `entry["state"]` when `m.lastState.has_value()`; a member who joined but has not yet sent its first rate-limited `player_state` appears in another client's welcome **without `state`**, and the client's `handleWelcome` reads `player.state.x` on `undefined`. This is a protocol violation of `welcomePlayerSchema` (core schema requires `state`). |
+| **Approach** | 1. **Server** (`server/src/server.cpp`): when `m.lastState` is absent, include a default state (`{"x":0,"y":0,"direction":"down"}`) so every welcome member entry is schema-valid. 2. **Client** (`packages/runtime/src/network-client.ts`): defensively tolerate missing `payload.state` / missing `player.state` — default position/direction instead of throwing (log a warn). 3. **Regression tests**: runtime Vitest — welcome/player_state without `state` does not throw and spawns a default-positioned remote; C++ Catch2 — welcome for a member with no lastState carries a valid `state`. 4. Update temp doc status. |
+| **Files touched** | `server/src/server.cpp`, `packages/runtime/src/network-client.ts`, runtime `tests/network-client.test.ts`, server `tests/*`, `docs/temp/pre-existing-boot-renderer-backend-bug.md`, this task doc |
+| **Acceptance criteria** | Two-context multiplayer smoke (`pnpm --filter @agenticrpg/runtime test:multiplayer`) logs **no pageerror**; web + C++ unit suites green; `pnpm validate`/`doc:lint` green. |
+| **Status** | done |

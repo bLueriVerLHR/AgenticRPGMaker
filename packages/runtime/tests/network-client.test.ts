@@ -113,6 +113,46 @@ describe("NetworkClient handshake", () => {
     expect(kibo?.x).toBe(5);
     client.close();
   });
+
+  it("tolerates a state-less member in welcome (no throw; spawns at default (0,0))", async () => {
+    const transport = new FakeTransport();
+    const client = await connectedClient(transport);
+    // Regression: a member that joined but has not yet sent its first
+    // player_state appears in welcome WITHOUT a state field. The client must
+    // not throw "Cannot read properties of undefined (reading 'x')".
+    const envelope = welcomeEnvelope("s-local") as {
+      payload: { players: Array<Record<string, unknown>> };
+    };
+    envelope.payload.players.push({
+      sessionId: "s-early",
+      playerName: "Early",
+      // no `state` field — the regression case
+    });
+    expect(() =>
+      transport.emit(envelope as unknown as import("@agenticrpg/core").ProtocolEnvelope),
+    ).not.toThrow();
+    const early = client.remotePlayers.get("s-early");
+    expect(early).toBeDefined();
+    expect(early?.x).toBe(0);
+    expect(early?.y).toBe(0);
+    client.close();
+  });
+
+  it("ignores a player_state without a valid state (no throw)", async () => {
+    const transport = new FakeTransport();
+    const client = await connectedClient(transport);
+    transport.emit(welcomeEnvelope("s-local", [{ id: "s-other", name: "Kibo", x: 5, y: 5 }]));
+    expect(() =>
+      transport.emit({
+        v: 1,
+        type: "player_state",
+        payload: { sessionId: "s-other" }, // missing `state` — the regression case
+      } as unknown as import("@agenticrpg/core").ProtocolEnvelope),
+    ).not.toThrow();
+    // The existing remote keeps its last position (not clobbered).
+    expect(client.remotePlayers.get("s-other")?.x).toBe(5);
+    client.close();
+  });
 });
 
 describe("NetworkClient player_state rate limiting (10 Hz, coalesced)", () => {

@@ -329,17 +329,21 @@ export class NetworkClient {
       if (player.sessionId === payload.sessionId) {
         continue; // self — not a remote
       }
+      // Defensive: a member may appear in `welcome` without a `state` yet
+      // (server-side fix guarantees one, but tolerate it here too — never
+      // throw on a state-less remote).
+      const state = player.state ?? { x: 0, y: 0, direction: "down" as const };
       this.remoteValue.set(player.sessionId, {
         sessionId: player.sessionId,
         playerName: player.playerName,
-        x: player.state.x,
-        y: player.state.y,
-        direction: player.state.direction,
-        animation: player.state.animation ?? "idle",
-        targetX: player.state.x,
-        targetY: player.state.y,
-        prevX: player.state.x,
-        prevY: player.state.y,
+        x: state.x,
+        y: state.y,
+        direction: state.direction,
+        animation: state.animation ?? "idle",
+        targetX: state.x,
+        targetY: state.y,
+        prevX: state.x,
+        prevY: state.y,
         interpT: 1,
       });
     }
@@ -354,8 +358,16 @@ export class NetworkClient {
       this.logger.warn("network: player_state without sessionId ignored");
       return;
     }
-    const existing = this.remoteValue.get(sessionId);
     const state = payload.state;
+    if (state === undefined || typeof state.x !== "number" || typeof state.y !== "number") {
+      // Defensive: never throw on a malformed/state-less player_state; log and
+      // ignore it (the server validates, but a future relay/proxy might not).
+      this.logger.warn("network: player_state without a valid state ignored", {
+        sessionId,
+      });
+      return;
+    }
+    const existing = this.remoteValue.get(sessionId);
     if (existing === undefined) {
       this.remoteValue.set(sessionId, {
         sessionId,

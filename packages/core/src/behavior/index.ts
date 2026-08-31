@@ -8,4 +8,9 @@ export type {
   BehaviorAction,
   WorldStateReader,
 } from "./types.js";
-export { RuleBasedBehavior, type RuleBasedBehaviorConfig, idleDecision } from "./behavior.js";
+export {
+  RuleBasedBehavior,
+  buildBehaviorFromConfig,
+  type RuleBasedBehaviorConfig,
+  idleDecision,
+} from "./behavior.js";

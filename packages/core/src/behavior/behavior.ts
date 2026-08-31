@@ -12,6 +12,7 @@
  * identically.
  */
 import type { Vec2 } from "../entity/transform.js";
+import type { EventBehavior } from "../schema/map.js";
 import type { Behavior, BehaviorContext, BehaviorDecision } from "./types.js";
 
 export interface RuleBasedBehaviorConfig {
@@ -131,5 +132,33 @@ export class RuleBasedBehavior implements Behavior {
 
   private samePosition(a: Vec2, b: Vec2): boolean {
     return a.x === b.x && a.y === b.y;
+  }
+}
+
+/**
+ * Builds a `Behavior` strategy from a validated map-event behavior config
+ * (D24 data-first; task 09). The discriminated union is extended as new
+ * strategies land (e.g. a future LLM strategy via the C++ server proxy, Q4) —
+ * the `Behavior` interface is the stable seam, this factory is the one place
+ * that maps authored configs to strategies.
+ */
+export function buildBehaviorFromConfig(config: EventBehavior): Behavior {
+  switch (config.kind) {
+    case "rule-based":
+      return new RuleBasedBehavior({
+        waypoints: config.waypoints,
+        speed: config.speed,
+        idleSeconds: config.idleSeconds,
+        triggerSwitch: config.triggerSwitch,
+        faceDirection: config.faceDirection,
+      });
+    default: {
+      // Unreachable today (the discriminated union has one member); fail fast
+      // if a future `kind` lands in the schema without a builder here.
+      // (TypeScript does not narrow a single-member union to `never`, so read
+      // the kind via a cast instead of a `never` assertion.)
+      const kind: string = (config as { kind?: unknown }).kind as string;
+      throw new Error(`buildBehaviorFromConfig: unhandled behavior kind ${String(kind)}`);
+    }
   }
 }

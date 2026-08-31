@@ -15,6 +15,7 @@ import { GameObject } from "../entity/game-object.js";
 import { Sprite } from "../entity/sprite.js";
 import { Transform } from "../entity/transform.js";
 import type { Vec2 } from "../entity/transform.js";
+import { buildBehaviorFromConfig } from "../behavior/behavior.js";
 import type { Direction, MapData, MapEvent } from "../schema/index.js";
 
 export interface SceneGraphOptions {
@@ -85,6 +86,17 @@ export class SceneGraph {
     if (event.sprite !== undefined) {
       entity.addComponent(new Sprite({ texture: event.sprite }));
       entity.addComponent(new BehaviorComponent());
+    }
+    if (event.behavior !== undefined) {
+      // Data-first NPC behavior (D24, task 09): attach the declared strategy.
+      // Sprite-less events with a behavior get a component too (they can still
+      // be driven — e.g. invisible triggers that move).
+      let component = entity.getComponent("behavior");
+      if (component === null) {
+        component = new BehaviorComponent();
+        entity.addComponent(component);
+      }
+      component.setBehavior(buildBehaviorFromConfig(event.behavior));
     }
     return entity;
   }

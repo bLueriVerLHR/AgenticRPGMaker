@@ -33,6 +33,29 @@ export const eventPageSchema = z.object({
   commands: z.array(eventCommandSchema),
 });
 
+/**
+ * NPC behavior declaration (Q4/D5, task 09): what a map event's entity does
+ * when no page is running. Data-first (D24): AI-authored map JSON declares the
+ * behavior; core validates it and the runtime drives it each tick. Additive
+ * and optional in v1; future strategies (e.g. an LLM strategy via the C++
+ * server proxy) extend this union.
+ */
+export const eventBehaviorSchema = z.discriminatedUnion("kind", [
+  z.object({
+    kind: z.literal("rule-based"),
+    /** Patrol route in tile units (world space, absolute coordinates). */
+    waypoints: z.array(z.object({ x: z.number(), y: z.number() })).min(1),
+    /** Patrol speed in tiles per second (default 1). */
+    speed: z.number().positive().optional(),
+    /** Seconds to idle at each waypoint before moving on (default 0). */
+    idleSeconds: z.number().nonnegative().optional(),
+    /** When this switch is true, patrolling stops and the entity faces `faceDirection`. */
+    triggerSwitch: z.string().min(1).optional(),
+    /** Direction to face while the trigger switch is true. */
+    faceDirection: z.enum(["up", "down", "left", "right"]).optional(),
+  }),
+]);
+
 /** A placed map event (NPC, trigger, ...). */
 export const mapEventSchema = z.object({
   id: z.string().min(1),
@@ -42,6 +65,8 @@ export const mapEventSchema = z.object({
   y: z.number().int().nonnegative(),
   /** Sprite/texture reference (optional in v1). */
   sprite: z.string().optional(),
+  /** Optional NPC behavior driven each tick by the runtime (additive, v1). */
+  behavior: eventBehaviorSchema.optional(),
   pages: z.array(eventPageSchema).min(1),
 });
 
@@ -97,3 +122,4 @@ export type MapEvent = z.infer<typeof mapEventSchema>;
 export type EventPage = z.infer<typeof eventPageSchema>;
 export type EventPageCondition = z.infer<typeof eventPageConditionSchema>;
 export type EventCommand = z.infer<typeof eventCommandSchema>;
+export type EventBehavior = z.infer<typeof eventBehaviorSchema>;

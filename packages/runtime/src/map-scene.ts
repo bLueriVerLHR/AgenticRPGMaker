@@ -20,6 +20,8 @@
  *   A/B for touch (JoiPlay, docs/08 §4.4).
  */
 import type {
+  BehaviorContext,
+  BehaviorDecision,
   Direction,
   EventInterpreter,
   GameEventBus,
@@ -119,6 +121,8 @@ export class MapScene implements Scene {
   private readonly grid: SolidTileGrid;
   private readonly npcBlockers: GameObject[] = [];
   private readonly eventById = new Map<string, MapEvent>();
+  /** Per-entity behavior elapsed seconds (task 09; feeds `BehaviorContext.elapsed`). */
+  private readonly behaviorElapsed = new Map<string, number>();
 
   private input: Input | null = null;
   private step: Step | null = null;
@@ -190,11 +194,62 @@ export class MapScene implements Scene {
     this.handleMovement(dt);
     this.handleConfirm();
     this.handleCancel();
+    this.updateBehaviors(dt);
     this.network?.update(dt);
     if (this.network !== null) {
       this.sendLocalState();
     }
     this.updateHud();
+  }
+
+  /**
+   * Drives every entity that carries a behavior component (task 09, D24): the
+   * declared strategy runs one tick and its decision is applied. Deterministic
+   * given the same tick sequence (core guarantees strategy determinism).
+   */
+  private updateBehaviors(dt: number): void {
+    for (const entity of this.sceneGraph.findEntitiesByComponent("behavior")) {
+      const component = entity.getComponent("behavior");
+      if (component === null) {
+        continue;
+      }
+      const elapsed = (this.behaviorElapsed.get(entity.id) ?? 0) + dt;
+      this.behaviorElapsed.set(entity.id, elapsed);
+      const ctx: BehaviorContext = {
+        entity,
+        bus: this.bus,
+        state: this.state,
+        dt,
+        elapsed,
+      };
+      const decision = component.update(ctx);
+      if (decision !== null) {
+        this.applyBehaviorDecision(entity, decision);
+      }
+    }
+  }
+
+  /** Applies a behavior decision to the entity (move/face/say; idle = no-op). */
+  private applyBehaviorDecision(entity: GameObject, decision: BehaviorDecision): void {
+    const transform = entity.getComponent("transform");
+    if (transform === null) {
+      return;
+    }
+    switch (decision.action) {
+      case "move":
+        transform.translate(decision.dx ?? 0, decision.dy ?? 0);
+        break;
+      case "face":
+        transform.setDirection(decision.direction ?? "down");
+        break;
+      case "say":
+        if (decision.text !== undefined) {
+          this.bus.emit("dialogue", { text: decision.text, speakerId: entity.id });
+        }
+        break;
+      case "idle":
+        break;
+    }
   }
 
   render(_alpha: number): void {

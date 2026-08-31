@@ -49,16 +49,34 @@
         {
           "condition": null,
           "commands": [
-            { "cmd": "showText", "args": ["Welcome to the inn, traveler!"] },
-            { "cmd": "setSwitch", "args": ["sw_met_inn_owner", true] }
+            {
+              "cmd": "showText",
+              "args": ["Welcome to the inn, traveler!"]
+            },
+            {
+              "cmd": "setSwitch",
+              "args": ["sw_met_inn_owner", true]
+            }
           ]
         },
         {
-          "condition": { "switchId": "sw_met_inn_owner", "value": true },
+          "condition": {
+            "switchId": "sw_met_inn_owner",
+            "value": true
+          },
           "commands": [
-            { "cmd": "showText", "args": ["Back for another night?"] },
-            { "cmd": "setVariable", "args": ["gold", "add", 50] },
-            { "cmd": "playSound", "args": ["audio/coin.ogg"] }
+            {
+              "cmd": "showText",
+              "args": ["Back for another night?"]
+            },
+            {
+              "cmd": "setVariable",
+              "args": ["gold", "add", 50]
+            },
+            {
+              "cmd": "playSound",
+              "args": ["audio/coin.ogg"]
+            }
           ]
         }
       ]
@@ -73,18 +91,50 @@
         {
           "condition": null,
           "commands": [
-            { "cmd": "showText", "args": ["Fresh goods, fresh prices!"] },
-            { "cmd": "setSwitch", "args": ["sw_met_merchant", true] }
+            {
+              "cmd": "showText",
+              "args": ["Fresh goods, fresh prices!"]
+            },
+            {
+              "cmd": "setSwitch",
+              "args": ["sw_met_merchant", true]
+            }
           ]
         },
         {
-          "condition": { "switchId": "sw_met_merchant", "value": true },
+          "condition": {
+            "switchId": "sw_met_merchant",
+            "value": true
+          },
           "commands": [
-            { "cmd": "showText", "args": ["A returning customer — here is a little extra."] },
-            { "cmd": "setVariable", "args": ["gold", "add", 10] }
+            {
+              "cmd": "showText",
+              "args": ["A returning customer — here is a little extra."]
+            },
+            {
+              "cmd": "setVariable",
+              "args": ["gold", "add", 10]
+            }
           ]
         }
-      ]
+      ],
+      "behavior": {
+        "kind": "rule-based",
+        "waypoints": [
+          {
+            "x": 5,
+            "y": 2
+          },
+          {
+            "x": 7,
+            "y": 2
+          }
+        ],
+        "speed": 1,
+        "idleSeconds": 1,
+        "triggerSwitch": "sw_met_merchant",
+        "faceDirection": "left"
+      }
     },
     {
       "id": "evt_sign",
@@ -106,6 +156,11 @@
       ]
     }
   ],
-  "variables": { "gold": 0 },
-  "switches": { "sw_met_inn_owner": false, "sw_met_merchant": false }
+  "variables": {
+    "gold": 0
+  },
+  "switches": {
+    "sw_met_inn_owner": false,
+    "sw_met_merchant": false
+  }
 }

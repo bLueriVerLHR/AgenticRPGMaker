@@ -69,4 +69,25 @@ describe("probePlatformCapabilities", () => {
     expect(caps.renderer).toHaveProperty("backend");
     expect(caps.input.touch).toBe(false);
   });
+
+  it("honors a known rendererBackend and skips canvas probing (task 11)", () => {
+    // A throwing canvasContexts probe proves the canvas path is NOT invoked
+    // when a known backend is supplied (avoids a second WebGL context at boot).
+    const caps = probePlatformCapabilities({
+      rendererBackend: "webgl2",
+      canvasContexts: () => {
+        throw new Error("canvas probe should not be called");
+      },
+    });
+    expect(caps.renderer).toEqual({ backend: "webgl2" });
+  });
+
+  it("reports null when rendererBackend is explicitly null (task 11)", () => {
+    const caps = probePlatformCapabilities({
+      rendererBackend: null,
+      canvasContexts: () => ["webgl2"],
+    });
+    expect(caps.renderer.backend).toBeNull();
+    expect(typeof caps.renderer.reason).toBe("string");
+  });
 });

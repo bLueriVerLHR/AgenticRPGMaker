@@ -16,7 +16,7 @@
  */
 import type { Direction, MapData, TilesetData, Vec2 } from "@agenticrpg/core";
 import { parseMapDocument } from "@agenticrpg/core";
-import type { Renderer, RendererLogger } from "@agenticrpg/renderer";
+import type { Renderer, RendererBackend, RendererLogger } from "@agenticrpg/renderer";
 import { DefaultRendererFactory } from "@agenticrpg/renderer";
 
 import { createGame, type Game } from "./game.js";
@@ -112,7 +112,9 @@ export async function boot(options: BootOptions): Promise<Game> {
   // runtime environment (renderer backend probe, input, storage, audio) — the
   // portable-first seam that lets browser/JoiPlay run as configurations of the
   // same runtime. Logged at info for first-class diagnosability (ADR-002).
-  const platform = probePlatformCapabilities();
+  // The renderer backend is passed in (already known from step 2) so the probe
+  // does NOT create a second canvas/WebGL context at boot (task 11).
+  const platform = probePlatformCapabilities({ rendererBackend: backend });
   logger.info("boot: platform capabilities", { platform });
 
   // 4. Network: single-player unless a server URL is configured.
@@ -179,12 +181,12 @@ async function createRuntimeRenderer(options: BootOptions, logger: Logger): Prom
   }
 }
 
-function rendererBackend(renderer: Renderer): string {
+function rendererBackend(renderer: Renderer): RendererBackend | null {
   // `getBackend` is not on the `Renderer` interface, but both concrete backends
   // implement it and need it called as a method (it returns `this.backend`).
   // Keep the cast, but call through the object so `this` stays bound.
-  const withBackend = renderer as { getBackend?: () => string };
-  return typeof withBackend.getBackend === "function" ? withBackend.getBackend() : "unknown";
+  const withBackend = renderer as { getBackend?: () => RendererBackend };
+  return typeof withBackend.getBackend === "function" ? withBackend.getBackend() : null;
 }
 
 async function createNetworkClient(

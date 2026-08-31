@@ -52,6 +52,12 @@ export interface PlatformCapabilities {
 
 /** Injectable detection hooks (tests stub these; defaults probe the environment). */
 export interface PlatformProbes {
+  /**
+   * A known renderer backend — when provided, the probe uses it directly for
+   * the `renderer` section and does NOT probe the canvas (avoids creating a
+   * second WebGL/2D context at boot; task 11). `null` reports "no backend".
+   */
+  rendererBackend?: RendererBackend | null;
   canvasContexts?: () => Array<ContextKind>;
   touch?: () => boolean;
   keyboard?: () => boolean;
@@ -87,7 +93,14 @@ function safe(fn: () => boolean): boolean {
 export function probePlatformCapabilities(probes?: PlatformProbes): PlatformCapabilities {
   // --- renderer ----------------------------------------------------------
   let renderer: PlatformRendererCapability = { backend: null, reason: "no canvas available" };
-  if (probes?.canvasContexts !== undefined) {
+  if (probes?.rendererBackend !== undefined) {
+    // Known backend provided (e.g. boot already created the renderer via its
+    // factory): use it directly — no duplicate canvas probing (task 11).
+    renderer =
+      probes.rendererBackend === null
+        ? { backend: null, reason: "known backend reported as none" }
+        : { backend: probes.rendererBackend };
+  } else if (probes?.canvasContexts !== undefined) {
     try {
       const contexts = probes.canvasContexts();
       const found = RENDERER_PROBE_ORDER.find((kind) => contexts.includes(kind));

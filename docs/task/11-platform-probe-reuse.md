@@ -1,0 +1,10 @@
+# Task 11 — Avoid redundant renderer probing in boot (platform probe reuse)
+
+| Field | Value |
+|---|---|
+| **Goal** | `boot()` stops probing the renderer backend twice per launch: the platform-capabilities probe (task 07) accepts a **known backend** (from the already-created renderer) and skips its own canvas probing, avoiding a duplicate WebGL/Canvas2D context creation on the hot path (weak JoiPlay runtimes). |
+| **Why** | Goal axis "渲染/运行时性能". Introduced by task 07: `boot.ts` calls `createRuntimeRenderer` (which probes + creates the real renderer) and then `probePlatformCapabilities()`, which **independently probes `canvas.getContext` again** for the same backend. Creating a WebGL context is comparatively expensive on weak devices; doing it twice at boot is avoidable and the second result is unused (boot uses `rendererBackend(renderer)` for its log). |
+| **Approach** | 1. `packages/runtime/src/platform.ts`: add optional `rendererBackend?: RendererBackend | null` to `PlatformProbes`; when provided, the probe uses it for the `renderer` section instead of probing the canvas (and a `reason` only if null). 2. `boot.ts`: call `probePlatformCapabilities({ rendererBackend: backend })` with the backend already obtained from the created renderer (line 104). 3. Keep behavior identical when no backend is passed (tests unaffected). 4. **Tests**: platform probe honors `rendererBackend` (no canvas probe invoked — e.g. a `canvasContexts` throwing probe is ignored when backend is given); boot still logs a correct platform snapshot. |
+| **Files touched** | `packages/runtime/src/platform.ts`, `packages/runtime/src/boot.ts`, `packages/runtime/tests/platform.test.ts` (+1 case), this task doc |
+| **Acceptance criteria** | When `rendererBackend` is provided, the probe reports it and does not call the canvas probe; `probePlatformCapabilities()` with no backend still works (existing tests green); runtime typecheck/tests green; QA gate green. |
+| **Status** | done |

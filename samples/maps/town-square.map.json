@@ -89,6 +89,23 @@
       "sprite": "characters/npc_merchant",
       "pages": [
         {
+          "condition": {
+            "variableId": "gold",
+            "op": "gte",
+            "value": 20
+          },
+          "commands": [
+            {
+              "cmd": "showText",
+              "args": ["A wealthy customer — take this golden apple, on the house!"]
+            },
+            {
+              "cmd": "setVariable",
+              "args": ["gold", "add", 5]
+            }
+          ]
+        },
+        {
           "condition": null,
           "commands": [
             {

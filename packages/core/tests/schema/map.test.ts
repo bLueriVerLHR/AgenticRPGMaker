@@ -84,4 +84,51 @@ describe("mapSchema (v1)", () => {
     const reparsed = mapSchema.parse(serialized);
     expect(reparsed).toEqual(parsed);
   });
+
+  it("accepts a variable page condition (task 15)", () => {
+    const map = makeMap({
+      events: [
+        {
+          id: "evt_merchant",
+          name: "Merchant",
+          x: 5,
+          y: 2,
+          pages: [
+            {
+              condition: { variableId: "gold", op: "gte", value: 10 },
+              commands: [{ cmd: "showText", args: ["Rich customer!"] }],
+            },
+          ],
+        },
+      ],
+    });
+    const result = mapSchema.safeParse(map);
+    expect(result.success).toBe(true);
+    if (result.success) {
+      const condition = result.data.events[0]!.pages[0]!.condition;
+      expect(condition).toEqual({ variableId: "gold", op: "gte", value: 10 });
+    }
+  });
+
+  it("rejects a variable condition with an unknown operator (task 15)", () => {
+    const map = makeMap({
+      events: [
+        {
+          id: "evt_bad",
+          name: "Bad",
+          x: 0,
+          y: 0,
+          pages: [
+            {
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any
+              condition: { variableId: "gold", op: "gtr", value: 10 } as any,
+              commands: [{ cmd: "showText", args: ["nope"] }],
+            },
+          ],
+        },
+      ],
+    });
+    const result = mapSchema.safeParse(map);
+    expect(result.success).toBe(false);
+  });
 });

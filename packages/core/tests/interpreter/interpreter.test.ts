@@ -312,3 +312,63 @@ describe("event interpreter transfer command (task 14)", () => {
     expect(transfers).toEqual([{ mapId: "house" }]);
   });
 });
+
+describe("event interpreter variable conditions (task 15)", () => {
+  it("evaluates every variable operator with true and false cases", () => {
+    const state = new GameState({ variables: { gold: 10 }, switches: {} });
+    expect(evaluateCondition({ variableId: "gold", op: "eq", value: 10 }, state)).toBe(true);
+    expect(evaluateCondition({ variableId: "gold", op: "eq", value: 11 }, state)).toBe(false);
+    expect(evaluateCondition({ variableId: "gold", op: "ne", value: 11 }, state)).toBe(true);
+    expect(evaluateCondition({ variableId: "gold", op: "ne", value: 10 }, state)).toBe(false);
+    // gt / gte
+    expect(evaluateCondition({ variableId: "gold", op: "gt", value: 9 }, state)).toBe(true);
+    expect(evaluateCondition({ variableId: "gold", op: "gt", value: 10 }, state)).toBe(false);
+    expect(evaluateCondition({ variableId: "gold", op: "gte", value: 10 }, state)).toBe(true);
+    expect(evaluateCondition({ variableId: "gold", op: "gte", value: 11 }, state)).toBe(false);
+    // lt / lte
+    expect(evaluateCondition({ variableId: "gold", op: "lt", value: 11 }, state)).toBe(true);
+    expect(evaluateCondition({ variableId: "gold", op: "lt", value: 10 }, state)).toBe(false);
+    expect(evaluateCondition({ variableId: "gold", op: "lte", value: 10 }, state)).toBe(true);
+    expect(evaluateCondition({ variableId: "gold", op: "lte", value: 9 }, state)).toBe(false);
+  });
+
+  it("selects the variable-conditioned page when it holds, else falls through", () => {
+    const pages: MapEvent["pages"] = [
+      {
+        condition: { variableId: "gold", op: "gte", value: 50 },
+        commands: [{ cmd: "showText", args: ["You look rich!"] }],
+      },
+      { condition: null, commands: [{ cmd: "showText", args: ["Peasant fare."] }] },
+    ];
+
+    const rich = new EventInterpreter({
+      state: new GameState({ variables: { gold: 50 }, switches: {} }),
+    });
+    expect(rich.selectPage(pages)).toBe(pages[0]);
+
+    const poor = new EventInterpreter({
+      state: new GameState({ variables: { gold: 10 }, switches: {} }),
+    });
+    expect(poor.selectPage(pages)).toBe(pages[1]);
+  });
+
+  it("runs the variable-conditioned page and records its effects", () => {
+    const event: MapEvent = {
+      id: "evt_merchant",
+      name: "Merchant",
+      x: 0,
+      y: 0,
+      pages: [
+        {
+          condition: { variableId: "gold", op: "gte", value: 20 },
+          commands: [{ cmd: "setVariable", args: ["gold", "add", 5] }],
+        },
+      ],
+    };
+    const state = new GameState({ variables: { gold: 30 }, switches: {} });
+    const interpreter = new EventInterpreter({ state });
+    const result = interpreter.runEvent(event);
+    expect(result.ran).toBe(true);
+    expect(state.getVariable("gold")).toBe(35);
+  });
+});

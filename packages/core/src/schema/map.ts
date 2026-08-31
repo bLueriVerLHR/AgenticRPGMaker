@@ -19,12 +19,27 @@ export const eventCommandSchema = z.object({
   args: z.array(z.unknown()).default([]),
 });
 
-/** Event page condition: a switch check, or `null` = always active. */
+/** Variable comparison operators for page conditions (task 15). */
+export const conditionOpSchema = z.enum(["eq", "ne", "gt", "gte", "lt", "lte"]);
+
+/**
+ * Event page condition: a switch check (`{switchId, value}`, existing), or a
+ * variable check (`{variableId, op, value}`), or `null` = always active. The
+ * union discriminates structurally (switchId vs variableId), so data authored
+ * for the original switch-only shape is unchanged (task 15).
+ */
 export const eventPageConditionSchema = z
-  .object({
-    switchId: z.string().min(1),
-    value: z.boolean(),
-  })
+  .union([
+    z.object({
+      switchId: z.string().min(1),
+      value: z.boolean(),
+    }),
+    z.object({
+      variableId: z.string().min(1),
+      op: conditionOpSchema,
+      value: z.number(),
+    }),
+  ])
   .nullable();
 
 /** One event page: an optional condition and an ordered command list. */

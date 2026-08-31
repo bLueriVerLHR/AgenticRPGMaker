@@ -28,13 +28,31 @@ import { GameState } from "./game-state.js";
 
 /**
  * Evaluates a page condition against the current state.
- * `null` = always active; otherwise the named switch must equal `value`.
+ * `null` = always active; `{switchId, value}` = switch equality (legacy);
+ * `{variableId, op, value}` = variable comparison (task 15).
  */
 export function evaluateCondition(condition: EventPageCondition, state: GameState): boolean {
   if (condition === null) {
     return true;
   }
-  return state.getSwitch(condition.switchId) === condition.value;
+  if ("switchId" in condition) {
+    return state.getSwitch(condition.switchId) === condition.value;
+  }
+  const current = state.getVariable(condition.variableId);
+  switch (condition.op) {
+    case "eq":
+      return current === condition.value;
+    case "ne":
+      return current !== condition.value;
+    case "gt":
+      return current > condition.value;
+    case "gte":
+      return current >= condition.value;
+    case "lt":
+      return current < condition.value;
+    case "lte":
+      return current <= condition.value;
+  }
 }
 
 export interface InterpreterDeps {

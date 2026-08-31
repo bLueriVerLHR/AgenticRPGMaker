@@ -5,10 +5,10 @@ Date format: `YYYY-MM-DD`.
 
 ---
 
-## 2026-08-31 — Engine optimization batch 2 (task 14): map transfer — multi-map worlds
+## 2026-08-31 — Engine optimization batch 2 (tasks 14–15): map transfer + variable conditions
 
-Continuing the goal-driven optimization session (`goal-116db185`), one more
-WAL-following task, QA gate green, committed and pushed to `main`:
+Continuing the goal-driven optimization session (`goal-116db185`), WAL-following
+tasks, QA gate green, committed and pushed to `main`:
 
 - **Task 14** (`df30d36`) — **map transfer** (the engine left single-map
   territory): an event-page `transfer` command (`{ cmd: "transfer", args:
@@ -20,10 +20,16 @@ WAL-following task, QA gate green, committed and pushed to `main`:
   `game.scene` + `save`/`load` now follow the live scene after a swap. Sample:
   `house.map.json` (interior with exit door) + a House Door event in
   town-square; `build:www` ships both maps.
+- **Task 15** (`1d5736c`) — **variable-based page conditions**: `eventPageCondition
+  Schema` widened to a structural union `{switchId, value}` | `{variableId, op,
+  value}` (op ∈ eq/ne/gt/gte/lt/lte), `evaluateCondition` compares `getVariable`;
+  switch-only data is untouched (backward compatible). Enables data-first
+  branching on progress numbers (the merchant now greets wealthy customers when
+  `gold ≥ 20`, demonstrating first-match page selection on a variable).
 
-Test counts at this batch's end: **272 web** (core 109 + renderer 68 +
-runtime 95) + C++ ctest (41) green; `pnpm validate` green on 4 sample documents;
-doc-lint green (36 docs).
+Test counts at this batch's end: **277 web** (core 114 + renderer 68 + runtime
+95) + C++ ctest (41) green; `pnpm validate` green on 4 sample documents;
+doc-lint green (37 docs).
 
 ## 2026-08-31 — Engine optimization batch 1 (tasks 06–13): defects, seams, customizability, perf
 

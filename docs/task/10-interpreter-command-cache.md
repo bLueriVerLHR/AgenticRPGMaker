@@ -1,0 +1,10 @@
+# Task 10 — Cache parsed event-page commands in the interpreter
+
+| Field | Value |
+|---|---|
+| **Goal** | `EventInterpreter.runEvent` stops re-parsing the same event page on every execution: parsed `Command[]` for a page are cached and reused while the page object is alive, cutting allocation/parse churn in the hot path (repeated dialogue / NPC triggers). |
+| **Why** | Goal axis "改进事件解释器/数据管线与渲染/运行时性能". Current `runEvent` does `page.commands.map((line) => this.registry.build(line))` on **every** execution — each dialogue/NPC trigger re-runs the schema→Command factory (string checks, argument validation, object allocation) even though the page's commands never change. In a data-first engine (D24) where events fire constantly (player talks to the same NPC repeatedly), this is avoidable churn on weak runtimes (JoiPlay). |
+| **Approach** | 1. `EventInterpreter` gains `private readonly commandCache = new WeakMap<EventPage, readonly Command[]>()`. 2. In `runEvent`: lookup the cache; on miss, `page.commands.map((line) => this.registry.build(line))` and store; reuse on hit (read-only array — commands are immutable after construction). 3. Registry-mutation correctness: document that `register` must happen **before** the interpreter is used (or call the new `clearCommandCache()`); add `clearCommandCache()` as the explicit invalidation seam. 4. WeakMap keeps the cache bound to page lifetime (no leak; pages live as long as the map data). 5. **Tests**: (a) repeated `runEvent` on the same page produces identical effects (regression); (b) a counter-wrapped registry factory proves the factory is called **once** for a page across two runs (cache hit); (c) `clearCommandCache()` forces re-parse and picks up a newly registered command. |
+| **Files touched** | `packages/core/src/interpreter/interpreter.ts`, `packages/core/tests/interpreter/interpreter.test.ts` (or cache test), this task doc |
+| **Acceptance criteria** | Cache-hit test proves factory runs once for two executions of the same page; existing interpreter tests unchanged and green; `clearCommandCache()` works; typecheck/lint/format/doc:lint/validate green. |
+| **Status** | done |

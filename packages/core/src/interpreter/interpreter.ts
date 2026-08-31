@@ -74,12 +74,30 @@ export class EventInterpreter {
   private readonly bus: GameEventBus;
   private readonly scene: SceneGraph;
   private readonly registry: CommandRegistry;
+  /**
+   * Parsed commands per event page (task 10): a page's command list is
+   * immutable after construction, so repeated executions (dialogue/NPC
+   * triggers) reuse the parsed `Command[]` instead of re-running the
+   * schema→Command factory every time. WeakMap keeps entries bound to the
+   * page object's lifetime (no leak; pages live as long as the map data).
+   * Non-readonly so `clearCommandCache()` can swap it for a fresh map.
+   */
+  private commandCache = new WeakMap<EventPage, readonly Command[]>();
 
   constructor(deps: InterpreterDeps = {}) {
     this.state = deps.state ?? new GameState();
     this.bus = deps.bus ?? new TypedEventBus<GameEventMap>();
     this.scene = deps.scene ?? new SceneGraph();
     this.registry = deps.registry ?? defaultCommandRegistry;
+  }
+
+  /**
+   * Drops all cached parsed commands. Needed only if a `CommandRegistry` is
+   * mutated after the interpreter has already run (register custom commands
+   * BEFORE first use; call this to pick up late registrations).
+   */
+  clearCommandCache(): void {
+    this.commandCache = new WeakMap();
   }
 
   get gameState(): GameState {
@@ -116,7 +134,11 @@ export class EventInterpreter {
       return { ran: false, page: null, effects: [] };
     }
 
-    const commands: Command[] = page.commands.map((line) => this.registry.build(line));
+    let commands: readonly Command[] | undefined = this.commandCache.get(page);
+    if (commands === undefined) {
+      commands = page.commands.map((line) => this.registry.build(line));
+      this.commandCache.set(page, commands);
+    }
     const composite = new CompositeCommand(commands);
     const context: CommandContext = {
       state: this.state,

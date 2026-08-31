@@ -57,6 +57,24 @@ export interface SoundEvent {
   ref: string;
 }
 
+/** Facing direction in transfer intent (structural — no entity import). */
+export type TransferDirection = "up" | "down" | "left" | "right";
+
+/**
+ * A `transfer` command requested a map change (task 14). The core only
+ * declares the intent (it never loads maps) — the runtime listens and switches
+ * the playable scene to the target map, placing the player at `x`/`y`.
+ */
+export interface TransferEvent {
+  /** Target map id (runtime loads it via its map loader). */
+  mapId: string;
+  /** Player tile position on the target map (defaults to map origin). */
+  x?: number;
+  y?: number;
+  /** Player facing direction after the transfer (optional). */
+  direction?: TransferDirection;
+}
+
 /**
  * The typed gameplay event map for this engine. Every key maps an event name to
  * its payload type; `TypedEventBus<GameEventMap>` then enforces at compile time
@@ -69,4 +87,5 @@ export interface GameEventMap {
   switch_changed: SwitchChangedEvent;
   variable_changed: VariableChangedEvent;
   sound: SoundEvent;
+  transfer: TransferEvent;
 }

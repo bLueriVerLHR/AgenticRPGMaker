@@ -25,6 +25,7 @@ import {
   TypedEventBus,
 } from "@agenticrpg/core";
 import type { GameEventMap } from "@agenticrpg/core";
+import type { TransferEvent } from "@agenticrpg/core";
 import type { Renderer } from "@agenticrpg/renderer";
 
 import { GameLoop } from "./game-loop.js";
@@ -56,6 +57,12 @@ export interface CreateGameOptions {
   playerSprite?: string;
   /** Auto-load the latest save on scene enter. Default true. */
   autoLoad?: boolean;
+  /**
+   * Async map loader for transfers (task 14). When provided, a `transfer`
+   * gameplay event loads the target map and switches the playable scene to it.
+   * Boot injects the real loader; tests inject stubs.
+   */
+  loadMap?: (mapId: string) => Promise<MapData>;
   /** Seconds per tile step. */
   stepDuration?: number;
   /** Optional tilesets for tile-layer rendering. */
@@ -147,11 +154,71 @@ export function createGame(options: CreateGameOptions): Game {
 
   let running = false;
 
+  // Map transfers (task 14): a `transfer` gameplay event loads the target map
+  // (via the injected loader) and switches the playable scene, carrying the
+  // player position/direction over. `currentScene` follows the swap so
+  // `game.scene`/`save`/`load` always operate on the live map.
+  let currentScene: MapScene = mapScene;
+  let transferInFlight = false;
+  const handleTransfer = (event: TransferEvent): void => {
+    const loader = options.loadMap;
+    if (loader === undefined) {
+      logger.warn("game: transfer requested but no map loader configured", {
+        mapId: event.mapId,
+      });
+      return;
+    }
+    if (transferInFlight) {
+      logger.debug("game: transfer already in flight", { mapId: event.mapId });
+      return;
+    }
+    transferInFlight = true;
+    void loader(event.mapId)
+      .then((nextMap) => {
+        const nextGraph = SceneGraphClass.fromMap(nextMap, {
+          playerPosition:
+            event.x !== undefined && event.y !== undefined ? { x: event.x, y: event.y } : undefined,
+          playerDirection: event.direction,
+          playerSprite: options.playerSprite,
+        });
+        const nextInterpreter = new EventInterpreterClass({ state, bus, scene: nextGraph });
+        const nextScene = new MapScene({
+          map: nextMap,
+          renderer: options.renderer,
+          canvas: options.canvas,
+          bus,
+          state,
+          sceneGraph: nextGraph,
+          interpreter: nextInterpreter,
+          storage: options.storage,
+          logger,
+          uiRoot: options.root,
+          input: options.input,
+          network: options.network ?? null,
+          tilesets: options.tilesets,
+          stepDuration: options.stepDuration,
+          autoLoad: false, // the transfer position wins — don't overwrite with a save
+        });
+        currentScene = nextScene;
+        sceneManager.change(nextScene);
+        logger.info("game: transferred", { mapId: nextMap.id });
+      })
+      .catch((error) => {
+        logger.error("game: transfer failed", { mapId: event.mapId, error: String(error) });
+      })
+      .finally(() => {
+        transferInFlight = false;
+      });
+  };
+  bus.on("transfer", handleTransfer);
+
   const game: Game = {
     bus,
     state,
     sceneManager,
-    scene: mapScene,
+    get scene(): MapScene {
+      return currentScene;
+    },
     renderer: options.renderer,
     logger,
     network: options.network ?? null,
@@ -200,11 +267,11 @@ export function createGame(options: CreateGameOptions): Game {
     },
 
     async save(): Promise<boolean> {
-      return mapScene.save();
+      return currentScene.save();
     },
 
     async load(): Promise<boolean> {
-      return mapScene.load();
+      return currentScene.load();
     },
   };
 

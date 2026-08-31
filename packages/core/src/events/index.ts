@@ -16,4 +16,6 @@ export {
   type SwitchChangedEvent,
   type VariableChangedEvent,
   type SoundEvent,
+  type TransferDirection,
+  type TransferEvent,
 } from "./game-events.js";

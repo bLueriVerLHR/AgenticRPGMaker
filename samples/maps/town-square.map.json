@@ -154,6 +154,27 @@
           ]
         }
       ]
+    },
+    {
+      "id": "evt_house_door",
+      "name": "House Door",
+      "x": 7,
+      "y": 2,
+      "pages": [
+        {
+          "condition": null,
+          "commands": [
+            {
+              "cmd": "showText",
+              "args": ["A small house stands here."]
+            },
+            {
+              "cmd": "transfer",
+              "args": ["map_house", 2, 3, "up"]
+            }
+          ]
+        }
+      ]
     }
   ],
   "variables": {

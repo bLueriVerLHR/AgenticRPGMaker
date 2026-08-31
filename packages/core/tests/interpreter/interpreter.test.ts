@@ -263,3 +263,52 @@ describe("event interpreter robustness", () => {
     });
   });
 });
+
+describe("event interpreter transfer command (task 14)", () => {
+  it("emits a transfer event and records a transfer effect with position/direction", () => {
+    const bus = new TypedEventBus();
+    const interpreter = new EventInterpreter({ bus, scene: new SceneGraph() });
+    const transfers: Array<{
+      mapId: string;
+      x?: number;
+      y?: number;
+      direction?: string;
+    }> = [];
+    bus.on("transfer", (e) => transfers.push(e));
+
+    const event: MapEvent = {
+      id: "evt_door",
+      name: "Door",
+      x: 3,
+      y: 0,
+      pages: [{ condition: null, commands: [{ cmd: "transfer", args: ["house", 2, 3, "up"] }] }],
+    };
+    const result = interpreter.runEvent(event);
+
+    expect(transfers).toEqual([{ mapId: "house", x: 2, y: 3, direction: "up" }]);
+    expect(result.effects).toContainEqual({
+      kind: "transfer",
+      mapId: "house",
+      x: 2,
+      y: 3,
+      direction: "up",
+    });
+  });
+
+  it("transfer without position or direction emits the map id only", () => {
+    const bus = new TypedEventBus();
+    const interpreter = new EventInterpreter({ bus });
+    const transfers: Array<{ mapId: string; x?: number; y?: number; direction?: string }> = [];
+    bus.on("transfer", (e) => transfers.push(e));
+
+    const event: MapEvent = {
+      id: "evt_door",
+      name: "Door",
+      x: 3,
+      y: 0,
+      pages: [{ condition: null, commands: [{ cmd: "transfer", args: ["house"] }] }],
+    };
+    interpreter.runEvent(event);
+    expect(transfers).toEqual([{ mapId: "house" }]);
+  });
+});

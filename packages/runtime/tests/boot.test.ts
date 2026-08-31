@@ -6,7 +6,7 @@
  * a MemoryStorage backs saves. Verifies the §3 wiring: core init → renderer
  * → runtime boot → scene.enter → game loop (manual frames via tick).
  */
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import { boot } from "../src/boot.js";
 import { createGame } from "../src/game.js";
@@ -112,6 +112,54 @@ describe("createGame()", () => {
 
     game.stop();
     expect(game.loop.running).toBe(false);
+    game.dispose();
+  });
+});
+
+describe("createGame() map transfer (task 14)", () => {
+  it("switches scenes on a transfer event, carrying the player position", async () => {
+    const input = new Input({ keyboard: false, virtualControls: false });
+    const game = createGame({
+      canvas: stubCanvas(),
+      map: fixtureMap(),
+      renderer: new StubRenderer(),
+      storage: new MemoryStorage(),
+      logger: createNoopLogger(),
+      input,
+      autoLoad: false,
+      playerPosition: { x: 1, y: 2 },
+      loadMap: async (mapId) => ({ ...fixtureMap(), id: mapId }),
+    });
+    game.start();
+    const before = game.sceneManager.current;
+    expect(before).not.toBeNull();
+
+    game.bus.emit("transfer", { mapId: "map_house", x: 4, y: 5, direction: "up" });
+    await vi.waitFor(() => {
+      expect(game.sceneManager.current).not.toBe(before);
+    });
+    // The current playable scene (game.scene getter) is the new map's scene,
+    // and the transfer position/direction were carried over to the player.
+    expect(game.scene).not.toBe(before);
+    expect(game.scene.playerPosition).toEqual({ x: 4, y: 5 });
+    game.dispose();
+  });
+
+  it("keeps the current scene when no map loader is configured", () => {
+    const input = new Input({ keyboard: false, virtualControls: false });
+    const game = createGame({
+      canvas: stubCanvas(),
+      map: fixtureMap(),
+      renderer: new StubRenderer(),
+      storage: new MemoryStorage(),
+      logger: createNoopLogger(),
+      input,
+      autoLoad: false,
+    });
+    game.start();
+    const before = game.sceneManager.current;
+    game.bus.emit("transfer", { mapId: "nowhere" });
+    expect(game.sceneManager.current).toBe(before);
     game.dispose();
   });
 });

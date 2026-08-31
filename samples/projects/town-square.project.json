@@ -11,6 +11,6 @@
     "images": ["img/tilesets/placeholder.png"],
     "audio": [],
     "tilesets": ["tilesets/placeholder"],
-    "maps": ["map_town_square"]
+    "maps": ["map_town_square", "map_house"]
   }
 }

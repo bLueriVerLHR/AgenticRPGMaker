@@ -17,6 +17,7 @@
  * produce the same effects.
  */
 import type { GameEventBus } from "../events/event-bus.js";
+import type { TransferDirection } from "../events/game-events.js";
 import type { SceneGraph } from "../scene/scene-graph.js";
 import type { EventCommand } from "../schema/index.js";
 import { PLAYER_ENTITY_ID } from "../scene/scene-graph.js";
@@ -35,7 +36,14 @@ export type GameEffect =
   | { kind: "dialogue"; text: string; speakerId?: string }
   | { kind: "sound"; ref: string }
   | { kind: "variable"; name: string; op: "set" | "add"; value: number; result: number }
-  | { kind: "switch"; name: string; value: boolean };
+  | { kind: "switch"; name: string; value: boolean }
+  | {
+      kind: "transfer";
+      mapId: string;
+      x?: number;
+      y?: number;
+      direction?: TransferDirection;
+    };
 
 /** Everything a command may read and mutate while executing. */
 export interface CommandContext {
@@ -216,6 +224,27 @@ export class MoveCommand implements Command {
   }
 }
 
+/**
+ * `transfer mapId x? y? direction?` — requests a map change (task 14). Core
+ * declares the intent only: records the effect and publishes a `transfer` bus
+ * event; the runtime listens and switches the playable scene. Never loads maps.
+ */
+export class TransferCommand implements Command {
+  readonly cmd: string = "transfer";
+  constructor(
+    readonly mapId: string,
+    readonly x?: number,
+    readonly y?: number,
+    readonly direction?: TransferDirection,
+  ) {}
+
+  execute(ctx: CommandContext): void {
+    const event = { mapId: this.mapId, x: this.x, y: this.y, direction: this.direction };
+    ctx.effects.push({ kind: "transfer", ...event });
+    ctx.bus.emit("transfer", event);
+  }
+}
+
 // ---------------------------------------------------------------------------
 // Command registry: built-in commands + author-registered custom commands
 // ---------------------------------------------------------------------------
@@ -295,6 +324,20 @@ const builtInFactories: ReadonlyArray<readonly [string, CommandFactory]> = [
         asNumber(command.args[1], "move"),
         targetId,
       );
+    },
+  ],
+  [
+    "transfer",
+    (command) => {
+      const mapId = asString(command.args[0], "transfer");
+      const x = typeof command.args[1] === "number" ? command.args[1] : undefined;
+      const y = typeof command.args[2] === "number" ? command.args[2] : undefined;
+      const direction =
+        typeof command.args[3] === "string" &&
+        ["up", "down", "left", "right"].includes(command.args[3])
+          ? (command.args[3] as TransferDirection)
+          : undefined;
+      return new TransferCommand(mapId, x, y, direction);
     },
   ],
 ];

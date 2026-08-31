@@ -5,6 +5,40 @@ Date format: `YYYY-MM-DD`.
 
 ---
 
+## 2026-08-31 — Engine optimization batch 1 (tasks 06–11): defects, seams, customizability, perf
+
+Goal-driven optimization session (goal `goal-116db185`, "优化 AgenticRPGMaker 引擎
+core/renderer/runtime") delivered six WAL-following tasks, each with docs-first task
+docs, QA gate green (build/typecheck/lint/format/doc:lint/test/validate), committed
+and pushed to `main`:
+
+- **Task 06** (`69f466f`) — fix multiplayer pageerror "reading 'x'": server's
+  `welcome` now always carries a `state` per member (no state-less members;
+  protocol-consistent); client `handleWelcome`/`handleRemoteState` defensively
+  tolerate missing state. Regression tests on both sides.
+- **Task 07** (`6c6ef41`) — `PlatformCapabilities` probe (`probePlatformCapabilities`):
+  the runtime-level portable-first seam docs/06-architecture.md §7 promised but code
+  lacked (WAL gap). Reports renderer backend / input / storage / audio, never throws,
+  probes injectable; logged at boot.
+- **Task 08** (`6241f59`) — open event command system: `CommandRegistry` +
+  `CommandFactory` (register/has/build, fail-fast on unknown), built-ins seeded in
+  `defaultCommandRegistry`, `EventInterpreter` accepts an injected registry. RPG-Maker
+  plugin-command model for AI-authored data (D24).
+- **Task 09** (`7d8605e`) — wire the Behavior system into the runtime end to end:
+  `eventBehaviorSchema` (rule-based patrol) on map events → `buildBehaviorFromConfig`
+  → `SceneGraph.buildEventEntity` attaches the strategy → `MapScene.updateBehaviors`
+  drives it each tick (move/face/say). Sample merchant NPC now patrols (D24 data-first).
+- **Task 10** (`808f737`) — interpreter command cache: `WeakMap<EventPage, Command[]>`
+  so repeated event executions (dialogue/NPC triggers) don't re-run the schema→Command
+  factory; `clearCommandCache()` invalidation.
+- **Task 11** (`ca8a4a8`) — boot no longer probes the renderer twice: the platform
+  probe accepts the already-known backend (`rendererBackend`), skipping a duplicate
+  WebGL/2D context creation on weak JoiPlay runtimes.
+
+Test counts at this batch's end: **263 web** (core 107 + renderer 63 + runtime 93) +
+C++ ctest (41) green; `pnpm validate` green on samples (incl. the new merchant
+behavior); doc-lint green (31 docs).
+
 ## 2026-08-31 — Repository re-orientation: editor-less portable-first engine (D20–D25, ADR-008)
 
 The user asked to survey open-source projects (Tyrano, open-source RPG

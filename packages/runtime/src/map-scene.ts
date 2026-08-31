@@ -123,6 +123,14 @@ export class MapScene implements Scene {
   private readonly eventById = new Map<string, MapEvent>();
   /** Per-entity behavior elapsed seconds (task 09; feeds `BehaviorContext.elapsed`). */
   private readonly behaviorElapsed = new Map<string, number>();
+  /**
+   * Renderable (sprite) and behavior entities, resolved ONCE at scene entry
+   * (task 12): map events are static after load — behaviors move entities,
+   * they never add/remove sprite/behavior components — so the per-frame
+   * `findEntitiesByComponent` tree walk + array allocation is avoided.
+   */
+  private spriteEntities: GameObject[] = [];
+  private behaviorEntities: GameObject[] = [];
 
   private input: Input | null = null;
   private step: Step | null = null;
@@ -170,6 +178,11 @@ export class MapScene implements Scene {
       return;
     }
     this.entered = true;
+    // Resolve the entity lists once (task 12): map events are static during a
+    // scene life, so sprite/behavior lookups are cached instead of re-walking
+    // the whole tree every frame.
+    this.spriteEntities = this.sceneGraph.findEntitiesByComponent("sprite");
+    this.behaviorEntities = this.sceneGraph.findEntitiesByComponent("behavior");
     this.addNpcColliders();
     this.addBusSubscriptions();
     this.createUi();
@@ -208,7 +221,7 @@ export class MapScene implements Scene {
    * given the same tick sequence (core guarantees strategy determinism).
    */
   private updateBehaviors(dt: number): void {
-    for (const entity of this.sceneGraph.findEntitiesByComponent("behavior")) {
+    for (const entity of this.behaviorEntities) {
       const component = entity.getComponent("behavior");
       if (component === null) {
         continue;
@@ -881,7 +894,7 @@ export class MapScene implements Scene {
   }
 
   private drawNpcs(renderer: Renderer, tileSize: number): void {
-    for (const entity of this.sceneGraph.findEntitiesByComponent("sprite")) {
+    for (const entity of this.spriteEntities) {
       if (entity.id === PLAYER_ENTITY_ID) {
         continue;
       }

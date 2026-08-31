@@ -1,0 +1,10 @@
+# Task 12 — Cache sprite-entity list at scene enter (avoid per-frame tree walks)
+
+| Field | Value |
+|---|---|
+| **Goal** | `MapScene` stops re-walking the scene tree per frame to find renderable/behavior entities: the sprite list (used by `drawNpcs`) and the behavior list (used by `updateBehaviors`) are resolved **once** at scene entry and reused each tick. |
+| **Why** | Goal axis "渲染/运行时性能". `renderScene → drawNpcs` calls `sceneGraph.findEntitiesByComponent("sprite")` and `updateBehaviors` calls `findEntitiesByComponent("behavior")` **every frame** — each call is a full `root.traverse` + a fresh array allocation. Negligible for the tiny sample, but O(entities) per frame forever, amplified on AI-authored large maps (D24). Map events are static after load (behaviors *move* entities, they never add/remove sprite/behavior components), so the lists can be resolved once at `enter()`. |
+| **Approach** | 1. `MapScene` gains `private spriteEntities: GameObject[]` and `private behaviorEntities: GameObject[]` resolved in `enter()` via `findEntitiesByComponent` (and re-resolved if the scene is re-entered, e.g. after `exit()`). 2. `renderScene/drawNpcs` and `updateBehaviors` iterate the cached lists instead of calling `findEntitiesByComponent`. 3. Document the invariant: entity component structure is static during a scene lifetime (adding/removing sprite/behavior components at runtime is not supported; if it becomes needed later, invalidate rebuilds the cache). 4. **Tests**: after `enter()`, entities with sprite/behavior components are drawn/driven exactly as before (existing behavior-runtime + map-scene tests pass unchanged); a re-entered scene picks up the lists again. |
+| **Files touched** | `packages/runtime/src/map-scene.ts`, `packages/runtime/tests/map-scene.test.ts` or a focused test, this task doc |
+| **Acceptance criteria** | Rendering outputs and behavior driving are unchanged (visual/functional equivalence — existing tests green); no `findEntitiesByComponent` call remains in the per-frame path (`update`/`renderScene`); runtime typecheck/tests green; QA gate green. |
+| **Status** | done |

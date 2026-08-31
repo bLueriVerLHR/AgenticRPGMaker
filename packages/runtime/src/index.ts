@@ -27,6 +27,17 @@ export {
 } from "./logger.js";
 export type { LogEntry, LogLevel, LoggerOptions, LogSink } from "./logger.js";
 
+// Platform capabilities probe (D21/D23, portable-first seam).
+export { probePlatformCapabilities } from "./platform.js";
+export type {
+  PlatformAudioCapability,
+  PlatformCapabilities,
+  PlatformInputCapability,
+  PlatformProbes,
+  PlatformRendererCapability,
+  PlatformStorageCapability,
+} from "./platform.js";
+
 // Game loop + scenes (State pattern).
 export { GameLoop, hasAnimationFrame } from "./game-loop.js";
 export type { GameLoopOptions, LoopRender, LoopUpdate } from "./game-loop.js";

@@ -24,6 +24,7 @@ import { IndexedDBStorage } from "./indexeddb-storage.js";
 import type { LogLevel, Logger } from "./logger.js";
 import { Logger as LoggerClass } from "./logger.js";
 import { NetworkClient } from "./network-client.js";
+import { probePlatformCapabilities } from "./platform.js";
 import type { Storage } from "./storage.js";
 import type { Transport } from "./transport.js";
 
@@ -106,6 +107,13 @@ export async function boot(options: BootOptions): Promise<Game> {
   // 3. Storage: IndexedDB by default, injectable for tests.
   const storage = options.storage ?? new IndexedDBStorage({ logger });
   logger.info("boot: storage ready", { backend: storage.available ? "indexeddb" : "unavailable" });
+
+  // 3.5 Platform capabilities snapshot (D21/D23): one read-only report of the
+  // runtime environment (renderer backend probe, input, storage, audio) — the
+  // portable-first seam that lets browser/JoiPlay run as configurations of the
+  // same runtime. Logged at info for first-class diagnosability (ADR-002).
+  const platform = probePlatformCapabilities();
+  logger.info("boot: platform capabilities", { platform });
 
   // 4. Network: single-player unless a server URL is configured.
   const network = await createNetworkClient(options, logger);

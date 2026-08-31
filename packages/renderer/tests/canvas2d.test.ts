@@ -175,3 +175,137 @@ describe("Canvas2DRenderer (immediate mode)", () => {
     expect(ctx.drawImage).not.toHaveBeenCalled();
   });
 });
+
+describe("Canvas2DRenderer static-layer cache (task 13)", () => {
+  interface CachingHarness {
+    renderer: Canvas2DRenderer;
+    ctx: CanvasRenderingContext2D;
+    tm: ReturnType<typeof createStubTextureManager>;
+    offscreen: Array<{ canvas: unknown; ctx: CanvasRenderingContext2D; calls: string[] }>;
+  }
+
+  function makeCachingRenderer(options: { revision?: () => number } = {}): CachingHarness {
+    const { ctx } = createContext2DStub();
+    const canvas = createStubCanvas();
+    Object.defineProperty(ctx, "canvas", { value: canvas, configurable: true });
+    const tm = createStubTextureManager({
+      getRevision: (options.revision ?? (() => 0)) as never,
+    });
+    const offscreen: CachingHarness["offscreen"] = [];
+    const renderer = new Canvas2DRenderer({
+      canvas,
+      ctx,
+      textureManager: tm,
+      logger: createStubLogger(),
+      createCanvas: (width, height) => {
+        const stub = createContext2DStub();
+        const off = createStubCanvas({ width, height, getContext: () => stub.ctx });
+        offscreen.push({ canvas: off, ctx: stub.ctx, calls: stub.calls });
+        return off;
+      },
+    });
+    return { renderer, ctx, tm, offscreen };
+  }
+
+  function layer2x2(): TileLayer {
+    return {
+      id: "ground",
+      name: "Ground",
+      type: "tile",
+      opacity: 1,
+      visible: true,
+      data: [
+        [1, 1],
+        [1, 1],
+      ],
+    };
+  }
+
+  it("blits the cached layer once per frame instead of per visible tile", async () => {
+    const { renderer, ctx, tm, offscreen } = makeCachingRenderer();
+    renderer.beginFrame();
+    renderer.setCamera({ x: 0, y: 0, width: 32, height: 32 }, 1);
+    renderer.registerTileset(TILESET);
+    await tm.load("img.png");
+    renderer.drawTileLayer(layer2x2(), "ts1", 16); // frame 1: build + blit
+    renderer.drawTileLayer(layer2x2(), "ts1", 16); // frame 2: cache hit, blit only
+    // Main context: exactly one drawImage per frame (the blit) = 2 total.
+    expect(mockCalls(ctx.drawImage)).toHaveLength(2);
+    // Offscreen context: built once, drawing all 4 non-empty tiles.
+    expect(offscreen).toHaveLength(1);
+    const offDraws = offscreen[0]!.calls.filter((c) => c === "drawImage");
+    expect(offDraws).toHaveLength(4);
+  });
+
+  it("renders the correct visible region from the cache after the camera moves", async () => {
+    const { renderer, ctx, tm } = makeCachingRenderer();
+    const layer: TileLayer = {
+      id: "ground",
+      name: "Ground",
+      type: "tile",
+      opacity: 1,
+      visible: true,
+      data: Array.from({ length: 4 }, () => [1, 1, 1, 1]),
+    };
+    renderer.beginFrame();
+    renderer.setCamera({ x: 0, y: 0, width: 32, height: 32 }, 1);
+    renderer.registerTileset(TILESET);
+    await tm.load("img.png");
+    renderer.drawTileLayer(layer, "ts1", 16); // build + blit (0,0,32,32)
+    renderer.setCamera({ x: 32, y: 0, width: 32, height: 32 }, 1);
+    renderer.drawTileLayer(layer, "ts1", 16); // blit visible cols 2..4
+    const last = mockCalls(ctx.drawImage).at(-1)!;
+    // source == dest rect == visible region in world/tile px: (32,0,32,32)
+    expect(last).toEqual([expect.anything(), 32, 0, 32, 32, 32, 0, 32, 32]);
+  });
+
+  it("falls back to the per-tile path for oversized layers (no cache)", async () => {
+    const { renderer, ctx, tm, offscreen } = makeCachingRenderer();
+    const layer: TileLayer = {
+      id: "huge",
+      name: "Huge",
+      type: "tile",
+      opacity: 1,
+      visible: true,
+      data: Array.from({ length: 200 }, () => new Array<number>(200).fill(1)), // 10.24M px > budget
+    };
+    renderer.beginFrame();
+    renderer.setCamera({ x: 0, y: 0, width: 32, height: 32 }, 1);
+    renderer.registerTileset(TILESET);
+    await tm.load("img.png");
+    renderer.drawTileLayer(layer, "ts1", 16);
+    // Per-tile culled path: 2x2 visible = 4 drawImages; no offscreen canvas built.
+    expect(mockCalls(ctx.drawImage)).toHaveLength(4);
+    expect(offscreen).toHaveLength(0);
+  });
+
+  it("rebuilds the cache when the atlas revision changes", async () => {
+    let revision = 0;
+    const { renderer, ctx, tm, offscreen } = makeCachingRenderer({ revision: () => revision });
+    renderer.beginFrame();
+    renderer.setCamera({ x: 0, y: 0, width: 32, height: 32 }, 1);
+    renderer.registerTileset(TILESET);
+    await tm.load("img.png");
+    renderer.drawTileLayer(layer2x2(), "ts1", 16); // build
+    renderer.drawTileLayer(layer2x2(), "ts1", 16); // cache hit
+    expect(offscreen).toHaveLength(1);
+    revision = 1;
+    renderer.drawTileLayer(layer2x2(), "ts1", 16); // rebuild
+    expect(offscreen).toHaveLength(2);
+    expect(mockCalls(ctx.drawImage)).toHaveLength(3); // 3 blits, never per-tile
+  });
+
+  it("clearTileLayerCache() forces a rebuild on the next draw", async () => {
+    const { renderer, ctx, tm, offscreen } = makeCachingRenderer();
+    renderer.beginFrame();
+    renderer.setCamera({ x: 0, y: 0, width: 32, height: 32 }, 1);
+    renderer.registerTileset(TILESET);
+    await tm.load("img.png");
+    renderer.drawTileLayer(layer2x2(), "ts1", 16);
+    expect(offscreen).toHaveLength(1);
+    renderer.clearTileLayerCache();
+    renderer.drawTileLayer(layer2x2(), "ts1", 16);
+    expect(offscreen).toHaveLength(2);
+    expect(mockCalls(ctx.drawImage)).toHaveLength(2); // still one blit per frame
+  });
+});

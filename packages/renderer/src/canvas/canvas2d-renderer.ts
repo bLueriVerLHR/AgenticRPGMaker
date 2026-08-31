@@ -32,6 +32,7 @@ import { noopRendererLogger } from "../logger.js";
 import type { AtlasTextureManager, ImageSourceLike } from "../texture-manager.js";
 import { computeVisibleTileRange, isTileRangeEmpty } from "../tiles.js";
 import { TilesetRegistry } from "../tileset-registry.js";
+import type { TilesetBinding } from "../tileset-registry.js";
 import type { TileMapRenderer } from "../tilemap.js";
 
 export interface Canvas2DRendererOptions {
@@ -39,7 +40,29 @@ export interface Canvas2DRendererOptions {
   ctx: CanvasRenderingContext2D;
   textureManager: AtlasTextureManager;
   logger?: RendererLogger;
+  /**
+   * Offscreen-canvas factory for the static tile-layer cache (task 13).
+   * Defaults to `document.createElement("canvas")` when a DOM is available;
+   * tests inject stub canvases. Returning null-able canvases is not required —
+   * the factory itself is optional (omit to disable caching, e.g. in Node).
+   */
+  createCanvas?: (width: number, height: number) => CanvasLike;
 }
+
+/** Cache entry for a fully rendered (offscreen) static tile layer. */
+interface TileLayerCacheEntry {
+  canvas: CanvasLike;
+  ctx: CanvasRenderingContext2D;
+  cols: number;
+  rows: number;
+  tileSize: number;
+  /** Atlas revision the cache was built from (invalidated on change). */
+  revision: number;
+  opacity: number;
+}
+
+/** ~16MB RGBA: above this pixel budget a layer is not cached (huge maps). */
+const MAX_TILE_LAYER_CACHE_PIXELS = 4_000_000;
 
 const DEFAULT_FONT = "16px sans-serif";
 
@@ -50,6 +73,8 @@ export class Canvas2DRenderer implements Renderer, TileMapRenderer {
   private readonly logger: RendererLogger;
   private readonly tilesets: TilesetRegistry;
   private readonly transformStack: Transform[] = [];
+  private readonly createCanvas: ((width: number, height: number) => CanvasLike) | null;
+  private readonly tileLayerCache = new Map<string, TileLayerCacheEntry>();
   private camera: Viewport = { x: 0, y: 0, width: 0, height: 0 };
   private zoom = 1;
   private tintWarned = false;
@@ -60,6 +85,18 @@ export class Canvas2DRenderer implements Renderer, TileMapRenderer {
     this.textureManager = options.textureManager;
     this.logger = options.logger ?? noopRendererLogger;
     this.tilesets = new TilesetRegistry(this.textureManager, this.logger);
+    if (options.createCanvas !== undefined) {
+      this.createCanvas = options.createCanvas;
+    } else if (typeof document !== "undefined" && typeof document.createElement === "function") {
+      this.createCanvas = (width, height) => {
+        const el = document.createElement("canvas");
+        el.width = width;
+        el.height = height;
+        return el as unknown as CanvasLike;
+      };
+    } else {
+      this.createCanvas = null; // Node: caching disabled (per-tile path only)
+    }
     this.logger.info("canvas2d renderer created", {
       backend: "canvas2d",
       width: this.canvas.width,
@@ -188,6 +225,20 @@ export class Canvas2DRenderer implements Renderer, TileMapRenderer {
       return;
     }
     const alpha = layer.opacity ?? 1;
+
+    // Task 13: static-layer offscreen cache — render the whole layer once into
+    // an offscreen canvas, then blit only the visible region each frame (one
+    // drawImage instead of one per visible tile). Falls back to the per-tile
+    // culled path when caching is unavailable or the layer exceeds the budget.
+    const cached = this.getLayerCache(layer, binding, tileSize, cols, rows, alpha);
+    if (cached !== null) {
+      const sx = range.colStart * tileSize;
+      const sy = range.rowStart * tileSize;
+      const sw = (range.colEnd - range.colStart) * tileSize;
+      const sh = (range.rowEnd - range.rowStart) * tileSize;
+      this.blitCachedLayer(cached, sx, sy, sw, sh);
+      return;
+    }
     for (let row = range.rowStart; row < range.rowEnd; row++) {
       const dataRow = layer.data[row];
       if (dataRow === undefined) {
@@ -214,6 +265,95 @@ export class Canvas2DRenderer implements Renderer, TileMapRenderer {
         );
       }
     }
+  }
+
+  /**
+   * Returns the offscreen cache for a static tile layer, building it on first
+   * use (and rebuilding when the atlas revision changes). Returns null when
+   * caching is unavailable or the layer exceeds the pixel budget.
+   */
+  private getLayerCache(
+    layer: TileLayer,
+    binding: TilesetBinding,
+    tileSize: number,
+    cols: number,
+    rows: number,
+    opacity: number,
+  ): TileLayerCacheEntry | null {
+    if (this.createCanvas === null) {
+      return null;
+    }
+    if (cols * tileSize * rows * tileSize > MAX_TILE_LAYER_CACHE_PIXELS) {
+      return null;
+    }
+    const revision = this.textureManager.getRevision(binding.textureId);
+    const existing = this.tileLayerCache.get(layer.id);
+    if (
+      existing !== undefined &&
+      existing.revision === revision &&
+      existing.cols === cols &&
+      existing.rows === rows &&
+      existing.tileSize === tileSize
+    ) {
+      return existing;
+    }
+    const canvas = this.createCanvas(cols * tileSize, rows * tileSize);
+    const ctx = canvas.getContext("2d") as CanvasRenderingContext2D | null;
+    const source = this.textureManager.getSource(binding.textureId);
+    if (ctx === null || source === undefined) {
+      return null; // not ready yet — retry next frame
+    }
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    ctx.globalAlpha = opacity;
+    for (let row = 0; row < rows; row++) {
+      const dataRow = layer.data[row];
+      if (dataRow === undefined) {
+        continue;
+      }
+      for (let col = 0; col < cols; col++) {
+        const index = dataRow[col];
+        if (index === undefined || index <= 0) {
+          continue; // 0 = empty/transparent
+        }
+        const frameRect = this.textureManager.getFrame(binding.textureId, index);
+        if (frameRect === undefined) {
+          continue;
+        }
+        ctx.drawImage(
+          source as CanvasImageSource,
+          frameRect.x,
+          frameRect.y,
+          frameRect.width,
+          frameRect.height,
+          col * tileSize,
+          row * tileSize,
+          tileSize,
+          tileSize,
+        );
+      }
+    }
+    const entry: TileLayerCacheEntry = { canvas, ctx, cols, rows, tileSize, revision, opacity };
+    this.tileLayerCache.set(layer.id, entry);
+    return entry;
+  }
+
+  /** Blits the visible region of a cached layer in one drawImage (world coords). */
+  private blitCachedLayer(
+    entry: TileLayerCacheEntry,
+    sx: number,
+    sy: number,
+    sw: number,
+    sh: number,
+  ): void {
+    const ctx = this.ctx;
+    this.withWorldTransform(() => {
+      ctx.drawImage(entry.canvas as CanvasImageSource, sx, sy, sw, sh, sx, sy, sw, sh);
+    });
+  }
+
+  /** Drops every cached tile layer (e.g. when the renderer is torn down). */
+  clearTileLayerCache(): void {
+    this.tileLayerCache.clear();
   }
 
   private drawImage(

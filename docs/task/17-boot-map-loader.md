@@ -1,0 +1,10 @@
+# Task 17 — Wire the transfer map loader through `boot()` and the www entry
+
+| Field | Value |
+|---|---|
+| **Goal** | A `transfer` event works in the real booted runtime (browser/www build): `BootOptions` gains `loadMap?: (mapId: string) => Promise<MapData>`, `boot()` forwards it to `createGame`, and `scripts/www-entry.ts` injects a loader backed by the already-fetched bundle (`data/manifest.json` maps). A transfer with no loader configured still warns (unchanged contract). |
+| **Why** | Vertical-slice prerequisite (see `18-vertical-slice-quest.md`). The task-14 seam (`CreateGameOptions.loadMap`) exists but only tests injected it — `boot()`/`www-entry.ts` never did, so the deployed www build logged "transfer requested but no map loader configured" and stayed on the initial map. The batch-2 project-log claim "boot injects the real loader" was wrong vs. reality (WAL drift); this task is the correction. Found by the 2026-08-31 next-phase assessment (`discussion/2026-08-31-next-phase-vertical-slice.md`). |
+| **Approach** | 1. `packages/runtime/src/boot.ts`: add `loadMap?` to `BootOptions`, pass it through the `createGame` call. 2. `scripts/www-entry.ts`: after `loadBundle()`, pass `loadMap: (mapId) => { const m = maps.get(mapId); return m !== undefined ? Promise.resolve(m) : Promise.reject(new Error(...)); }` into `boot()` (all bundle maps are preloaded — no extra fetch). 3. `packages/runtime/tests/boot.test.ts`: boot with a stub renderer + a two-map bundle; run a `transfer` event; assert the scene map id changed. 4. Docs: correct the batch-2 note in `05-project-log.md` via this task's log entry (append-only log). |
+| **Files touched** | `packages/runtime/src/boot.ts`, `scripts/www-entry.ts`, `packages/runtime/tests/boot.test.ts`, this task doc |
+| **Acceptance criteria** | Runtime test proves a booted game switches maps on a transfer event with the injected bundle loader; `pnpm build:www` succeeds and the generated `www/js/runtime.js` contains the loader wiring; QA gate green. |
+| **Status** | done |

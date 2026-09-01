@@ -63,6 +63,29 @@ describe("boot()", () => {
     game.dispose();
   });
 
+  it("switches maps on a transfer event when a loadMap loader is wired (task 17)", async () => {
+    const game = await boot(
+      bootOptions({
+        loadMap: async (mapId: string) => ({ ...fixtureMap(), id: mapId }),
+      }),
+    );
+    expect(game.scene.map.id).toBe("map_fixture");
+    game.bus.emit("transfer", { mapId: "map_house", x: 4, y: 5, direction: "up" });
+    await vi.waitFor(() => {
+      expect(game.scene.map.id).toBe("map_house");
+    });
+    expect(game.scene.playerPosition).toEqual({ x: 4, y: 5 });
+    game.dispose();
+  });
+
+  it("keeps the map when no loadMap loader is wired (transfer warns, task 17)", async () => {
+    const game = await boot(bootOptions());
+    game.bus.emit("transfer", { mapId: "map_house" });
+    await new Promise((resolve) => setTimeout(resolve, 10));
+    expect(game.scene.map.id).toBe("map_fixture");
+    game.dispose();
+  });
+
   it("continues single-player when the network connect fails", async () => {
     const failingTransport = {
       connect: async () => {

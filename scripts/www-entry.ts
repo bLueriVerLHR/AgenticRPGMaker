@@ -148,6 +148,15 @@ async function start(): Promise<void> {
     playerName,
     playerPosition: { x: 1, y: 2 },
     playerDirection: "down",
+    // Transfer loader (tasks 14/17): every manifest map is already fetched and
+    // validated, so a transfer resolves in-memory — multi-map games work in
+    // the deployed build with no extra requests.
+    loadMap: (mapId: string) => {
+      const target = maps.get(mapId);
+      return target !== undefined
+        ? Promise.resolve(target)
+        : Promise.reject(new Error(`www: transfer target not in bundle: ${mapId}`));
+    },
   });
   (window as unknown as WindowWithGame).__game = game;
   setStatus(`Ready — ${game.scene.map.name} (${game.scene.backendLabel})`);

@@ -67,6 +67,13 @@ export interface BootOptions {
   playerDirection?: Direction;
   /** Auto-load the latest save on boot. Default true. */
   autoLoad?: boolean;
+  /**
+   * Loader for `transfer` targets (tasks 14/17): resolves a map id to a map
+   * document. Omitted ⇒ transfers log a warning and are ignored. The www
+   * entry injects a bundle-backed loader (all manifest maps preloaded), so
+   * multi-map games work in the deployed build without extra fetching.
+   */
+  loadMap?: (mapId: string) => Promise<MapData>;
   tilesets?: ReadonlyMap<string, TilesetData>;
   /** Game-loop overrides (tests inject a manual raf/clock). */
   loop?: {
@@ -133,6 +140,7 @@ export async function boot(options: BootOptions): Promise<Game> {
     playerDirection: options.playerDirection,
     autoLoad: options.autoLoad ?? true,
     tilesets: options.tilesets,
+    loadMap: options.loadMap,
     loop: options.loop,
   });
 

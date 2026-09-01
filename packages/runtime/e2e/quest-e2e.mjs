@@ -239,23 +239,47 @@ async function main() {
       throw new Error("transfer");
     }
 
-    // 4. Forest: (6,8) → up up up → (6,5); face left at the slime's tile (5,5);
-    // the patrolling slime entity may temporarily block the corridor, so use retries.
+    // 4. Forest: (6,8) → up up up → (6,5). The Road Slime patrols (5,5)↔(4,5)
+    // and — since task 19 — interaction follows its live body, so facing left
+    // from (6,5) opens the ask page whenever its body spans (5,5): every
+    // instant except the ≤1-tick rest exactly on (4,5). Bounded retry covers it.
     const upToRow5 = await walkTo(page, "ArrowUp", 3, "6,5", "walk to (6,5)");
     if (!upToRow5) throw new Error("walk (slime corridor)");
-    if ((await faceOnly(page, "ArrowLeft", "6,5", "face the slime at (5,5)")) === false) {
-      throw new Error("face");
+    let slimeTalked = false;
+    let slimeAttempts = 0;
+    for (let attempt = 0; attempt < 4 && !slimeTalked; attempt++) {
+      slimeAttempts = attempt + 1;
+      await page.keyboard.press("ArrowLeft"); // face the corridor (usually a blocked step)
+      await sleep(400);
+      if ((await hudPosition(page)) !== "6,5") {
+        // The slime rested exactly on (4,5) and the step went through; the
+        // retreat can never be blocked (its body never spans (6,5)). Step back
+        // and retry from the canonical spot.
+        await page.keyboard.press("ArrowRight");
+        await sleep(400);
+        continue;
+      }
+      await page.keyboard.press("KeyZ");
+      try {
+        await waitFor(
+          async () => {
+            const box = page.locator('[data-testid="choice-box"]');
+            return (await box.count()) > 0 && (await box.isVisible());
+          },
+          { timeoutMs: 900, label: `choice box (attempt ${attempt + 1})` },
+        );
+        slimeTalked = true;
+      } catch {
+        // No body on the faced tile this instant — retry.
+      }
     }
-    // Ask → choice box opens (task 16 UI).
-    await page.keyboard.press("KeyZ");
+    report(
+      "face the patrolling slime (task 19)",
+      slimeTalked ? "PASS" : "FAIL",
+      `interact attempts: ${slimeAttempts}`,
+    );
     try {
-      await waitFor(
-        async () => {
-          const box = page.locator('[data-testid="choice-box"]');
-          return (await box.count()) > 0 && (await box.isVisible());
-        },
-        { timeoutMs: 4000, label: "choice box" },
-      );
+      if (!slimeTalked) throw new Error("no attempt opened the choice box");
       const optionCount = await page.locator('[data-testid="choice-option"]').count();
       report(
         "slime: choice box opens",
@@ -279,8 +303,8 @@ async function main() {
     await page.keyboard.press("KeyZ"); // dismiss the ask dialogue
     await sleep(200);
 
-    // 5. East → north via the col-7 leg (the slime's registered tile (5,5) is a
-    // permanent event collider, so the corridor bypasses it) to the cave mouth.
+    // 5. East → north via the col-7 leg to the cave mouth. The slime patrols
+    // (5,5)↔(4,5), so its body never spans (6,5)/(7,5) — this leg stays clear.
     if ((await walkTo(page, "ArrowRight", 1, "7,5", "walk to (7,5)")) === false) {
       throw new Error("walk (slime corridor)");
     }

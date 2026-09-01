@@ -37,14 +37,19 @@ interface Harness {
 }
 
 function buildHarness(
-  options: { playerX?: number; playerY?: number; map?: MapData } = {},
+  options: {
+    playerX?: number;
+    playerY?: number;
+    playerDirection?: "up" | "down" | "left" | "right";
+    map?: MapData;
+  } = {},
 ): Harness {
   const map = options.map ?? fixtureMap();
   const bus: GameEventBus = new TypedEventBus<GameEventMap>();
   const state = new GameState({ variables: map.variables, switches: map.switches }, bus);
   const sceneGraph = SceneGraph.fromMap(map, {
     playerPosition: { x: options.playerX ?? 1, y: options.playerY ?? 2 },
-    playerDirection: "down",
+    playerDirection: options.playerDirection ?? "down",
   });
   const interpreter = new EventInterpreter({ state, bus, scene: sceneGraph });
   const storage = new MemoryStorage();
@@ -347,6 +352,105 @@ describe("MapScene choices (task 16)", () => {
     scene.update(0.016);
     expect(scene.currentDialogueText).toBe("A coin? No — it was a clock.");
     expect(dialogues).toContain("A coin? No — it was a clock.");
+  });
+});
+
+describe("MapScene interaction follows the body (task 19)", () => {
+  /**
+   * A patrol NPC whose authored (home) tile is `homeX`: the real rule-based
+   * behavior (task 09) drives the entity along the corridor row y=2, so the
+   * tests exercise the production behavior → transform → interaction pipeline.
+   * Speed defaults to 1 tile/s, so `update(t)` moves the body exactly `t` tiles.
+   */
+  function patrolMap(homeX: number, targetX: number): MapData {
+    const map = fixtureMap();
+    map.events.push({
+      id: "evt_patroller",
+      name: "Road Slime",
+      x: homeX,
+      y: 2,
+      sprite: "characters/npc_slime",
+      behavior: { kind: "rule-based", waypoints: [{ x: targetX, y: 2 }] },
+      pages: [{ condition: null, commands: [{ cmd: "showText", args: ["I patrol this road."] }] }],
+    });
+    return map;
+  }
+
+  it("is talkable from both tiles a mid-move body spans (and not from a third)", () => {
+    // Slime homes at (5,2), patrols to (4,2); after 0.5s it sits at x=4.5 and
+    // its 1x1 body spans tiles (4,2) AND (5,2) — the same two tiles collision
+    // blocks (movement.ts strict AABB rule).
+    const fromWest = buildHarness({
+      map: patrolMap(5, 4),
+      playerX: 3,
+      playerY: 2,
+      playerDirection: "right",
+    });
+    fromWest.scene.update(0.5);
+    expect(fromWest.scene.interact()).toBe(true); // faces (4,2) — spanned
+    expect(fromWest.dialogues).toContain("I patrol this road.");
+
+    // From the north, facing (5,2): also spanned while x=4.5…
+    const fromNorth = buildHarness({ map: patrolMap(5, 4), playerX: 5, playerY: 1 });
+    fromNorth.scene.update(0.5);
+    expect(fromNorth.scene.interact()).toBe(true);
+
+    // …but after 1.0s the body rests at x=4.0 (spans only (4,2)), so the
+    // faced (5,2) misses — a deterministic answer at every instant.
+    const fromNorthLate = buildHarness({ map: patrolMap(5, 4), playerX: 5, playerY: 1 });
+    fromNorthLate.scene.update(1.0);
+    expect(fromNorthLate.scene.interact()).toBe(false);
+  });
+
+  it("leaves the vacated authored tile inert; the current tile talks", () => {
+    // Slime homes at (4,2), patrols to (5,2); player faces (4,2) from (3,2).
+    const harness = buildHarness({
+      map: patrolMap(4, 5),
+      playerX: 3,
+      playerY: 2,
+      playerDirection: "right",
+    });
+    const { scene, input, dialogues } = harness;
+    expect(scene.interact()).toBe(true); // at rest on the authored tile first
+    input.queueConfirm();
+    scene.update(0.016); // close the dialogue
+    dialogues.length = 0;
+
+    scene.update(1.0); // patrol completes: the body now rests at (5,2)
+    expect(scene.interact()).toBe(false); // the vacated home tile is inert
+    expect(dialogues).toHaveLength(0);
+
+    // The solid collider moved with the body, so the player can now stand on
+    // the vacated tile — and talk to the slime where it actually stands.
+    input.pressDirection("right");
+    waitForStep(scene);
+    input.releaseDirection("right");
+    expect(scene.playerPosition).toEqual({ x: 4, y: 2 });
+    expect(scene.interact()).toBe(true); // faces (5,2)
+    expect(dialogues).toContain("I patrol this road.");
+  });
+
+  it("resolves stacked events in map authoring order (first match runs)", () => {
+    const map = patrolMap(4, 4); // single-waypoint patrol: stays at home
+    map.events.unshift({
+      // An invisible trigger registered on the same tile, authored FIRST.
+      id: "evt_sign_post",
+      name: "Sign Post",
+      x: 4,
+      y: 2,
+      pages: [
+        { condition: null, commands: [{ cmd: "showText", args: ["The sign reads: beware."] }] },
+      ],
+    });
+    const harness = buildHarness({
+      map,
+      playerX: 3,
+      playerY: 2,
+      playerDirection: "right",
+    });
+    expect(harness.scene.interact()).toBe(true);
+    expect(harness.dialogues).toContain("The sign reads: beware.");
+    expect(harness.dialogues).not.toContain("I patrol this road.");
   });
 });
 

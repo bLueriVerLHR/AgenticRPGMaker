@@ -53,6 +53,13 @@
       "x": 5,
       "y": 5,
       "sprite": "characters/npc_slime",
+      "behavior": {
+        "kind": "rule-based",
+        "waypoints": [
+          { "x": 5, "y": 5 },
+          { "x": 4, "y": 5 }
+        ]
+      },
       "pages": [
         {
           "condition": {

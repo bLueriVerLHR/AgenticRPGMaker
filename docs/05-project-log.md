@@ -5,6 +5,35 @@ Date format: `YYYY-MM-DD`.
 
 ---
 
+## 2026-08-31 — Task 19: interaction follows the body — patrol + talk is deterministic
+
+Owner-selected next phase after the vertical slice (the task-18 finding became a
+task). One engine-semantic fix, QA gate green:
+
+- **The rule** (`packages/runtime/src/map-scene.ts`): the faced tile now hits
+  the event whose 1×1 body AABB at its **live transform position** strictly
+  overlaps it — the same strict-overlap rule `checkStep()` already applies to
+  solid bodies. Before, interaction matched the event's **authored**
+  `event.x/y` while a patrolling entity carried its solid collider away, so
+  talk and collision used different frames of reference (the home tile stayed
+  "talkable" while the body blocked two other tiles mid-move).
+- **Consequences:** at rest, an NPC is interactable from exactly its tile —
+  static events (triggers, doors, crates) behave byte-for-byte as before; a
+  mid-move NPC is interactable from **both** tiles its body spans, which are
+  precisely the tiles it currently blocks ("can talk to" ≡ "am blocked by").
+  The authored tile is now only the spawn/home position. No core/schema change.
+- **Sample:** the quest slime regains its patrol (`evt_slime` waypoints
+  (5,5)↔(4,5)) — the task-18 workaround is reverted; the slime now actually
+  guards the forest-road corridor its text describes. The quest E2E talks to it
+  from (6,5) with a bounded face/interact retry (the body rests exactly on
+  (4,5) for ≤1 tick per cycle; otherwise (5,5) is always spanned), and the
+  stale "patrolling slime" comments are now true. Still **39/39 steps**.
+- **Tests:** runtime unit suite +3 (mid-move talkable from both spanned tiles
+  and not a third; vacated home tile inert while the collider moved with the
+  body — the player can stand there and talk; stacked events resolve in map
+  authoring order). 105 runtime tests green; baseline E2E 21/21 (its demo
+  fixture NPC is static — unaffected).
+
 ## 2026-08-31 — Next phase per owner decision: task 16 shipped, loader seam fixed, vertical slice playable
 
 Owner decision (`discussion/2026-08-31-next-phase-vertical-slice.md`): finish

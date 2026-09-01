@@ -13,6 +13,10 @@
  *   interpreter's active page (showText/setVariable/setSwitch/playSound/walk),
  *   and `dialogue` bus events are queued into a DOM dialogue box
  *   (advance/close with confirm).
+ * - **Interaction targeting (task 19)**: the faced tile hits the event whose
+ *   1x1 body at its LIVE transform position strictly overlaps it — the same
+ *   rule collision uses — so a patrolling NPC is interactable from exactly the
+ *   tiles it currently blocks (deterministic patrol + talk).
  * - **Choices**: a `showChoices` command opens a selectable option list
  *   (up/down to move, confirm to answer, cancel for `-1`); the chosen index is
  *   written into the prompt's variable so pages can branch on it (task 16).
@@ -39,7 +43,7 @@ import type {
   Transform,
   Vec2,
 } from "@agenticrpg/core";
-import { Collider, PLAYER_ENTITY_ID } from "@agenticrpg/core";
+import { Collider, PLAYER_ENTITY_ID, type AABB } from "@agenticrpg/core";
 import type { Renderer } from "@agenticrpg/renderer";
 import { isTileMapRenderer } from "@agenticrpg/renderer";
 import type { TileMapRenderer } from "@agenticrpg/renderer";
@@ -51,7 +55,12 @@ import type { Logger } from "./logger.js";
 import type { NetworkClient, RemotePlayer } from "./network-client.js";
 import type { Scene, SceneContext } from "./scene.js";
 import type { Storage } from "./storage.js";
-import { buildCollisionGrid, checkStep, type SolidTileGrid } from "./movement.js";
+import {
+  buildCollisionGrid,
+  checkStep,
+  aabbsOverlapStrict,
+  type SolidTileGrid,
+} from "./movement.js";
 
 /** Options for building a MapScene. */ export interface MapSceneOptions {
   map: MapData;
@@ -134,7 +143,6 @@ export class MapScene implements Scene {
 
   private readonly grid: SolidTileGrid;
   private readonly npcBlockers: GameObject[] = [];
-  private readonly eventById = new Map<string, MapEvent>();
   /** Per-entity behavior elapsed seconds (task 09; feeds `BehaviorContext.elapsed`). */
   private readonly behaviorElapsed = new Map<string, number>();
   /**
@@ -179,9 +187,6 @@ export class MapScene implements Scene {
     this.autoLoad = options.autoLoad ?? true;
 
     this.grid = buildCollisionGrid(this.map);
-    for (const event of this.map.events) {
-      this.eventById.set(event.id, event);
-    }
     this.collectNpcBlockers();
   }
 
@@ -877,22 +882,46 @@ export class MapScene implements Scene {
     }
     const vector = DIRECTION_VECTORS[transform.direction as InputDirection];
     const facing = { x: Math.round(transform.x) + vector.x, y: Math.round(transform.y) + vector.y };
-    for (const event of this.eventById.values()) {
-      if (event.x === facing.x && event.y === facing.y) {
-        const result = this.interpreter.runEvent(event, { actorId: event.id });
-        if (result.ran) {
-          this.logger.info("interaction: event ran", {
-            event: event.id,
-            page: result.page !== null ? "selected" : "none",
-            effects: result.effects.length,
-          });
-          return true;
-        }
-        this.logger.debug("interaction: event has no active page", { event: event.id });
+    for (const event of this.map.events) {
+      // Task 19: interaction follows the body. The faced tile hits when it
+      // strictly overlaps the event's 1x1 body AABB at its LIVE transform
+      // position — the same rule `checkStep()` applies to solid bodies, so an
+      // NPC is interactable from exactly the tiles it currently blocks, and
+      // patrol + talk on one NPC is deterministic. Static events (triggers,
+      // doors, crates) never move: their body stays at the authored tile, which
+      // is byte-for-byte the previous exact-tile behavior.
+      const body = this.eventBodyAABB(event);
+      if (!aabbsOverlapStrict({ x: facing.x, y: facing.y, width: 1, height: 1 }, body)) {
+        continue;
+      }
+      const result = this.interpreter.runEvent(event, { actorId: event.id });
+      if (result.ran) {
+        this.logger.info("interaction: event ran", {
+          event: event.id,
+          page: result.page !== null ? "selected" : "none",
+          effects: result.effects.length,
+        });
         return true;
       }
+      this.logger.debug("interaction: event has no active page", { event: event.id });
+      return true;
     }
     return false;
+  }
+
+  /**
+   * The event's 1x1 body AABB at its live world position (task 19): behaviors
+   * move the entity's transform, so the body — and with it interaction —
+   * follows. Falls back to the authored tile when the scene has no entity for
+   * the event (defensive; `SceneGraph.fromMap` builds one per event). Events
+   * are tested in map authoring order and the first hit runs its page
+   * (unchanged first-match semantics).
+   */
+  private eventBodyAABB(event: MapEvent): AABB {
+    const transform = this.sceneGraph.getEntityById(event.id)?.getComponent("transform") ?? null;
+    const x = transform !== null ? transform.x : event.x;
+    const y = transform !== null ? transform.y : event.y;
+    return { x, y, width: 1, height: 1 };
   }
 
   // ------------------------------------------------------------------

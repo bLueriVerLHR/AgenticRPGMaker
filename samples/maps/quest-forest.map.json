@@ -1,0 +1,167 @@
+{
+  "schemaVersion": 1,
+  "id": "map_quest_forest",
+  "name": "Old Forest Road",
+  "tileSize": 16,
+  "width": 14,
+  "height": 10,
+  "tileset": "tilesets/placeholder",
+  "layers": [
+    {
+      "id": "ground",
+      "name": "Ground",
+      "type": "tile",
+      "opacity": 1.0,
+      "visible": true,
+      "data": [
+        [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
+        [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2, 1],
+        [1, 1, 1, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 1],
+        [1, 1, 1, 2, 1, 1, 1, 2, 1, 1, 1, 1, 1, 1],
+        [1, 1, 1, 2, 1, 1, 1, 2, 1, 1, 1, 1, 1, 1],
+        [1, 1, 1, 2, 2, 2, 2, 2, 1, 1, 1, 1, 1, 1],
+        [1, 1, 1, 1, 1, 1, 2, 1, 1, 1, 1, 1, 1, 1],
+        [1, 1, 1, 1, 1, 1, 2, 1, 1, 1, 1, 1, 1, 1],
+        [1, 1, 1, 1, 1, 1, 2, 2, 1, 1, 1, 1, 1, 1],
+        [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]
+      ]
+    },
+    {
+      "id": "colliders",
+      "name": "Colliders",
+      "type": "tile",
+      "opacity": 1.0,
+      "visible": false,
+      "data": [
+        [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
+        [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
+        [1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
+        [1, 1, 1, 0, 1, 1, 1, 0, 1, 1, 1, 1, 1, 1],
+        [1, 1, 1, 0, 1, 1, 1, 0, 1, 1, 1, 1, 1, 1],
+        [1, 1, 1, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1],
+        [1, 1, 1, 1, 1, 1, 0, 1, 1, 1, 1, 1, 1, 1],
+        [1, 1, 1, 1, 1, 1, 0, 1, 1, 1, 1, 1, 1, 1],
+        [1, 1, 1, 1, 1, 1, 0, 0, 1, 1, 1, 1, 1, 1],
+        [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]
+      ]
+    }
+  ],
+  "events": [
+    {
+      "id": "evt_slime",
+      "name": "Road Slime",
+      "x": 5,
+      "y": 5,
+      "sprite": "characters/npc_slime",
+      "pages": [
+        {
+          "condition": {
+            "variableId": "forest_fight",
+            "op": "eq",
+            "value": 0
+          },
+          "commands": [
+            {
+              "cmd": "showText",
+              "args": ["The slime remembers you and wobbles out of the way."]
+            }
+          ]
+        },
+        {
+          "condition": {
+            "variableId": "forest_fight",
+            "op": "eq",
+            "value": 1
+          },
+          "commands": [
+            {
+              "cmd": "showText",
+              "args": ["The slime wobbles after you, then gives up among the roots."]
+            }
+          ]
+        },
+        {
+          "condition": null,
+          "commands": [
+            {
+              "cmd": "showText",
+              "args": ["A slime slops onto the road and blocks the way!"]
+            },
+            {
+              "cmd": "showChoices",
+              "args": ["forest_fight", "Fight", "Flee past it"]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "evt_cave_mouth",
+      "name": "Cave Mouth",
+      "x": 12,
+      "y": 1,
+      "pages": [
+        {
+          "condition": null,
+          "commands": [
+            {
+              "cmd": "showText",
+              "args": ["Cold air breathes out of the Whisper Cave."]
+            },
+            {
+              "cmd": "transfer",
+              "args": ["map_quest_cave", 6, 7, "up"]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "evt_forest_south",
+      "name": "Road South",
+      "x": 6,
+      "y": 9,
+      "pages": [
+        {
+          "condition": null,
+          "commands": [
+            {
+              "cmd": "showText",
+              "args": ["You follow the road back toward Riverside Village."]
+            },
+            {
+              "cmd": "transfer",
+              "args": ["map_quest_village", 5, 2, "down"]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "evt_forest_sign",
+      "name": "Weathered Sign",
+      "x": 5,
+      "y": 8,
+      "pages": [
+        {
+          "condition": null,
+          "commands": [
+            {
+              "cmd": "showText",
+              "args": ["Old Forest Road. Cave carvers keep to the north-east."]
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "variables": {
+    "gold": 0,
+    "forest_fight": -1
+  },
+  "switches": {
+    "sw_quest_started": false,
+    "sw_crate_found": false,
+    "sw_quest_done": false
+  }
+}

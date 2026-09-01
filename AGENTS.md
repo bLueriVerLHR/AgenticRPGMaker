@@ -109,6 +109,8 @@ Run in this order before any change lands on `main` — the whole gate must be g
 9. C++ server: `cmake -B build && cmake --build build && ctest --test-dir build --output-on-failure` (run from `server/`); reuse the pinned cmake under `.tools/` when no system cmake exists
 10. E2E runners (skipped gracefully when Playwright browsers are unavailable):
     `pnpm --filter @agenticrpg/runtime test:e2e`,
+    `pnpm --filter @agenticrpg/runtime test:quest` (plays the shipped `www/`
+    vertical-slice quest end to end; run `pnpm build:www` first),
     `pnpm --filter @agenticrpg/runtime test:multiplayer` (two-context smoke ↔ C++ server)
 
 The QA checklist ([docs/03-wal-process.md](./docs/03-wal-process.md) §5) must be

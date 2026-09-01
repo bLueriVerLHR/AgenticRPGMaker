@@ -1,0 +1,147 @@
+{
+  "schemaVersion": 1,
+  "id": "map_quest_cave",
+  "name": "Whisper Cave",
+  "tileSize": 16,
+  "width": 12,
+  "height": 9,
+  "tileset": "tilesets/placeholder",
+  "layers": [
+    {
+      "id": "ground",
+      "name": "Ground",
+      "type": "tile",
+      "opacity": 1.0,
+      "visible": true,
+      "data": [
+        [3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3],
+        [3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3],
+        [3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3],
+        [3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3],
+        [3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3],
+        [3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3],
+        [3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3],
+        [3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3],
+        [3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3]
+      ]
+    },
+    {
+      "id": "colliders",
+      "name": "Colliders",
+      "type": "tile",
+      "opacity": 1.0,
+      "visible": false,
+      "data": [
+        [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
+        [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
+        [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
+        [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
+        [1, 0, 1, 1, 1, 0, 0, 0, 0, 1, 1, 1],
+        [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
+        [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
+        [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
+        [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]
+      ]
+    }
+  ],
+  "events": [
+    {
+      "id": "evt_crate",
+      "name": "Sealed Crate",
+      "x": 3,
+      "y": 2,
+      "sprite": "objects/crate",
+      "pages": [
+        {
+          "condition": {
+            "switchId": "sw_crate_found",
+            "value": true
+          },
+          "commands": [
+            {
+              "cmd": "showText",
+              "args": ["The crate is empty now — the shipment is accounted for."]
+            }
+          ]
+        },
+        {
+          "condition": null,
+          "commands": [
+            {
+              "cmd": "showText",
+              "args": ["Here! The elder's missing shipment, stamp still fresh — sealed and safe."]
+            },
+            {
+              "cmd": "setSwitch",
+              "args": ["sw_crate_found", true]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "evt_bat",
+      "name": "Cave Bat",
+      "x": 8,
+      "y": 3,
+      "sprite": "characters/npc_bat",
+      "pages": [
+        {
+          "condition": null,
+          "commands": [
+            {
+              "cmd": "showText",
+              "args": ["Skreee! The bat loops overhead and settles again."]
+            }
+          ]
+        }
+      ],
+      "behavior": {
+        "kind": "rule-based",
+        "waypoints": [
+          {
+            "x": 8,
+            "y": 3
+          },
+          {
+            "x": 8,
+            "y": 6
+          }
+        ],
+        "speed": 1,
+        "idleSeconds": 0.5,
+        "faceDirection": "left"
+      }
+    },
+    {
+      "id": "evt_cave_exit",
+      "name": "Cave Exit",
+      "x": 6,
+      "y": 8,
+      "pages": [
+        {
+          "condition": null,
+          "commands": [
+            {
+              "cmd": "showText",
+              "args": ["You climb back out onto the forest road."]
+            },
+            {
+              "cmd": "transfer",
+              "args": ["map_quest_forest", 12, 2, "down"]
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "variables": {
+    "gold": 0,
+    "forest_fight": -1
+  },
+  "switches": {
+    "sw_quest_started": false,
+    "sw_crate_found": false,
+    "sw_quest_done": false
+  }
+}

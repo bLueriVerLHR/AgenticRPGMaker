@@ -1,0 +1,190 @@
+{
+  "schemaVersion": 1,
+  "id": "map_quest_village",
+  "name": "Riverside Village",
+  "tileSize": 16,
+  "width": 12,
+  "height": 9,
+  "tileset": "tilesets/placeholder",
+  "layers": [
+    {
+      "id": "ground",
+      "name": "Ground",
+      "type": "tile",
+      "opacity": 1.0,
+      "visible": true,
+      "data": [
+        [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
+        [1, 1, 1, 1, 1, 2, 1, 1, 1, 1, 1, 1],
+        [1, 1, 1, 1, 1, 2, 2, 1, 1, 1, 1, 1],
+        [1, 1, 1, 1, 1, 2, 2, 1, 1, 1, 1, 1],
+        [1, 1, 1, 1, 1, 2, 2, 1, 1, 1, 1, 1],
+        [1, 1, 1, 1, 1, 2, 2, 1, 1, 1, 1, 1],
+        [1, 1, 1, 1, 1, 2, 2, 1, 1, 1, 1, 1],
+        [1, 1, 1, 1, 1, 2, 2, 1, 1, 1, 1, 1],
+        [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]
+      ]
+    },
+    {
+      "id": "colliders",
+      "name": "Colliders",
+      "type": "tile",
+      "opacity": 1.0,
+      "visible": false,
+      "data": [
+        [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
+        [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 1],
+        [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
+        [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
+        [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
+        [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
+        [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
+        [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
+        [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]
+      ]
+    }
+  ],
+  "events": [
+    {
+      "id": "evt_elder",
+      "name": "Elder Rowan",
+      "x": 3,
+      "y": 4,
+      "sprite": "characters/npc_elder",
+      "pages": [
+        {
+          "condition": {
+            "switchId": "sw_quest_done",
+            "value": true
+          },
+          "commands": [
+            {
+              "cmd": "showText",
+              "args": ["Rest now, courier. Riverside owes you a debt."]
+            }
+          ]
+        },
+        {
+          "condition": {
+            "switchId": "sw_crate_found",
+            "value": true
+          },
+          "commands": [
+            {
+              "cmd": "showText",
+              "args": [
+                "The shipment! Sealed and sound — you have my thanks, and the village's coin."
+              ]
+            },
+            {
+              "cmd": "setVariable",
+              "args": ["gold", "add", 25]
+            },
+            {
+              "cmd": "setSwitch",
+              "args": ["sw_quest_done", true]
+            }
+          ]
+        },
+        {
+          "condition": null,
+          "commands": [
+            {
+              "cmd": "showText",
+              "args": [
+                "Our autumn shipment never arrived. Its last crate was hauled toward the Whisper Cave. Take the north road — and mind the slimes."
+              ]
+            },
+            {
+              "cmd": "setSwitch",
+              "args": ["sw_quest_started", true]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "evt_gate_guard",
+      "name": "Guard Bren",
+      "x": 6,
+      "y": 2,
+      "sprite": "characters/npc_guard",
+      "pages": [
+        {
+          "condition": {
+            "switchId": "sw_quest_started",
+            "value": true
+          },
+          "commands": [
+            {
+              "cmd": "showText",
+              "args": [
+                "The road is open, courier. The slimes are bold this season — don't turn your back on them."
+              ]
+            }
+          ]
+        },
+        {
+          "condition": null,
+          "commands": [
+            {
+              "cmd": "showText",
+              "args": [
+                "Beyond this gate is the Old Forest Road. Speak with Elder Rowan before you wander off."
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "evt_village_gate",
+      "name": "North Gate",
+      "x": 5,
+      "y": 1,
+      "pages": [
+        {
+          "condition": null,
+          "commands": [
+            {
+              "cmd": "showText",
+              "args": ["You head north onto the Old Forest Road."]
+            },
+            {
+              "cmd": "transfer",
+              "args": ["map_quest_forest", 6, 8, "up"]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "evt_village_sign",
+      "name": "Signpost",
+      "x": 2,
+      "y": 2,
+      "pages": [
+        {
+          "condition": null,
+          "commands": [
+            {
+              "cmd": "showText",
+              "args": [
+                "Riverside Village. North road: Old Forest. All other roads: closed by the flood."
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "variables": {
+    "gold": 0,
+    "forest_fight": -1
+  },
+  "switches": {
+    "sw_quest_started": false,
+    "sw_crate_found": false,
+    "sw_quest_done": false
+  }
+}

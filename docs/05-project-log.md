@@ -5,6 +5,38 @@ Date format: `YYYY-MM-DD`.
 
 ---
 
+## 2026-08-31 — Next phase per owner decision: task 16 shipped, loader seam fixed, vertical slice playable
+
+Owner decision (`discussion/2026-08-31-next-phase-vertical-slice.md`): finish
+task 16, then make the next phase a **playable vertical slice**. Three changes
+landed (each QA-gated):
+
+- **Task 16 — `showChoices` (commit `6fa2832`, tag `engine-0.2.0`):** the
+  question → answer → branch loop closed; details in the task-16 entry below.
+- **Task 17 — boot map-loader seam (commit `dce7b1c`):** WAL correction — the
+  batch-2 note claiming "boot injects the real loader" was wrong:
+  `CreateGameOptions.loadMap` existed but only tests injected it, so transfers
+  were inert in the deployed www build. `BootOptions.loadMap` now forwards to
+  `createGame`, and `scripts/www-entry.ts` injects a bundle-backed loader
+  (manifest maps are preloaded, so transfers resolve in-memory).
+- **Task 18 — vertical slice "The Lost Shipment":** three new data-first maps
+  (`quest-village` / `quest-forest` / `quest-cave`) + `lost-shipment.project`
+  (sorts first, so `build:www` ships the QUEST as the default www experience;
+  town-square stays bundled behind the `map` URL override). One quest exercises
+  every current capability: dialogue → switch-gated quest → choice-variable
+  branching (slime fight/flee) → 4 map transfers with state carried across →
+  crate discovery switch → reward (+25 gold, once) → done page. Content found
+  and fixed a real engine-semantic issue: interaction resolves at the event's
+  registered tile while a patrolling entity carries the solid collider with it,
+  so patrol + talk on one NPC is nondeterministic — the slime is a static
+  blocker and the cave bat carries the behavior demo (future engine task may
+  decouple interaction tile from body position; see the task-18 doc).
+
+Acceptance: core quest-data test (transfer graph closed, state references
+declared, win chain) green; new `pnpm --filter @agenticrpg/runtime test:quest`
+plays the whole quest in a real browser against the shipped `www/` build —
+**39/39 steps pass** (also added to the AGENTS.md QA gate list).
+
 ## 2026-08-31 — Task 16: dialogue choices (`showChoices`) close the question → answer → branch loop
 
 The interaction loop is no longer one-way (task 16, status `done`, QA gate green):

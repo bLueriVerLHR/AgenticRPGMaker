@@ -15,6 +15,7 @@ import type {
   GameEventBus,
   GameState,
   MapData,
+  SaveData,
   TilesetData,
   Vec2,
 } from "@agenticrpg/core";
@@ -36,6 +37,8 @@ import { MapScene } from "./map-scene.js";
 import type { NetworkClient } from "./network-client.js";
 import { SceneManager } from "./scene.js";
 import type { Storage } from "./storage.js";
+import { showTitleScreen } from "./title-screen.js";
+import type { TitleScreenHandle } from "./title-screen.js";
 
 export interface CreateGameOptions {
   canvas: HTMLCanvasElement;
@@ -57,6 +60,13 @@ export interface CreateGameOptions {
   playerSprite?: string;
   /** Auto-load the latest save on scene enter. Default true. */
   autoLoad?: boolean;
+  /**
+   * Show the title screen (task 21) instead of starting gameplay right away:
+   * `Game.title` is attached, auto-load is suppressed, and the loop starts
+   * when the player picks New Game or Continue. Default false — the game
+   * starts immediately (pre-task-21 behavior).
+   */
+  titleScreen?: boolean;
   /**
    * Async map loader for transfers (task 14). When provided, a `transfer`
    * gameplay event loads the target map and switches the playable scene to it.
@@ -90,6 +100,8 @@ export interface Game {
   readonly logger: Logger;
   readonly network: NetworkClient | null;
   readonly loop: GameLoop;
+  /** Title-screen overlay (task 21), or null when `titleScreen` is off. */
+  readonly title: TitleScreenHandle | null;
 
   /** Enter the scene and start the game loop (no-op if already running). */
   start(): boolean;
@@ -103,6 +115,12 @@ export interface Game {
   save(): Promise<boolean>;
   /** Load the latest save into the current session. */
   load(): Promise<boolean>;
+  /**
+   * Resume the latest save (task 21): same-map saves restore in place; saves
+   * made on another map swap the playable scene to the saved map first.
+   * Resolves false when there is no save or it cannot be applied.
+   */
+  continue(): Promise<boolean>;
 }
 
 /** Runtime init: assemble core services + scene + loop around a resolved map. */
@@ -120,6 +138,10 @@ export function createGame(options: CreateGameOptions): Game {
   });
   const interpreter = new EventInterpreterClass({ state, bus, scene: sceneGraph });
 
+  // Title screen (task 21): the first session decision belongs to the player,
+  // so the silent auto-load must not fire before they pick New Game/Continue.
+  const autoLoad = options.titleScreen === true ? false : (options.autoLoad ?? true);
+
   const mapScene = new MapScene({
     map: options.map,
     renderer: options.renderer,
@@ -135,7 +157,7 @@ export function createGame(options: CreateGameOptions): Game {
     network: options.network ?? null,
     tilesets: options.tilesets,
     stepDuration: options.stepDuration,
-    autoLoad: options.autoLoad ?? true,
+    autoLoad,
   });
 
   const sceneManager = new SceneManager({ bus, state, logger }, { logger });
@@ -159,7 +181,41 @@ export function createGame(options: CreateGameOptions): Game {
   // player position/direction over. `currentScene` follows the swap so
   // `game.scene`/`save`/`load` always operate on the live map.
   let currentScene: MapScene = mapScene;
+  // Mirrors `currentScene`'s map document (MapScene.map is private to the
+  // class); transfer and continue keep it in sync for save-map comparisons.
+  let currentMapId: string = options.map.id;
   let transferInFlight = false;
+  // Shared by map transfers (task 14) and cross-map continue (task 21): build
+  // a playable scene for `nextMap` with auto-load off — the caller's position
+  // (transfer target / saved position) always wins over a stored save.
+  const buildNextScene = (
+    nextMap: MapData,
+    position: Vec2 | undefined,
+    direction: Direction | undefined,
+  ): MapScene => {
+    const nextGraph = SceneGraphClass.fromMap(nextMap, {
+      playerPosition: position,
+      playerDirection: direction,
+      playerSprite: options.playerSprite,
+    });
+    return new MapScene({
+      map: nextMap,
+      renderer: options.renderer,
+      canvas: options.canvas,
+      bus,
+      state,
+      sceneGraph: nextGraph,
+      interpreter: new EventInterpreterClass({ state, bus, scene: nextGraph }),
+      storage: options.storage,
+      logger,
+      uiRoot: options.root,
+      input: options.input,
+      network: options.network ?? null,
+      tilesets: options.tilesets,
+      stepDuration: options.stepDuration,
+      autoLoad: false,
+    });
+  };
   const handleTransfer = (event: TransferEvent): void => {
     const loader = options.loadMap;
     if (loader === undefined) {
@@ -175,32 +231,17 @@ export function createGame(options: CreateGameOptions): Game {
     transferInFlight = true;
     void loader(event.mapId)
       .then((nextMap) => {
-        const nextGraph = SceneGraphClass.fromMap(nextMap, {
-          playerPosition:
-            event.x !== undefined && event.y !== undefined ? { x: event.x, y: event.y } : undefined,
-          playerDirection: event.direction,
-          playerSprite: options.playerSprite,
-        });
-        const nextInterpreter = new EventInterpreterClass({ state, bus, scene: nextGraph });
-        const nextScene = new MapScene({
-          map: nextMap,
-          renderer: options.renderer,
-          canvas: options.canvas,
-          bus,
-          state,
-          sceneGraph: nextGraph,
-          interpreter: nextInterpreter,
-          storage: options.storage,
-          logger,
-          uiRoot: options.root,
-          input: options.input,
-          network: options.network ?? null,
-          tilesets: options.tilesets,
-          stepDuration: options.stepDuration,
-          autoLoad: false, // the transfer position wins — don't overwrite with a save
-        });
+        const nextScene = buildNextScene(
+          nextMap,
+          event.x !== undefined && event.y !== undefined ? { x: event.x, y: event.y } : undefined,
+          event.direction,
+        );
         currentScene = nextScene;
+        currentMapId = nextMap.id;
         sceneManager.change(nextScene);
+        // Autosave (task 21): progress persists at every map boundary, so the
+        // title screen's Continue has something meaningful to restore.
+        void nextScene.save();
         logger.info("game: transferred", { mapId: nextMap.id });
       })
       .catch((error) => {
@@ -211,6 +252,10 @@ export function createGame(options: CreateGameOptions): Game {
       });
   };
   bus.on("transfer", handleTransfer);
+
+  // Title screen handle (task 21): null unless `titleScreen` is on; attached
+  // after the game literal below so its callbacks can close over `game`.
+  let title: TitleScreenHandle | null = null;
 
   const game: Game = {
     bus,
@@ -223,6 +268,9 @@ export function createGame(options: CreateGameOptions): Game {
     logger,
     network: options.network ?? null,
     loop,
+    get title(): TitleScreenHandle | null {
+      return title;
+    },
 
     start(): boolean {
       if (running) {
@@ -273,7 +321,62 @@ export function createGame(options: CreateGameOptions): Game {
     async load(): Promise<boolean> {
       return currentScene.load();
     },
+
+    async continue(): Promise<boolean> {
+      let data: SaveData | null = null;
+      try {
+        data = await options.storage.load();
+      } catch (error) {
+        logger.warn("game: continue save read failed", { error: String(error) });
+        return false;
+      }
+      if (data === null) {
+        logger.info("game: continue requested but no save exists");
+        return false;
+      }
+      if (data.mapId === currentMapId) {
+        return currentScene.load();
+      }
+      const loader = options.loadMap;
+      if (loader === undefined) {
+        logger.warn("game: continue needs a map loader for a cross-map save", {
+          saveMap: data.mapId,
+        });
+        return false;
+      }
+      try {
+        const nextMap = await loader(data.mapId);
+        const nextScene = buildNextScene(
+          nextMap,
+          { x: data.player.x, y: data.player.y },
+          data.player.direction,
+        );
+        currentScene = nextScene;
+        currentMapId = nextMap.id;
+        sceneManager.change(nextScene);
+        logger.info("game: continued on the saved map", { mapId: nextMap.id });
+        return nextScene.load();
+      } catch (error) {
+        logger.error("game: continue failed", { saveMap: data.mapId, error: String(error) });
+        return false;
+      }
+    },
   };
+
+  if (options.titleScreen === true) {
+    title = showTitleScreen({
+      storage: options.storage,
+      logger,
+      root: options.root ?? null,
+      onNewGame: () => {
+        game.start();
+      },
+      onContinue: async () => {
+        game.start();
+        return game.continue();
+      },
+    });
+  }
 
   return game;
 }

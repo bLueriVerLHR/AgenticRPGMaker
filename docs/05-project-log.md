@@ -5,6 +5,32 @@ Date format: `YYYY-MM-DD`.
 
 ---
 
+## 2026-09-01 — Task 21: title screen — New Game / Continue, cross-map restore, autosave
+
+Owner addition to the chapter-2 effort ("开始屏幕可以开始新的游戏或者继续已有的
+游戏"), landed first so the quest E2E boots through it once
+([task doc](./task/21-title-screen-continue.md), discussion in
+[2026-09-01-quest-chapter-2.md](./discussion/2026-09-01-quest-chapter-2.md)):
+
+- **Title screen** (`title-screen.ts`, new; `BootOptions.titleScreen`, default
+  false): DOM New Game / Continue overlay attached as `Game.title`; Continue
+  stays disabled until a storage read finds a save. The handle is drivable
+  headlessly (`choose()`), so the flow is unit-tested without a browser; the
+  www entry enables it for single-player sessions only (no `?server=`), so
+  the multiplayer smoke boots straight into the game.
+- **Cross-map continue** (`game.continue()`): a save made on another map now
+  swaps the playable scene through the task-17 loader seam (the transfer path's
+  scene construction extracted into a shared `buildNextScene`), then applies
+  the save there — previously same-map saves only.
+- **Autosave on transfer:** every successful map transfer saves automatically,
+  giving Continue real progress to restore (manual S/L keys unchanged).
+- **Quest E2E** grew the title prologue (fresh profile → Continue disabled →
+  New Game) and a mid-quest reload → Continue round-trip that restores the cave
+  session across maps (save on the cave, boot map the village) — **42/42**.
+  Baseline E2E hardened against the pre-existing reload race (auto-load
+  applies after the HUD mounts): still **21/21**. Multiplayer smoke **13/13**
+  (unaffected by design); unit 300 green ×2; ctest 41/41.
+
 ## 2026-08-31 — Task 19: interaction follows the body — patrol + talk is deterministic
 
 Owner-selected next phase after the vertical slice (the task-18 finding became a

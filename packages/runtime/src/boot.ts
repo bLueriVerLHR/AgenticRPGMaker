@@ -68,6 +68,14 @@ export interface BootOptions {
   /** Auto-load the latest save on boot. Default true. */
   autoLoad?: boolean;
   /**
+   * Show the title screen (task 21) — a New Game / Continue overlay — instead
+   * of starting gameplay immediately. Default false: boot starts straight into
+   * the game (existing behavior, including silent auto-load). The www entry
+   * enables it for single-player sessions only, so the multiplayer smoke keeps
+   * booting directly.
+   */
+  titleScreen?: boolean;
+  /**
    * Loader for `transfer` targets (tasks 14/17): resolves a map id to a map
    * document. Omitted ⇒ transfers log a warning and are ignored. The www
    * entry injects a bundle-backed loader (all manifest maps preloaded), so
@@ -95,9 +103,11 @@ export interface BootResult {
 }
 
 /**
- * Run the full boot sequence and return the started `Game`.
+ * Run the full boot sequence and return the `Game`.
  * Resolves with the game; rejects only when the map cannot load or no
- * renderer backend exists at all (unrecoverable).
+ * renderer backend exists at all (unrecoverable). With `titleScreen` the
+ * game is returned *not started* — the loop starts on the player's
+ * New Game / Continue choice (task 21); otherwise the game is started.
  */
 export async function boot(options: BootOptions): Promise<Game> {
   const logger = options.logger ?? new LoggerClass({ level: options.logLevel });
@@ -139,12 +149,15 @@ export async function boot(options: BootOptions): Promise<Game> {
     playerPosition: options.playerPosition,
     playerDirection: options.playerDirection,
     autoLoad: options.autoLoad ?? true,
+    titleScreen: options.titleScreen,
     tilesets: options.tilesets,
     loadMap: options.loadMap,
     loop: options.loop,
   });
 
-  game.start();
+  if (options.titleScreen !== true) {
+    game.start();
+  }
   return game;
 }
 

@@ -260,7 +260,20 @@ async function main() {
       timeoutMs: 10000,
       label: "HUD after reload",
     });
-    const restored = await hudPosition(page);
+    // Auto-load applies asynchronously AFTER the HUD mounts — wait for the
+    // restored position instead of reading it once (race-safe).
+    let restored = null;
+    try {
+      restored = await waitFor(
+        async () => {
+          const pos = await hudPosition(page);
+          return pos === "3,2" ? pos : null;
+        },
+        { timeoutMs: 5000, label: "restored position 3,2" },
+      );
+    } catch {
+      restored = await hudPosition(page);
+    }
     report(
       "reload → restore state",
       restored === "3,2" ? "PASS" : "FAIL",

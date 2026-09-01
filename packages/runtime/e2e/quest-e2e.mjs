@@ -4,16 +4,19 @@
  * Serves the prebuilt `www/` folder (the shipped artifact) and walks "The Lost
  * Shipment" end to end in a real browser:
  *
- *   1. boot www → HUD visible, initial map = Riverside Village
+ *   1. boot www → title screen (task 21): Continue disabled on a fresh
+ *      profile → New Game → HUD visible, initial map = Riverside Village
  *   2. talk to Elder Rowan → quest started (switch flips via dialogue)
  *   3. North Gate transfer → Old Forest Road (boot loadMap seam, task 17)
  *   4. talk to the patrolling Road Slime → showChoices → answer "Flee past it"
  *      (choice UI + variable write, task 16)
- *   5. Cave Mouth transfer → Whisper Cave
- *   6. find the Sealed Crate → sw_crate_found flips
- *   7. walk back: Cave → Forest → Village (transfers both directions, state
+ *   5. Cave Mouth transfer → Whisper Cave (transfer autosave, task 21)
+ *   6. reload → title screen (Continue enabled) → Continue restores the cave
+ *      session across maps (save on the cave, boot map is the village)
+ *   7. find the Sealed Crate → sw_crate_found flips
+ *   8. walk back: Cave → Forest → Village (transfers both directions, state
  *      carried across maps)
- *   8. talk to the elder → reward page (+25 gold, sw_quest_done), and a second
+ *   9. talk to the elder → reward page (+25 gold, sw_quest_done), and a second
  *      talk hits the quest-done page (first-match page selection)
  *
  * The www folder must exist (pnpm build:www). If Playwright browsers are not
@@ -198,19 +201,28 @@ async function main() {
   page.on("pageerror", (err) => console.error(`  [pageerror] ${err.message}`));
 
   try {
-    // 1. Boot the shipped www build.
+    // 1. Boot the shipped www build → title screen (task 21), then New Game.
     await page.goto(BASE_URL, { waitUntil: "load" });
+    await waitFor(async () => (await page.locator('[data-testid="title-screen"]').count()) > 0, {
+      timeoutMs: 10000,
+      label: "title screen (boot)",
+    });
+    const continueDisabled = await page.locator('[data-testid="title-continue"]').isDisabled();
+    report(
+      "boot www → title (Continue disabled on a fresh profile)",
+      continueDisabled ? "PASS" : "FAIL",
+    );
+    await page.locator('[data-testid="title-new-game"]').click();
     await waitFor(async () => (await page.locator('[data-testid="hud"]').count()) > 0, {
       timeoutMs: 10000,
-      label: "HUD (boot)",
+      label: "HUD (New Game)",
     });
     await page.mouse.click(360, 280); // focus so keyboard reaches the game
-    const status = (await page.locator('[data-testid="boot-status"]').textContent()) ?? "";
     const mapId = await currentMap(page);
     report(
-      "boot www → village",
-      mapId === "map_quest_village" && status.includes("Ready") ? "PASS" : "FAIL",
-      `status=${status.trim()}, map=${String(mapId)}`,
+      "title: New Game → village",
+      mapId === "map_quest_village" ? "PASS" : "FAIL",
+      `map=${String(mapId)}`,
     );
 
     // 2. Elder Rowan at (3,4): spawn (1,2) → right right → (3,2), down → (3,3), face down, talk.
@@ -320,6 +332,44 @@ async function main() {
       throw new Error("transfer");
     }
 
+    // 5.5. Reload mid-quest (task 21): the cave arrival autosaved, so after a
+    // reload the title screen offers Continue — and the save is cross-map
+    // (made on the cave, boot map is the village).
+    await page.reload({ waitUntil: "load" });
+    await waitFor(async () => (await page.locator('[data-testid="title-screen"]').count()) > 0, {
+      timeoutMs: 10000,
+      label: "title screen (reload)",
+    });
+    const continueEnabled = !(await page.locator('[data-testid="title-continue"]').isDisabled());
+    report("reload → title (Continue enabled by autosave)", continueEnabled ? "PASS" : "FAIL");
+    await page.locator('[data-testid="title-continue"]').click();
+    await waitFor(async () => (await page.locator('[data-testid="hud"]').count()) > 0, {
+      timeoutMs: 10000,
+      label: "HUD (Continue)",
+    });
+    await page.mouse.click(360, 280); // re-focus after the overlay is gone
+    // The click handler applies the save asynchronously (start → swap →
+    // load), so wait for the restored cave session instead of reading once.
+    let restoredMap = null;
+    let restoredPos = null;
+    try {
+      await waitFor(
+        async () =>
+          (await currentMap(page)) === "map_quest_cave" && (await hudPosition(page)) === "6,7",
+        { timeoutMs: 8000, label: "cave session restored" },
+      );
+      restoredMap = "map_quest_cave";
+      restoredPos = "6,7";
+    } catch {
+      restoredMap = await currentMap(page);
+      restoredPos = await hudPosition(page);
+    }
+    report(
+      "continue → cave session restored (cross-map)",
+      restoredMap === "map_quest_cave" && restoredPos === "6,7" ? "PASS" : "FAIL",
+      `map=${String(restoredMap)}, pos=${String(restoredPos)} (expected cave, 6,7)`,
+    );
+
     // 6. Crate at (3,2): (6,7) → up×4 → (6,3) → left×3 → (3,3), face up, talk.
     if ((await walkTo(page, "ArrowUp", 4, "6,3", "walk to (6,3)")) === false)
       throw new Error("walk");
@@ -339,7 +389,7 @@ async function main() {
     await page.keyboard.press("KeyZ");
     await sleep(200);
 
-    // 7. Exit: back to (6,7), face down at the exit (6,8), transfer → forest (12,2).
+    // 8. Exit: back to (6,7), face down at the exit (6,8), transfer → forest (12,2).
     if ((await walkTo(page, "ArrowRight", 3, "6,3", "walk to (6,3)")) === false)
       throw new Error("walk");
     if ((await walkTo(page, "ArrowDown", 4, "6,7", "walk to (6,7)")) === false)
@@ -352,7 +402,7 @@ async function main() {
       throw new Error("transfer");
     }
 
-    // 8. Return: row 2 west, col-7 leg south, then row 5 → col 6 south.
+    // 9. Return: row 2 west, col-7 leg south, then row 5 → col 6 south.
     if ((await walkTo(page, "ArrowLeft", 5, "7,2", "walk to (7,2)")) === false)
       throw new Error("walk");
     if ((await walkTo(page, "ArrowDown", 3, "7,5", "walk to (7,5)")) === false) {
@@ -371,7 +421,7 @@ async function main() {
       throw new Error("transfer");
     }
 
-    // 9. Reward: (5,2) → left left → (3,2), down → (3,3), talk → reward, then done page.
+    // 10. Reward: (5,2) → left left → (3,2), down → (3,3), talk → reward, then done page.
     if ((await walkTo(page, "ArrowLeft", 2, "3,2", "walk to (3,2)")) === false)
       throw new Error("walk");
     if ((await walkTo(page, "ArrowDown", 1, "3,3", "walk to (3,3)")) === false)

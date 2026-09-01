@@ -112,3 +112,7 @@ export { boot } from "./boot.js";
 export type { BootOptions, BootResult, NetworkOptions } from "./boot.js";
 export { createGame } from "./game.js";
 export type { CreateGameOptions, Game } from "./game.js";
+
+// Title screen: New Game / Continue (task 21).
+export { showTitleScreen } from "./title-screen.js";
+export type { TitleChoice, TitleScreenHandle, TitleScreenOptions } from "./title-screen.js";

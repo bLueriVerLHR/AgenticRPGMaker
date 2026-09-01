@@ -148,6 +148,10 @@ async function start(): Promise<void> {
     playerName,
     playerPosition: { x: 1, y: 2 },
     playerDirection: "down",
+    // Title screen (task 21): single-player sessions open on New Game /
+    // Continue; multiplayer keeps booting straight into the game so the
+    // two-context smoke is unaffected.
+    titleScreen: serverUrl === undefined,
     // Transfer loader (tasks 14/17): every manifest map is already fetched and
     // validated, so a transfer resolves in-memory — multi-map games work in
     // the deployed build with no extra requests.
@@ -159,8 +163,16 @@ async function start(): Promise<void> {
     },
   });
   (window as unknown as WindowWithGame).__game = game;
-  setStatus(`Ready — ${game.scene.map.name} (${game.scene.backendLabel})`);
-  logger.info("www: ready", { map: game.scene.map.id, backend: game.scene.backendLabel });
+  setStatus(
+    game.title !== null
+      ? "Pick New Game or Continue"
+      : `Ready — ${game.scene.map.name} (${game.scene.backendLabel})`,
+  );
+  logger.info("www: ready", {
+    map: game.scene.map.id,
+    backend: game.scene.backendLabel,
+    titleScreen: game.title !== null,
+  });
 }
 
 void start().catch((error: unknown) => {

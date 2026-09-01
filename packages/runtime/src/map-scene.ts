@@ -157,6 +157,7 @@ export class MapScene implements Scene {
   private input: Input | null = null;
   private step: Step | null = null;
   private lastStepDir: InputDirection | null = null;
+  private transferEventIds: string[] = [];
   private repeatAccum = 0;
   private dialogueQueue: string[] = [];
   private dialogueEl: HTMLElement | null = null;
@@ -199,6 +200,13 @@ export class MapScene implements Scene {
       return;
     }
     this.entered = true;
+    // Door markers (task 22): events whose pages contain a transfer — the
+    // map is static during a scene life, so resolve the list once.
+    this.transferEventIds = this.map.events
+      .filter((event) =>
+        event.pages.some((page) => page.commands.some((line) => line.cmd === "transfer")),
+      )
+      .map((event) => event.id);
     // Resolve the entity lists once (task 12): map events are static during a
     // scene life, so sprite/behavior lookups are cached instead of re-walking
     // the whole tree every frame.
@@ -388,6 +396,27 @@ export class MapScene implements Scene {
   /** True while a choice list is showing (task 16). */
   get isChoiceOpen(): boolean {
     return this.pendingChoice !== null;
+  }
+
+  /**
+   * The faced interactable's event id (task 22 affordance hint) — null while
+   * a dialogue/choice is open or the faced event has no active page. Same
+   * task-19 live-body resolution as interaction itself.
+   */
+  get interactionHintEventId(): string | null {
+    if (this.isDialogueOpen || this.isChoiceOpen) {
+      return null;
+    }
+    const event = this.facedInteractable();
+    if (event === null) {
+      return null;
+    }
+    return this.interpreter.selectPage(event.pages) !== null ? event.id : null;
+  }
+
+  /** Ids of events whose pages contain a transfer (task 22 door markers). */
+  get transferTileEventIds(): readonly string[] {
+    return this.transferEventIds;
   }
 
   /** The open choice prompt (variable/options/selected), or null (headless tests). */
@@ -742,14 +771,18 @@ export class MapScene implements Scene {
 
   /**
    * Movement is edge-triggered: one step per direction press (keyboard key,
-   * D-pad tap). Holding a direction repeats steps after `repeatDelay` seconds
-   * so hold-to-walk also works (grid/tile movement, Q6).
+   * D-pad tap). Holding a direction repeats steps so hold-to-walk works
+   * (grid/tile movement, Q6). Task 22 feel fix: the repeat delay gates only
+   * the FIRST repeat of a held direction (tap/hold disambiguation) and time
+   * keeps accumulating while a step animates — after that, steps chain
+   * back-to-back at `stepDuration` cadence. Before, every held step paid the
+   * full 0.25 s delay again, making held walking visibly stuttery.
    */
   private handleMovement(dt: number): void {
-    if (this.isDialogueOpen || this.step !== null) {
+    if (this.isDialogueOpen) {
       return;
     }
-    const edge = this.consumeDirectionEdge();
+    const edge = this.step === null ? this.consumeDirectionEdge() : null;
     if (edge !== null) {
       this.lastStepDir = edge;
       this.repeatAccum = 0;
@@ -757,19 +790,25 @@ export class MapScene implements Scene {
       return;
     }
     const held = this.currentDirection();
-    if (held !== null && held === this.lastStepDir && this.repeatAccum >= REPEAT_DELAY_SECONDS) {
-      this.repeatAccum = 0;
-      this.tryStep(held);
-      return;
-    }
-    if (held !== null && held !== this.lastStepDir) {
-      this.repeatAccum = 0;
-    }
-    if (held !== null) {
-      this.repeatAccum += dt;
-    } else {
+    if (held === null) {
       this.repeatAccum = 0;
       this.lastStepDir = null;
+      return;
+    }
+    if (held !== this.lastStepDir) {
+      // Direction changed while held (e.g. right → down with both keys down):
+      // start moving in the new direction immediately.
+      this.lastStepDir = held;
+      this.repeatAccum = 0;
+      if (this.step === null) {
+        this.tryStep(held);
+      }
+      return;
+    }
+    // Same direction still held — accumulate through the step animation too.
+    this.repeatAccum += dt;
+    if (this.repeatAccum >= REPEAT_DELAY_SECONDS && this.step === null) {
+      this.tryStep(held);
     }
   }
 
@@ -876,9 +915,31 @@ export class MapScene implements Scene {
   }
 
   private tryInteract(): boolean {
+    const event = this.facedInteractable();
+    if (event === null) {
+      return false;
+    }
+    const result = this.interpreter.runEvent(event, { actorId: event.id });
+    if (result.ran) {
+      this.logger.info("interaction: event ran", {
+        event: event.id,
+        page: result.page !== null ? "selected" : "none",
+        effects: result.effects.length,
+      });
+      return true;
+    }
+    this.logger.debug("interaction: event has no active page", { event: event.id });
+    return true;
+  }
+
+  /**
+   * The event the player is facing and could interact with, if any: first
+   * event (authoring order) whose live body overlaps the faced tile.
+   */
+  private facedInteractable(): MapEvent | null {
     const transform = this.playerTransform;
     if (transform === null) {
-      return false;
+      return null;
     }
     const vector = DIRECTION_VECTORS[transform.direction as InputDirection];
     const facing = { x: Math.round(transform.x) + vector.x, y: Math.round(transform.y) + vector.y };
@@ -891,22 +952,11 @@ export class MapScene implements Scene {
       // doors, crates) never move: their body stays at the authored tile, which
       // is byte-for-byte the previous exact-tile behavior.
       const body = this.eventBodyAABB(event);
-      if (!aabbsOverlapStrict({ x: facing.x, y: facing.y, width: 1, height: 1 }, body)) {
-        continue;
+      if (aabbsOverlapStrict({ x: facing.x, y: facing.y, width: 1, height: 1 }, body)) {
+        return event;
       }
-      const result = this.interpreter.runEvent(event, { actorId: event.id });
-      if (result.ran) {
-        this.logger.info("interaction: event ran", {
-          event: event.id,
-          page: result.page !== null ? "selected" : "none",
-          effects: result.effects.length,
-        });
-        return true;
-      }
-      this.logger.debug("interaction: event has no active page", { event: event.id });
-      return true;
     }
-    return false;
+    return null;
   }
 
   /**
@@ -971,7 +1021,7 @@ export class MapScene implements Scene {
 
     renderer.beginFrame();
     const viewport = this.computeCameraViewport(mapPx);
-    renderer.setCamera(viewport, 1);
+    renderer.setCamera(viewport, viewport.zoom);
 
     // Ground.
     renderer.drawRect(0, 0, mapPx.x, mapPx.y, "#22332a");
@@ -990,8 +1040,18 @@ export class MapScene implements Scene {
       }
     }
 
-    // Collider tiles (visible debug aid).
+    // Collider tiles (readable "can't walk here", task 22).
     this.drawColliders(renderer, viewport, tileSize);
+
+    // Transfer tiles (task 22): mark doors/gates so exits are findable.
+    for (const eventId of this.transferEventIds) {
+      const entity = this.sceneGraph.getEntityById(eventId);
+      const transform = entity?.getComponent("transform") ?? null;
+      if (transform === null) {
+        continue;
+      }
+      this.drawTransferMarker(renderer, Math.round(transform.x), Math.round(transform.y), tileSize);
+    }
 
     // NPCs.
     this.drawNpcs(renderer, tileSize);
@@ -1011,7 +1071,47 @@ export class MapScene implements Scene {
     renderer.drawRect(px, py, tileSize, tileSize, "#4caf50");
     renderer.drawRect(px + 2, py - 2, tileSize - 4, 2, "#c8e6c9");
 
+    // Interaction affordance (task 22): a bobbing "!" above the faced
+    // interactable, suppressed while a dialogue or choice is open.
+    const hintEventId = this.interactionHintEventId;
+    if (hintEventId !== null) {
+      const entity = this.sceneGraph.getEntityById(hintEventId);
+      const transform = entity?.getComponent("transform") ?? null;
+      if (transform !== null) {
+        const bob = 2 + Math.sin(Date.now() / 180) * 2;
+        renderer.drawText(
+          "!",
+          transform.x * tileSize + tileSize / 2,
+          transform.y * tileSize - 4 + bob,
+          { color: "#ffecb3", font: "bold 14px system-ui, sans-serif", align: "center" },
+        );
+      }
+    }
+
     renderer.endFrame();
+  }
+
+  /**
+   * Corner-bracket frame on a transfer tile (task 22): "this tile takes you
+   * somewhere". Pulses gently so it reads as an affordance, not terrain.
+   */
+  private drawTransferMarker(renderer: Renderer, tx: number, ty: number, tileSize: number): void {
+    const pulse = 0.55 + 0.35 * Math.sin(Date.now() / 300);
+    const inset = 2;
+    const len = Math.max(3, Math.floor(tileSize / 4));
+    const x = tx * tileSize + inset;
+    const y = ty * tileSize + inset;
+    const s = tileSize - inset * 2 - 1;
+    const color = `rgba(255, 213, 79, ${pulse.toFixed(3)})`;
+    // Four corner brackets.
+    renderer.drawRect(x, y, len, 2, color);
+    renderer.drawRect(x, y, 2, len, color);
+    renderer.drawRect(x + s - len, y, len, 2, color);
+    renderer.drawRect(x + s - 1, y, 2, len, color);
+    renderer.drawRect(x, y + s - 1, len, 2, color);
+    renderer.drawRect(x, y + s - len, 2, len, color);
+    renderer.drawRect(x + s - len, y + s - 1, len, 2, color);
+    renderer.drawRect(x + s - 1, y + s - len, 2, len, color);
   }
 
   private computeCameraViewport(mapPx: Vec2): {
@@ -1019,16 +1119,29 @@ export class MapScene implements Scene {
     y: number;
     width: number;
     height: number;
+    zoom: number;
   } {
-    const width = this.canvas.width > 0 ? this.canvas.width : 320;
-    const height = this.canvas.height > 0 ? this.canvas.height : 240;
+    // Integer zoom keeps pixels crisp under `image-rendering: pixelated`
+    // (task 22): ~14 tiles visible vertically, clamped to a sane range. The
+    // viewport shrinks by the zoom factor; the center-on-player + clamp below
+    // is the camera follow.
+    const zoom = this.computeCameraZoom();
+    const width = (this.canvas.width > 0 ? this.canvas.width : 320) / zoom;
+    const height = (this.canvas.height > 0 ? this.canvas.height : 240) / zoom;
     const pos = this.renderPosition();
     const tileSize = this.map.tileSize;
     let x = pos.x * tileSize - width / 2;
     let y = pos.y * tileSize - height / 2;
     x = clampCamera(x, width, mapPx.x);
     y = clampCamera(y, height, mapPx.y);
-    return { x, y, width, height };
+    return { x, y, width, height, zoom };
+  }
+
+  /** Integer camera zoom from the backing-store height (task 22). */
+  private computeCameraZoom(): number {
+    const height = this.canvas.height > 0 ? this.canvas.height : 240;
+    const raw = Math.floor(height / (this.map.tileSize * 14));
+    return Math.min(16, Math.max(2, raw));
   }
 
   private drawColliders(
@@ -1043,7 +1156,19 @@ export class MapScene implements Scene {
     for (let ty = minY; ty < maxY; ty++) {
       for (let tx = minX; tx < maxX; tx++) {
         if (this.grid.isSolid(tx, ty)) {
-          renderer.drawRect(tx * tileSize, ty * tileSize, tileSize, tileSize, "#1a2a1f");
+          // Readable "can't walk here" (task 22): a translucent dark fill so
+          // the terrain stays visible, plus a solid edge border for contrast.
+          renderer.drawRect(
+            tx * tileSize,
+            ty * tileSize,
+            tileSize,
+            tileSize,
+            "rgba(10, 14, 12, 0.55)",
+          );
+          renderer.drawRect(tx * tileSize, ty * tileSize, tileSize, 1, "#0a0e0c");
+          renderer.drawRect(tx * tileSize, ty * tileSize + tileSize - 1, tileSize, 1, "#0a0e0c");
+          renderer.drawRect(tx * tileSize, ty * tileSize, 1, tileSize, "#0a0e0c");
+          renderer.drawRect(tx * tileSize + tileSize - 1, ty * tileSize, 1, tileSize, "#0a0e0c");
         }
       }
     }

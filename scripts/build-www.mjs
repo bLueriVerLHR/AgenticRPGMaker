@@ -104,21 +104,47 @@ function hslToRgb(h, s, l) {
   return [Math.round((r + m) * 255), Math.round((g + m) * 255), Math.round((b + m) * 255)];
 }
 
-function tileColor(index) {
-  const hue = (index * 47) % 360;
-  const sat = 50 + (index % 4) * 8;
-  const light = 40 + (index % 5) * 9;
-  return hslToRgb(hue, sat / 100, light / 100);
-}
-
-function tileEdgeColor(index) {
-  const hue = (index * 47) % 360;
-  return hslToRgb(hue, 0.55, 0.25);
-}
-
-function tileDotColor(index) {
-  const hue = (index * 47) % 360;
-  return hslToRgb(hue, 0.7, 0.75);
+/**
+ * Semantic placeholder palette (task 22): the sample maps' tile-index
+ * convention gets readable terrain — 1 grass, 2 path, 3 water, 4 stone —
+ * instead of the previous hue-scrambled fills where nothing could be told
+ * apart. Remaining tiles keep a deterministic, harmonious pastel variety.
+ * x/y are in-tile coordinates (0..TILE_SIZE-1).
+ */
+function tilePaint(index, x, y) {
+  switch (index) {
+    case 1: {
+      // Grass: two-tone 8px checker.
+      return ((x >> 3) + (y >> 3)) % 2 === 0 ? [63, 110, 63] : [72, 122, 70];
+    }
+    case 2: {
+      // Path: warm tan with sparse darker speckles.
+      if ((x * 7 + y * 13) % 23 === 0) {
+        return [148, 122, 78];
+      }
+      return [186, 160, 108];
+    }
+    case 3: {
+      // Water: blue with lighter wave dashes.
+      if (y % 4 === 1 && (x + ((y / 4) | 0) * 3) % 8 < 5) {
+        return [96, 148, 196];
+      }
+      return [61, 105, 156];
+    }
+    case 4: {
+      // Stone: brick pattern with darker mortar.
+      const row = (y / 4) | 0;
+      if (y % 4 === 0 || (x + (row % 2) * 4) % 8 === 0) {
+        return [90, 92, 96];
+      }
+      return [125, 127, 131];
+    }
+    default: {
+      const hue = ((index - 5) * 36) % 360;
+      const light = 0.52 + ((index % 3) - 1) * 0.05;
+      return hslToRgb(hue / 360, 0.32, light);
+    }
+  }
 }
 
 /** Paint the placeholder atlas into an RGBA pixel buffer (128x128). */
@@ -140,21 +166,16 @@ function paintPlaceholderAtlas() {
       const index = row * COLUMNS + col + 1; // atlas cell → tile index (0 = empty)
       const x0 = col * TILE_SIZE;
       const y0 = row * TILE_SIZE;
-      const fill = tileColor(index);
-      const edge = tileEdgeColor(index);
-      const dot = tileDotColor(index);
-      const dotRadius = 2 + (index % 4);
       for (let y = 0; y < TILE_SIZE; y++) {
         for (let x = 0; x < TILE_SIZE; x++) {
-          let color = fill;
-          if (y < 2 || x < 2) {
-            color = edge; // inner pattern: top + left edge stripe
-          } else {
-            const dx = x - TILE_SIZE / 2;
-            const dy = y - TILE_SIZE / 2;
-            if (dx * dx + dy * dy <= dotRadius * dotRadius) {
-              color = dot; // center dot
-            }
+          let color = tilePaint(index, x, y);
+          if (x === TILE_SIZE - 1 || y === TILE_SIZE - 1) {
+            // Subtle tile-boundary shade so the grid reads at any zoom.
+            color = [
+              Math.round(color[0] * 0.82),
+              Math.round(color[1] * 0.82),
+              Math.round(color[2] * 0.82),
+            ];
           }
           setPx(x0 + x, y0 + y, color);
         }

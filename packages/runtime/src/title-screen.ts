@@ -47,8 +47,11 @@ export interface TitleScreenHandle {
 }
 
 const BUTTON_STYLE = [
+  "width:100%",
+  "box-sizing:border-box",
   "padding:0.55rem 1.2rem",
   "font:inherit",
+  "text-align:center",
   "background:#1d2433",
   "color:#fff",
   "border:1px solid #667",
@@ -86,6 +89,9 @@ export function showTitleScreen(options: TitleScreenOptions): TitleScreenHandle 
       return;
     }
     continueButton.disabled = !hasSave;
+    // Task 22: uniform buttons — same geometry, and the dimmed state says
+    // why instead of looking like a different kind of element.
+    continueButton.textContent = hasSave ? "Continue" : "Continue (no save)";
     continueButton.style.cssText = hasSave ? BUTTON_STYLE : `${BUTTON_STYLE};${DISABLED_STYLE}`;
   };
 
@@ -120,7 +126,14 @@ export function showTitleScreen(options: TitleScreenOptions): TitleScreenHandle 
     overlay.appendChild(heading);
 
     const menu = document.createElement("div");
-    menu.style.cssText = "display:flex;flex-direction:column;gap:0.6rem;min-width:12rem";
+    // Task 22: a fixed-width column so both buttons are pixel-identical in
+    // size regardless of label length.
+    menu.style.cssText = [
+      "display:flex",
+      "flex-direction:column",
+      "gap:0.6rem",
+      "width:16rem",
+    ].join(";");
 
     newButton = document.createElement("button");
     newButton.dataset.testid = "title-new-game";

@@ -238,9 +238,27 @@ async function main() {
       throw new Error("walk");
     if ((await faceOnly(page, "ArrowDown", "3,3", "face the elder at (3,4)")) === false)
       throw new Error("face");
+    // Task 22: the faced interactable is advertised before you press Z.
+    const hintBefore = await page.evaluate(
+      () => globalThis.window.__game?.scene?.interactionHintEventId ?? null,
+    );
+    report(
+      "interaction hint on the faced elder",
+      hintBefore === "evt_elder" ? "PASS" : "FAIL",
+      String(hintBefore),
+    );
     if ((await talk(page, "autumn shipment", "elder: quest text")) === false) {
       throw new Error("elder talk");
     }
+    const hintDuring = await page.evaluate(() => {
+      const value = globalThis.window.__game?.scene?.interactionHintEventId;
+      return value === undefined ? "unset" : value;
+    });
+    report(
+      "hint suppressed while talking",
+      hintDuring === null ? "PASS" : "FAIL",
+      String(hintDuring),
+    );
     await page.keyboard.press("KeyZ"); // close the quest dialogue
     await sleep(200);
 
@@ -487,6 +505,15 @@ async function main() {
     if ((await faceOnly(page, "ArrowRight", "10,4", "face the east gate at (11,4)")) === false) {
       throw new Error("face");
     }
+    // Task 22: transfer tiles carry a visible door marker.
+    const markers = await page.evaluate(
+      () => globalThis.window.__game?.scene?.transferTileEventIds ?? [],
+    );
+    report(
+      "door marker on the east gate",
+      Array.isArray(markers) && markers.includes("evt_village_east") ? "PASS" : "FAIL",
+      JSON.stringify(markers),
+    );
     await page.keyboard.press("KeyZ");
     if ((await expectMap(page, "map_quest_river", "transfer: village → river")) === false) {
       throw new Error("transfer");

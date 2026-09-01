@@ -5,6 +5,41 @@ Date format: `YYYY-MM-DD`.
 
 ---
 
+## 2026-09-01 — Task 22: playability pass — zoom + camera follow, smooth walking, world readability
+
+Owner play-test feedback ("东西看起来都太小了…移动卡顿太严重了", recorded
+verbatim with root-cause analysis in
+[discussion/2026-09-01-playability-feedback.md](./discussion/2026-09-01-playability-feedback.md)),
+four code-level causes fixed in one pass
+([task doc](./task/22-playability-pass.md)):
+
+- **Zoom + follow:** the camera rendered 1:1 (a 16 px tile ≈ 8 CSS px on
+  HiDPI). `computeCameraViewport` now computes an integer zoom from the
+  backing-store height (~14 tiles visible vertically, clamp [2, 16]), shrinks
+  the viewport by it, and passes the zoom to the renderer — the existing
+  center-on-player + map-clamp becomes real camera follow. Pixels stay crisp
+  (`image-rendering: pixelated` + integer scale).
+- **Movement feel:** `REPEAT_DELAY_SECONDS` (0.25 s) gated *every* held step —
+  ~2.5 tiles/s with a stutter between each. The delay now gates only the first
+  repeat (tap/hold disambiguation); held walking chains steps back-to-back at
+  `stepDuration` (0.15 s/tile ≈ 6.7 tiles/s). Held direction changes also step
+  immediately instead of stalling until a new keypress.
+- **World readability:** semantic placeholder atlas (tile-index convention:
+  grass two-tone / tan path / water with waves / stone brickwork, plus a
+  tile-boundary shade) replaces the hue-scrambled dots; blocked tiles render
+  as translucent dark fill + solid edge borders; the faced interactable gets a
+  bobbing "!" (suppressed while talking); transfer tiles get pulsing
+  corner-bracket door markers. Hint and markers are observable via
+  `scene.interactionHintEventId` / `scene.transferTileEventIds` (unit-tested
+  headlessly; asserted in the browser E2E).
+- **Title screen:** both buttons share one fixed-width style; a disabled
+  Continue reads "Continue (no save)" so the dimmed state explains itself.
+
+Deferred on purpose (docs/temp/2026-09-01-playability-deferrals.md):
+window-resize re-zoom, real art assets, sprite outlines, non-integer zoom.
+Quest E2E **78/78** (hint + door-marker steps added); unit 308 green ×2;
+baseline E2E 21/21; multiplayer smoke 13/13; ctest 41/41.
+
 ## 2026-09-01 — Task 20: quest chapter 2 "The Ferryman's Ledger" — the slice grows a fourth map
 
 Owner-selected content extension (choice recorded in

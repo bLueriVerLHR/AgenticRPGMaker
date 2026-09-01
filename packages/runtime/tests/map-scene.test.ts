@@ -31,6 +31,7 @@ interface Harness {
   input: Input;
   storage: MemoryStorage;
   map: MapData;
+  renderer: StubRenderer;
   walks: Array<{ from: { x: number; y: number }; to: { x: number; y: number } }>;
   collides: Array<{ otherId: string; blocked: boolean }>;
   dialogues: string[];
@@ -54,9 +55,10 @@ function buildHarness(
   const interpreter = new EventInterpreter({ state, bus, scene: sceneGraph });
   const storage = new MemoryStorage();
   const input = new Input({ keyboard: false, virtualControls: false });
+  const renderer = new StubRenderer();
   const scene = new MapScene({
     map,
-    renderer: new StubRenderer(),
+    renderer,
     canvas: stubCanvas(),
     bus,
     state,
@@ -74,7 +76,7 @@ function buildHarness(
   bus.on("collide", (e) => collides.push({ otherId: e.otherId, blocked: e.blocked }));
   bus.on("dialogue", (e) => dialogues.push(e.text));
   scene.enter({ bus, state, logger: createNoopLogger() });
-  return { scene, bus, state, input, storage, map, walks, collides, dialogues };
+  return { scene, bus, state, input, storage, map, renderer, walks, collides, dialogues };
 }
 
 function waitForStep(scene: MapScene, dt = 0.2): void {
@@ -500,5 +502,114 @@ describe("MapScene remote players (network hook)", () => {
   it("renders remote players without crashing when network is null", () => {
     const { scene } = buildHarness();
     expect(() => scene.render(1)).not.toThrow();
+  });
+});
+
+describe("MapScene camera zoom + follow (task 22)", () => {
+  it("renders with an integer zoom and a viewport shrunk by it", () => {
+    const { scene, renderer } = buildHarness();
+    scene.render(1);
+    const cams = renderer.calls.filter((call) => call.method === "setCamera");
+    expect(cams.length).toBeGreaterThan(0);
+    const last = cams[cams.length - 1] as { method: "setCamera"; args: unknown[] };
+    const [viewport, zoom] = last.args as [{ width: number; height: number }, number];
+    expect(zoom).toBeGreaterThanOrEqual(2);
+    expect(Number.isInteger(zoom)).toBe(true);
+    // The viewport is the backing store divided by the zoom factor.
+    expect(viewport.width * zoom).toBeCloseTo(stubCanvas().width);
+    expect(viewport.height * zoom).toBeCloseTo(stubCanvas().height);
+  });
+
+  it("keeps the player centered and clamped to the map while it follows", () => {
+    // Row y=3 is a clear corridor (the wall is y=4, the NPC at (6,2)).
+    const { scene, renderer, input } = buildHarness({ playerX: 1, playerY: 3 });
+    input.pressDirection("right");
+    // Walk to x=6 (chained steps make tick-counting indeterminate).
+    for (let i = 0; i < 60 && scene.playerPosition.x < 6; i++) {
+      scene.update(0.05);
+    }
+    input.releaseDirection("right");
+    expect(scene.playerPosition).toEqual({ x: 6, y: 3 });
+    scene.render(1);
+    const cams = renderer.calls.filter((call) => call.method === "setCamera");
+    const last = cams[cams.length - 1] as { method: "setCamera"; args: unknown[] };
+    const [viewport] = last.args as [{ x: number; y: number; width: number }, number];
+    // Player px center 6*16=96; camera centers on it: 96 - 160/2 = 16, inside
+    // the clamp range [0, 192-160] — the camera moved with the player.
+    expect(viewport.x).toBe(16);
+    expect(viewport.y).toBeGreaterThanOrEqual(0);
+  });
+});
+
+describe("MapScene hold-to-walk cadence (task 22)", () => {
+  it("chains held steps at step cadence, not once per repeat delay", () => {
+    // Row y=3 is a clear corridor (the wall is y=4, the NPC at (6,2)).
+    const { scene, input, walks } = buildHarness({ playerX: 1, playerY: 3 });
+    input.pressDirection("right");
+    // Hold for 1.05s in 0.05s ticks. First repeat may wait out the 0.25s
+    // disambiguation delay, but from then on steps chain back-to-back:
+    // ≥6 walks in 1.05s (the old per-step delay produced only 3-4).
+    for (let i = 0; i < 21; i++) {
+      scene.update(0.05);
+    }
+    input.releaseDirection("right");
+    expect(walks.length).toBeGreaterThanOrEqual(6);
+    // Steps chained without gaps: consecutive from → to.
+    for (let i = 1; i < walks.length; i++) {
+      expect(walks[i]!.from).toEqual(walks[i - 1]!.to);
+    }
+  });
+
+  it("starts walking when the held direction changes without a new press", () => {
+    const { scene, input, walks } = buildHarness({ playerX: 5, playerY: 6 });
+    input.pressDirection("right");
+    waitForStep(scene);
+    expect(scene.playerPosition).toEqual({ x: 6, y: 6 });
+    input.pressDirection("down"); // second held key — no new "right" edge
+    waitForStep(scene);
+    expect(scene.playerPosition).toEqual({ x: 6, y: 7 });
+    expect(walks.some((w) => w.to.y === 7)).toBe(true);
+    input.releaseDirection("right");
+    input.releaseDirection("down");
+  });
+});
+
+describe("MapScene interaction hint + transfer markers (task 22)", () => {
+  it("reports the faced interactable and clears while talking", () => {
+    const { scene } = buildHarness({ playerX: 5, playerY: 2, playerDirection: "right" });
+    // The innkeeper stands at (6,2).
+    expect(scene.interactionHintEventId).toBe("evt_innkeeper");
+    scene.interact(); // opens the dialogue
+    expect(scene.interactionHintEventId).toBeNull();
+  });
+
+  it("returns null when nothing interactable is faced", () => {
+    const { scene } = buildHarness({ playerX: 1, playerY: 6, playerDirection: "up" });
+    // Facing an empty stretch of the wall row.
+    expect(scene.interactionHintEventId).toBeNull();
+  });
+
+  it("lists events with transfer pages as door markers", () => {
+    const base = fixtureMap();
+    const map: MapData = {
+      ...base,
+      events: [
+        ...base.events,
+        {
+          id: "evt_gate",
+          name: "Gate",
+          x: 11,
+          y: 1,
+          pages: [
+            {
+              condition: null,
+              commands: [{ cmd: "transfer", args: ["map_elsewhere", 1, 1, "up"] }],
+            },
+          ],
+        },
+      ],
+    };
+    const { scene } = buildHarness({ map });
+    expect(scene.transferTileEventIds).toEqual(["evt_gate"]);
   });
 });

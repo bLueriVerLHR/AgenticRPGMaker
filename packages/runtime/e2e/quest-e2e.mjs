@@ -1,5 +1,5 @@
 /**
- * AgenticRPGMaker — Vertical-slice quest E2E (task 18, D24 acceptance).
+ * AgenticRPGMaker — Vertical-slice quest E2E (tasks 18/20/21, D24 acceptance).
  *
  * Serves the prebuilt `www/` folder (the shipped artifact) and walks "The Lost
  * Shipment" end to end in a real browser:
@@ -16,8 +16,14 @@
  *   7. find the Sealed Crate → sw_crate_found flips
  *   8. walk back: Cave → Forest → Village (transfers both directions, state
  *      carried across maps)
- *   9. talk to the elder → reward page (+25 gold, sw_quest_done), and a second
- *      talk hits the quest-done page (first-match page selection)
+ *   9. talk to the elder → reward page (+25 gold, sw_quest_done)
+ *  10. chapter 2 (task 20): east gate sealed text → elder hook → east
+ *      transfer → Riverbank Landing
+ *  11. Old Pol: choice "Offer to work it off" → ledger + 20 coin on re-talk,
+ *      one-shot guard on third talk
+ *  12. patrolling Dock Worker talk (bounded retry, task 19) → west transfer
+ *  13. Herbalist Mira: remedy offer (gold gte 10) → buy (gold −10) → owned
+ *  14. elder: worked-branch thanks (ferry_choice eq 1), repeated on re-talk
  *
  * The www folder must exist (pnpm build:www). If Playwright browsers are not
  * installed the script skips gracefully and reports which steps did not run.
@@ -437,14 +443,222 @@ async function main() {
     }
     await page.keyboard.press("KeyZ");
     await sleep(200);
+
+    // 10. Chapter 2 (task 20). The second elder talk now hits the chapter-2
+    // hook page, not a thanks page. First: the east gate is still sealed
+    // (checked before the hook flips sw_ch2_started).
+    if ((await walkTo(page, "ArrowRight", 1, "4,3", "walk to (4,3)")) === false) {
+      throw new Error("walk");
+    }
+    if ((await walkTo(page, "ArrowDown", 1, "4,4", "walk to (4,4)")) === false) {
+      throw new Error("walk");
+    }
+    if ((await walkTo(page, "ArrowRight", 6, "10,4", "walk to (10,4)")) === false) {
+      throw new Error("walk");
+    }
+    if ((await faceOnly(page, "ArrowRight", "10,4", "face the east gate at (11,4)")) === false) {
+      throw new Error("face");
+    }
     if (
-      (await talk(
-        page,
-        "Rest now, courier. Riverside owes you a debt.",
-        "elder: quest-done page",
-      )) === false
+      (await talk(page, "flood wall still seals", "east gate: sealed before chapter 2")) === false
     ) {
-      throw new Error("done page");
+      throw new Error("sealed");
+    }
+    await page.keyboard.press("KeyZ");
+    await sleep(200);
+
+    // 11. Elder hook: back west along row 4 to (4,4), face the elder, talk.
+    if ((await walkTo(page, "ArrowLeft", 6, "4,4", "walk to (4,4)")) === false) {
+      throw new Error("walk");
+    }
+    if ((await faceOnly(page, "ArrowLeft", "4,4", "face the elder at (3,4)")) === false) {
+      throw new Error("face");
+    }
+    if ((await talk(page, "One more errand", "elder: chapter-2 hook (sw_ch2_started)")) === false) {
+      throw new Error("hook");
+    }
+    await page.keyboard.press("KeyZ");
+    await sleep(200);
+
+    // 12. East transfer: back to (10,4), face the gate, talk → Riverbank.
+    if ((await walkTo(page, "ArrowRight", 6, "10,4", "walk to (10,4)")) === false) {
+      throw new Error("walk");
+    }
+    if ((await faceOnly(page, "ArrowRight", "10,4", "face the east gate at (11,4)")) === false) {
+      throw new Error("face");
+    }
+    await page.keyboard.press("KeyZ");
+    if ((await expectMap(page, "map_quest_river", "transfer: village → river")) === false) {
+      throw new Error("transfer");
+    }
+
+    // 13. Old Pol at (8,3): row 4 east to (8,4), face up, ask → choices.
+    if ((await walkTo(page, "ArrowRight", 7, "8,4", "walk to (8,4)")) === false) {
+      throw new Error("walk");
+    }
+    if ((await faceOnly(page, "ArrowUp", "8,4", "face Old Pol at (8,3)")) === false) {
+      throw new Error("face");
+    }
+    await page.keyboard.press("KeyZ");
+    try {
+      await waitFor(
+        async () => {
+          const box = page.locator('[data-testid="choice-box"]');
+          return (await box.count()) > 0 && (await box.isVisible());
+        },
+        { timeoutMs: 4000, label: "Pol choice box" },
+      );
+      report("pol: choice box opens", "PASS", "Demand / Offer");
+    } catch (error) {
+      report("pol: choice box opens", "FAIL", error.message);
+      throw new Error("choice");
+    }
+    // Answer "Offer to work it off" (index 1): down then confirm.
+    await page.keyboard.press("ArrowDown");
+    await sleep(150);
+    await page.keyboard.press("KeyZ");
+    await sleep(200);
+    await page.keyboard.press("KeyZ"); // dismiss the ask dialogue
+    await sleep(200);
+
+    // 14. Re-talk: the work-branch page pays 20 coin, hands over the ledger
+    // and settles the debt (guarded one-shot by sw_debt_settled).
+    if ((await talk(page, "take my ledger", "pol: worked off — 20 coin + ledger")) === false) {
+      throw new Error("pol pay");
+    }
+    await page.keyboard.press("KeyZ");
+    await sleep(200);
+    if ((await talk(page, "We're square", "pol: settled guard (paid once)")) === false) {
+      throw new Error("pol guard");
+    }
+    await page.keyboard.press("KeyZ");
+    await sleep(200);
+
+    // 15. Detour: the patrolling Dock Worker on row 6 — bounded face/interact
+    // retry from (6,5) (task-19 pattern, body spans two tiles mid-move).
+    if ((await walkTo(page, "ArrowLeft", 2, "6,4", "walk to (6,4)")) === false) {
+      throw new Error("walk");
+    }
+    if ((await walkTo(page, "ArrowDown", 1, "6,5", "walk to (6,5)")) === false) {
+      throw new Error("walk");
+    }
+    let handTalked = false;
+    let handAttempts = 0;
+    for (let attempt = 0; attempt < 6 && !handTalked; attempt++) {
+      handAttempts = attempt + 1;
+      await page.keyboard.press("ArrowDown"); // face row 6 (usually blocked)
+      await sleep(400);
+      if ((await hudPosition(page)) !== "6,5") {
+        // The worker rested exactly on (4,6) and the step went through; step
+        // back and retry from the canonical spot.
+        await page.keyboard.press("ArrowUp");
+        await sleep(400);
+        continue;
+      }
+      await page.keyboard.press("KeyZ");
+      try {
+        await waitFor(
+          async () => {
+            const box = page.locator('[data-testid="dialogue-box"]');
+            if ((await box.count()) === 0 || !(await box.isVisible())) {
+              return null;
+            }
+            const text = (
+              await page.locator('[data-testid="dialogue-text"]').textContent()
+            )?.trim();
+            return text !== undefined && text.includes("Tide's turning") ? text : null;
+          },
+          { timeoutMs: 900, label: `dock hand talk (attempt ${attempt + 1})` },
+        );
+        handTalked = true;
+      } catch {
+        // No body on the faced tile this instant — retry.
+      }
+    }
+    report(
+      "face the patrolling dock worker (task 19)",
+      handTalked ? "PASS" : "FAIL",
+      `interact attempts: ${handAttempts}`,
+    );
+    if (!handTalked) throw new Error("dock hand");
+    await page.keyboard.press("KeyZ"); // dismiss
+    await sleep(200);
+
+    // 16. West transfer: row 5 is clear of the patrol — up, then west to (1,4).
+    if ((await walkTo(page, "ArrowUp", 1, "6,4", "walk to (6,4)")) === false) {
+      throw new Error("walk");
+    }
+    if ((await walkTo(page, "ArrowLeft", 5, "1,4", "walk to (1,4)")) === false) {
+      throw new Error("walk");
+    }
+    if ((await faceOnly(page, "ArrowLeft", "1,4", "face the west road at (0,4)")) === false) {
+      throw new Error("face");
+    }
+    await page.keyboard.press("KeyZ");
+    if ((await expectMap(page, "map_quest_village", "transfer: river → village")) === false) {
+      throw new Error("transfer");
+    }
+
+    // 17. Mira at (9,6): south side of the road (never block the only east
+    // lane). (10,4) → down×2 → (10,6), face left. Offer → Buy → owned.
+    if ((await walkTo(page, "ArrowDown", 2, "10,6", "walk to (10,6)")) === false) {
+      throw new Error("walk");
+    }
+    if ((await faceOnly(page, "ArrowLeft", "10,6", "face Mira at (9,6)")) === false) {
+      throw new Error("face");
+    }
+    await page.keyboard.press("KeyZ");
+    try {
+      await waitFor(
+        async () => {
+          const box = page.locator('[data-testid="choice-box"]');
+          return (await box.count()) > 0 && (await box.isVisible());
+        },
+        { timeoutMs: 4000, label: "Mira choice box" },
+      );
+      report("mira: remedy offer (gold gte 10)", "PASS", "Buy / Not now");
+    } catch (error) {
+      report("mira: remedy offer (gold gte 10)", "FAIL", error.message);
+      throw new Error("choice");
+    }
+    await page.keyboard.press("KeyZ"); // confirm "Buy the remedy" (index 0)
+    await sleep(200);
+    await page.keyboard.press("KeyZ"); // dismiss the offer dialogue
+    await sleep(200);
+    if ((await talk(page, "Pleasure doing business", "mira: purchase (gold −10)")) === false) {
+      throw new Error("mira buy");
+    }
+    await page.keyboard.press("KeyZ");
+    await sleep(200);
+    if ((await talk(page, "pride of Riverside", "mira: owned page")) === false) {
+      throw new Error("mira owned");
+    }
+    await page.keyboard.press("KeyZ");
+    await sleep(200);
+
+    // 18. Elder close: round Mira via row 7, then up to (4,4), talk — the
+    // worked-branch thanks, repeated verbatim on re-talk (first-match).
+    if ((await walkTo(page, "ArrowDown", 1, "10,7", "walk to (10,7)")) === false) {
+      throw new Error("walk");
+    }
+    if ((await walkTo(page, "ArrowLeft", 6, "4,7", "walk to (4,7)")) === false) {
+      throw new Error("walk");
+    }
+    if ((await walkTo(page, "ArrowUp", 3, "4,4", "walk to (4,4)")) === false) {
+      throw new Error("walk");
+    }
+    if ((await faceOnly(page, "ArrowLeft", "4,4", "face the elder at (3,4)")) === false) {
+      throw new Error("face");
+    }
+    if (
+      (await talk(page, "Millbrook one day", "elder: worked-branch thanks (sw_ch2_done)")) === false
+    ) {
+      throw new Error("elder close");
+    }
+    await page.keyboard.press("KeyZ");
+    await sleep(200);
+    if ((await talk(page, "Millbrook one day", "elder: thanks repeats (first-match)")) === false) {
+      throw new Error("elder close repeat");
     }
   } catch (error) {
     exitCode = 1;

@@ -7,7 +7,23 @@
 | **Approach** | All content stays in the shipped command set (`showText`, `setVariable` `set`/`add`, `setSwitch`, `transfer`, `showChoices`) and single-clause first-match page conditions. **Story:** (1) elder hook — after the chapter-1 reward, the next talk starts chapter 2 (collect Old Pol's 30-coin ferry debt; the east road re-opened) → `sw_ch2_started`; (2) gated east-road transfer — "flood wall seals the road" text page before `sw_ch2_started`, transfer page after; (3) Old Pol — `showChoices` → `ferry_choice` ("Demand the debt" / "Offer to work it off"), payment settles on the next talk, one-shot-guarded by `sw_debt_settled`, cancel re-offers (`ferry_choice lt 0`); (4) Herbalist Mira (new NPC) — 10-coin remedy, page ladder `sw_remedy` → purchase (`remedy_buy eq 0`, `gold −10`) → offer (`gold gte 10`) → too-poor, exercising `gte`, negative `add`, and the choice → re-interact pattern; (5) elder close — thanks branches on `ferry_choice` (`eq 0`/`eq 1`), sets `sw_ch2_done` (chapter-3 hook in the worked branch); (6) flavor — signpost and Guard Bren gain `sw_ch2_started` pages, a patrolling Dock Worker re-exercises task-19 patrol+talk. **Elder page ladder** (first-match): `[ferry_choice eq 0]`, `[ferry_choice eq 1]`, `[sw_ch2_started]`, `[sw_quest_done]` (ch-2 hook), `[sw_crate_found]` (ch-1 reward), `[null]` (intro). |
 | **Files touched** | `samples/maps/quest-river.map.json` (new); `samples/maps/quest-village.map.json`; `samples/projects/lost-shipment.project.json`; `packages/core/tests/quest-slice.test.ts`; `packages/runtime/e2e/quest-e2e.mjs`; this doc; `docs/05-project-log.md`; `samples/README.md` (if it lists maps) |
 | **Acceptance criteria** | `pnpm validate` green over `samples/`; core suite green incl. the extended quest-slice test (map list, closed transfer graph, elder ladder order, Pol one-shot guard, Mira ladder order); full web unit suite green twice; `pnpm build:www` + quest E2E green with the chapter-2 steps; baseline E2E and multiplayer smoke re-run green; lint / format:check / doc:lint green; docs updated in the same change; no changes under `packages/core/src` (any engine gap becomes its own task). |
-| **Status** | todo |
+| **Status** | done |
+
+## Status log
+
+- 2026-09-01 — created (todo), WAL-first per
+  [discussion/2026-09-01-quest-chapter-2.md](../discussion/2026-09-01-quest-chapter-2.md).
+- 2026-09-01 — done. Chapter 2 shipped as data: `map_quest_river` (Old Pol
+  debt choice, patrolling Dock Worker, gated west road), village elder
+  6-page first-match ladder, Herbalist Mira's 4-page purchase ladder, gated
+  east road. Quest E2E extended to **75/75** (gated sealed-wall text, Pol
+  one-shot payment, dock-worker patrol talk, Mira buy loop, worked-branch
+  close); quest-slice data test extended to the new ladders (core 121
+  green); unit 301 green ×2; validate/lint/format/doc-lint green; baseline
+  E2E 21/21 and multiplayer smoke 13/13 re-run green; ctest 41/41.
+  Content-design lesson recorded in the E2E comments: NPCs never stand in
+  the only east-west lane (Mira first shipped at (9,4), blocking the road —
+  moved to (9,6)).
 
 ## Details
 

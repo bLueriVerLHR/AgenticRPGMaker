@@ -1,0 +1,215 @@
+{
+  "schemaVersion": 1,
+  "id": "map_quest_river",
+  "name": "Riverbank Landing",
+  "tileSize": 16,
+  "width": 12,
+  "height": 9,
+  "tileset": "tilesets/placeholder",
+  "layers": [
+    {
+      "id": "ground",
+      "name": "Ground",
+      "type": "tile",
+      "opacity": 1.0,
+      "visible": true,
+      "data": [
+        [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
+        [1, 1, 1, 1, 1, 1, 1, 1, 1, 3, 3, 1],
+        [1, 1, 1, 1, 1, 1, 1, 1, 1, 3, 3, 1],
+        [1, 1, 1, 1, 1, 1, 1, 1, 2, 3, 3, 1],
+        [1, 2, 2, 2, 2, 2, 2, 2, 2, 3, 3, 1],
+        [1, 1, 1, 1, 1, 1, 1, 1, 1, 3, 3, 1],
+        [1, 1, 1, 1, 1, 1, 1, 1, 1, 3, 3, 1],
+        [1, 1, 1, 1, 1, 1, 1, 1, 1, 3, 3, 1],
+        [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]
+      ]
+    },
+    {
+      "id": "colliders",
+      "name": "Colliders",
+      "type": "tile",
+      "opacity": 1.0,
+      "visible": false,
+      "data": [
+        [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
+        [1, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1],
+        [1, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1],
+        [1, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1],
+        [1, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1],
+        [1, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1],
+        [1, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1],
+        [1, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1],
+        [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]
+      ]
+    }
+  ],
+  "events": [
+    {
+      "id": "evt_pol",
+      "name": "Old Pol",
+      "x": 8,
+      "y": 3,
+      "sprite": "characters/npc_merchant",
+      "pages": [
+        {
+          "condition": {
+            "switchId": "sw_debt_settled",
+            "value": true
+          },
+          "commands": [
+            {
+              "cmd": "showText",
+              "args": ["We're square, courier. The river keeps its own ledger — and so do I."]
+            }
+          ]
+        },
+        {
+          "condition": {
+            "variableId": "ferry_choice",
+            "op": "eq",
+            "value": 0
+          },
+          "commands": [
+            {
+              "cmd": "showText",
+              "args": [
+                "Thirty coin, counted out grudging as river mud. Don't spend it all on fancy rope."
+              ]
+            },
+            {
+              "cmd": "setVariable",
+              "args": ["gold", "add", 30]
+            },
+            {
+              "cmd": "setSwitch",
+              "args": ["sw_debt_settled", true]
+            }
+          ]
+        },
+        {
+          "condition": {
+            "variableId": "ferry_choice",
+            "op": "eq",
+            "value": 1
+          },
+          "commands": [
+            {
+              "cmd": "showText",
+              "args": [
+                "Worked honest, paid honest — twenty coin, and take my ledger beside. A trader in Millbrook will want to see it."
+              ]
+            },
+            {
+              "cmd": "setVariable",
+              "args": ["gold", "add", 20]
+            },
+            {
+              "cmd": "setSwitch",
+              "args": ["sw_ledger", true]
+            },
+            {
+              "cmd": "setSwitch",
+              "args": ["sw_debt_settled", true]
+            }
+          ]
+        },
+        {
+          "condition": {
+            "variableId": "ferry_choice",
+            "op": "lt",
+            "value": 0
+          },
+          "commands": [
+            {
+              "cmd": "showText",
+              "args": [
+                "The debt? That coin went into the flood wall, and the mud took the rest. The village can wait a season... or you can insist."
+              ]
+            },
+            {
+              "cmd": "showChoices",
+              "args": ["ferry_choice", "Demand the debt", "Offer to work it off"]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "evt_dock_hand",
+      "name": "Dock Worker",
+      "x": 6,
+      "y": 6,
+      "sprite": "characters/npc_guard",
+      "behavior": {
+        "kind": "rule-based",
+        "waypoints": [
+          { "x": 6, "y": 6 },
+          { "x": 4, "y": 6 }
+        ],
+        "speed": 1,
+        "idleSeconds": 1.0,
+        "faceDirection": "down"
+      },
+      "pages": [
+        {
+          "condition": null,
+          "commands": [
+            {
+              "cmd": "showText",
+              "args": [
+                "Tide's turning. The ferryman counts his losses more than his coin these days."
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "evt_dock_barrel",
+      "name": "Waterlogged Barrel",
+      "x": 3,
+      "y": 2,
+      "sprite": "objects/crate",
+      "pages": [
+        {
+          "condition": null,
+          "commands": [
+            {
+              "cmd": "showText",
+              "args": [
+                "Salted fish, rope, and a coil of net — a dock's worth of hopes, waterlogged."
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "evt_river_west",
+      "name": "West Road",
+      "x": 0,
+      "y": 4,
+      "pages": [
+        {
+          "condition": null,
+          "commands": [
+            {
+              "cmd": "showText",
+              "args": ["You follow the road back toward Riverside Village."]
+            },
+            {
+              "cmd": "transfer",
+              "args": ["map_quest_village", 10, 4, "left"]
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "variables": {},
+  "switches": {
+    "sw_debt_settled": false,
+    "sw_ledger": false
+  }
+}

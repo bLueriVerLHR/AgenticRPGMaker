@@ -54,13 +54,69 @@
       "pages": [
         {
           "condition": {
+            "variableId": "ferry_choice",
+            "op": "eq",
+            "value": 0
+          },
+          "commands": [
+            {
+              "cmd": "showText",
+              "args": [
+                "Grudging coin spends the same as glad coin. The village thanks you, courier — even if Pol doesn't."
+              ]
+            },
+            {
+              "cmd": "setSwitch",
+              "args": ["sw_ch2_done", true]
+            }
+          ]
+        },
+        {
+          "condition": {
+            "variableId": "ferry_choice",
+            "op": "eq",
+            "value": 1
+          },
+          "commands": [
+            {
+              "cmd": "showText",
+              "args": [
+                "You worked the debt off instead of squeezing it out? Take my thanks — and Pol's ledger may open a door or two in Millbrook one day."
+              ]
+            },
+            {
+              "cmd": "setSwitch",
+              "args": ["sw_ch2_done", true]
+            }
+          ]
+        },
+        {
+          "condition": {
+            "switchId": "sw_ch2_started",
+            "value": true
+          },
+          "commands": [
+            {
+              "cmd": "showText",
+              "args": ["Any luck with the ferryman? Thirty coin is the village's winter medicine."]
+            }
+          ]
+        },
+        {
+          "condition": {
             "switchId": "sw_quest_done",
             "value": true
           },
           "commands": [
             {
               "cmd": "showText",
-              "args": ["Rest now, courier. Riverside owes you a debt."]
+              "args": [
+                "One more errand, courier, and a harder one: the ferryman Pol owes the village thirty coin — winter medicine coin. The flood wall is down; the east road is open."
+              ]
+            },
+            {
+              "cmd": "setSwitch",
+              "args": ["sw_ch2_started", true]
             }
           ]
         },
@@ -110,6 +166,20 @@
       "y": 2,
       "sprite": "characters/npc_guard",
       "pages": [
+        {
+          "condition": {
+            "switchId": "sw_ch2_started",
+            "value": true
+          },
+          "commands": [
+            {
+              "cmd": "showText",
+              "args": [
+                "Pol still owes the village a glare along with the coin, courier. Collect both."
+              ]
+            }
+          ]
+        },
         {
           "condition": {
             "switchId": "sw_quest_started",
@@ -165,6 +235,20 @@
       "y": 2,
       "pages": [
         {
+          "condition": {
+            "switchId": "sw_ch2_started",
+            "value": true
+          },
+          "commands": [
+            {
+              "cmd": "showText",
+              "args": [
+                "Riverside Village. East road re-opened: Riverbank Landing. North road: the Old Forest."
+              ]
+            }
+          ]
+        },
+        {
           "condition": null,
           "commands": [
             {
@@ -176,15 +260,127 @@
           ]
         }
       ]
+    },
+    {
+      "id": "evt_mira",
+      "name": "Herbalist Mira",
+      "x": 9,
+      "y": 6,
+      "sprite": "characters/npc_scholar",
+      "pages": [
+        {
+          "condition": {
+            "switchId": "sw_remedy",
+            "value": true
+          },
+          "commands": [
+            {
+              "cmd": "showText",
+              "args": [
+                "The remedy is working already, I can tell. Mira's Elixir — the pride of Riverside."
+              ]
+            }
+          ]
+        },
+        {
+          "condition": {
+            "variableId": "remedy_buy",
+            "op": "eq",
+            "value": 0
+          },
+          "commands": [
+            {
+              "cmd": "showText",
+              "args": ["Pleasure doing business. Steep it hot and drink it slow."]
+            },
+            {
+              "cmd": "setVariable",
+              "args": ["gold", "add", -10]
+            },
+            {
+              "cmd": "setSwitch",
+              "args": ["sw_remedy", true]
+            }
+          ]
+        },
+        {
+          "condition": {
+            "variableId": "gold",
+            "op": "gte",
+            "value": 10
+          },
+          "commands": [
+            {
+              "cmd": "showText",
+              "args": [
+                "Winter coughs are coming, sure as the river runs. My remedy is ten coin — reliable as the tide."
+              ]
+            },
+            {
+              "cmd": "showChoices",
+              "args": ["remedy_buy", "Buy the remedy (10 coin)", "Not now"]
+            }
+          ]
+        },
+        {
+          "condition": null,
+          "commands": [
+            {
+              "cmd": "showText",
+              "args": ["A remedy costs ten coin. Come back when your purse is heavier."]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "evt_village_east",
+      "name": "East Road",
+      "x": 11,
+      "y": 4,
+      "pages": [
+        {
+          "condition": {
+            "switchId": "sw_ch2_started",
+            "value": true
+          },
+          "commands": [
+            {
+              "cmd": "showText",
+              "args": ["The flood wall is down. You take the east road toward the river."]
+            },
+            {
+              "cmd": "transfer",
+              "args": ["map_quest_river", 1, 4, "right"]
+            }
+          ]
+        },
+        {
+          "condition": null,
+          "commands": [
+            {
+              "cmd": "showText",
+              "args": [
+                "The flood wall still seals the east road — mud and timber, packed tight by the whole village."
+              ]
+            }
+          ]
+        }
+      ]
     }
   ],
   "variables": {
     "gold": 0,
-    "forest_fight": -1
+    "forest_fight": -1,
+    "ferry_choice": -1,
+    "remedy_buy": -1
   },
   "switches": {
     "sw_quest_started": false,
     "sw_crate_found": false,
-    "sw_quest_done": false
+    "sw_quest_done": false,
+    "sw_ch2_started": false,
+    "sw_ch2_done": false,
+    "sw_remedy": false
   }
 }

@@ -11,6 +11,6 @@
     "images": ["img/tilesets/placeholder.png"],
     "audio": [],
     "tilesets": ["tilesets/placeholder"],
-    "maps": ["map_quest_village", "map_quest_forest", "map_quest_cave"]
+    "maps": ["map_quest_village", "map_quest_forest", "map_quest_cave", "map_quest_river"]
   }
 }

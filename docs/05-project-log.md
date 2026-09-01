@@ -5,6 +5,36 @@ Date format: `YYYY-MM-DD`.
 
 ---
 
+## 2026-09-01 — Task 20: quest chapter 2 "The Ferryman's Ledger" — the slice grows a fourth map
+
+Owner-selected content extension (choice recorded in
+[discussion/2026-09-01-quest-chapter-2.md](./discussion/2026-09-01-quest-chapter-2.md)),
+shipped as pure data — no core/schema/engine changes
+([task doc](./task/20-quest-chapter-2.md)):
+
+- **Story:** after the chapter-1 reward, Elder Rowan sends the courier to
+  collect Old Pol's 30-coin ferry debt at the new **Riverbank Landing**
+  (`map_quest_river`); Pol offers a demand/work-it-off choice
+  (`showChoices` → `ferry_choice`), Herbalist Mira sells a 10-coin remedy,
+  and the elder's closing thanks branches on how the debt was settled —
+  the worked branch plants a Millbrook chapter-3 hook.
+- **Capabilities exercised for the first time by content:** comparison page
+  conditions beyond `eq` (`gte` on gold for Mira's offer, `lt 0` for choice
+  re-offer), negative `setVariable` (spending), a gated transfer (east road
+  sealed until `sw_ch2_started`), a multi-page purchase loop
+  (offer → buy → owned, one-shot-guarded), and a second patrol NPC whose
+  talk follows the task-19 live-body rule.
+- **First-match page ladders** are the load-bearing design (single-clause
+  conditions only): the elder now carries a 6-page ladder (settled-by-choice
+  thanks ×2 → in-progress → ch-2 hook → ch-1 reward → intro), Pol a 4-page
+  ladder with the `sw_debt_settled` guard page first so a re-talk can never
+  re-run a payment. The extended `quest-slice.test.ts` asserts the ladders,
+  the closed transfer graph, and the one-shot guards (core 121 green).
+- **Quest E2E: 39 → 75 steps, all green** against the rebuilt `www/`: gated
+  sealed-wall text before the hook, the full Pol/Mira/elder loops, and a
+  bounded patrol talk with the new Dock Worker. Baseline E2E 21/21,
+  multiplayer smoke 13/13, unit 301 ×2, ctest 41/41.
+
 ## 2026-09-01 — Task 21: title screen — New Game / Continue, cross-map restore, autosave
 
 Owner addition to the chapter-2 effort ("开始屏幕可以开始新的游戏或者继续已有的

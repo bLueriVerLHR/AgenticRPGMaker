@@ -161,6 +161,36 @@ async function currentMap(page) {
   return page.evaluate(() => globalThis.window.__game?.scene?.map?.id ?? null);
 }
 
+/**
+ * Task 23: while a dialogue is open, the box must be anchored above the
+ * speaker — anchor mode "speaker" and the box's bottom edge at or above the
+ * speaker tile's on-screen top.
+ */
+async function checkDialogueAnchor(page, label = "dialogue anchored above speaker") {
+  try {
+    const anchor = await page.evaluate(() => {
+      const scene = globalThis.window.__game?.scene;
+      const mode = scene?.dialogueAnchorMode;
+      return { mode: mode === undefined ? "unset" : mode, rect: scene?.speakerAnchorRect ?? null };
+    });
+    const box = await page.locator('[data-testid="dialogue-box"]').boundingBox();
+    if (anchor.mode !== "speaker" || anchor.rect === null || box === null) {
+      throw new Error(`mode=${String(anchor.mode)} rect=${String(anchor.rect)} box=${String(box)}`);
+    }
+    const boxBottom = box.y + box.height;
+    const ok = boxBottom <= anchor.rect.top + 1;
+    report(
+      label,
+      ok ? "PASS" : "FAIL",
+      `box bottom ${Math.round(boxBottom)} vs speaker top ${Math.round(anchor.rect.top)}`,
+    );
+    return ok;
+  } catch (error) {
+    report(label, "FAIL", error.message);
+    return false;
+  }
+}
+
 async function expectMap(page, mapId, label) {
   try {
     await waitFor(async () => (await currentMap(page)) === mapId, {
@@ -259,6 +289,9 @@ async function main() {
       hintDuring === null ? "PASS" : "FAIL",
       String(hintDuring),
     );
+    if ((await checkDialogueAnchor(page)) === false) {
+      throw new Error("dialogue anchor");
+    }
     await page.keyboard.press("KeyZ"); // close the quest dialogue
     await sleep(200);
 

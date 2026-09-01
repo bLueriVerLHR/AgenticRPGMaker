@@ -19,7 +19,8 @@ import {
 import type { GameEventMap } from "@agenticrpg/core";
 
 import { Input } from "../src/input.js";
-import { MapScene } from "../src/map-scene.js";
+import { computeDialoguePlacement, MapScene } from "../src/map-scene.js";
+import type { DialoguePlacementInput } from "../src/map-scene.js";
 import { MemoryStorage } from "../src/storage.js";
 import { createNoopLogger } from "../src/logger.js";
 import { fixtureMap, saveFixture, StubRenderer, stubCanvas } from "./helpers.js";
@@ -236,6 +237,88 @@ describe("MapScene dialogue (interpreter integration)", () => {
     input.queueConfirm();
     scene.update(0.016);
     expect(scene.isDialogueOpen).toBe(false);
+  });
+
+  it("keeps the speaker id with the queued line (task 23, headless getters)", () => {
+    const { scene, input } = buildHarness();
+    for (let i = 0; i < 4; i++) {
+      input.pressDirection("right");
+      waitForStep(scene);
+      input.releaseDirection("right");
+    }
+    input.pressDirection("right");
+    waitForStep(scene);
+    input.releaseDirection("right");
+    input.queueConfirm();
+    scene.update(0.016);
+    expect(scene.isDialogueOpen).toBe(true);
+    expect(scene.currentDialogueSpeakerId).toBe("evt_innkeeper");
+    // Headless (no DOM): the box never renders, so the anchor mode is the
+    // fallback even though the line knows its speaker.
+    expect(scene.dialogueAnchorMode).toBe("fallback");
+    expect(scene.speakerAnchorRect).toBeNull();
+  });
+});
+
+describe("Dialogue placement above the speaker (task 23)", () => {
+  /**
+   * A 320x240 backing canvas rendered at zoom 2 into a 640x480 CSS box:
+   * world px × 2 = backing px, backing px × 2 = CSS px (no page offset).
+   * The speaker tile sits at world (64, 32)–(80, 48).
+   */
+  function placement(
+    overrides: Partial<DialoguePlacementInput> = {},
+  ): ReturnType<typeof computeDialoguePlacement> {
+    const input: DialoguePlacementInput = {
+      tileWorld: { x: 64, y: 32, width: 16, height: 16 },
+      camera: { viewport: { x: 0, y: 0, width: 320, height: 240 }, zoom: 2 },
+      backing: { width: 320, height: 240 },
+      css: { width: 640, height: 480 },
+      offset: { x: 0, y: 0 },
+      box: { width: 256, height: 64 },
+      gap: 8,
+      ...overrides,
+    };
+    return computeDialoguePlacement(input);
+  }
+
+  it("anchors above the speaker's head with the CSS scale applied", () => {
+    const p = placement();
+    expect(p.anchored).toBe(true);
+    // Tile top: world y=32 → backing 64 → CSS 128; box top = 128 − gap 8 − box 64 = 56.
+    expect(p.top).toBeCloseTo(56);
+    // Centered on the tile: center x=72 → backing 144 → CSS 288; left = 288 − 128 = 160.
+    expect(p.left).toBeCloseTo(160);
+    // The anchor rect is the on-screen speaker tile (CSS px): world y=32..48 → CSS 128..192.
+    expect(p.anchorRect?.top).toBeCloseTo(128);
+    expect(p.anchorRect?.bottom).toBeCloseTo(192);
+  });
+
+  it("flips below the tile when there is no room above", () => {
+    // Tile top at world y=8 → CSS 32; above = 32 − 8 − 64 < 0 → flip.
+    const p = placement({ tileWorld: { x: 64, y: 8, width: 16, height: 16 } });
+    expect(p.anchored).toBe(true);
+    // Tile bottom: world y=24 → CSS 96; below = 96 + gap 8 = 104.
+    expect(p.top).toBeCloseTo(104);
+  });
+
+  it("clamps horizontally inside the canvas near the edges", () => {
+    // Tile center x=10 → CSS 40; centered left = 40 − 128 = −88 → margin 8.
+    const p = placement({ tileWorld: { x: 2, y: 64, width: 16, height: 16 } });
+    expect(p.anchored).toBe(true);
+    expect(p.left).toBe(8);
+  });
+
+  it("falls back when the speaker is off-screen", () => {
+    const p = placement({ tileWorld: { x: 400, y: 32, width: 16, height: 16 } });
+    expect(p.anchored).toBe(false);
+  });
+
+  it("applies the canvas page offset (fixed positioning over a centered canvas)", () => {
+    const p = placement({ offset: { x: 100, y: 40 } });
+    expect(p.anchored).toBe(true);
+    expect(p.left).toBeCloseTo(260); // 160 + 100
+    expect(p.top).toBeCloseTo(96); // 56 + 40
   });
 });
 

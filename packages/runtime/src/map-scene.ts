@@ -12,7 +12,9 @@
  * - **Dialogue**: confirm while facing an NPC runs the core event
  *   interpreter's active page (showText/setVariable/setSwitch/playSound/walk),
  *   and `dialogue` bus events are queued into a DOM dialogue box
- *   (advance/close with confirm).
+ *   (advance/close with confirm). Task 23: the box anchors just above the
+ *   speaker's on-screen tile (flips below near the screen top, clamped
+ *   on-screen); with no anchor it falls back to the bottom-center spot.
  * - **Interaction targeting (task 19)**: the faced tile hits the event whose
  *   1x1 body at its LIVE transform position strictly overlaps it — the same
  *   rule collision uses — so a patrolling NPC is interactable from exactly the
@@ -111,6 +113,131 @@ interface ChoicePrompt {
   selected: number;
 }
 
+/** A queued dialogue line, with the speaker entity when known (task 23). */
+export interface DialogueLine {
+  text: string;
+  speakerId?: string;
+}
+
+/** World-space camera snapshot used to anchor overlay boxes (task 23). */
+export interface CameraView {
+  viewport: { x: number; y: number; width: number; height: number };
+  zoom: number;
+}
+
+/** A box's on-screen CSS rectangle (page coordinates, `position:fixed`). */
+export interface CssRect {
+  left: number;
+  top: number;
+  right: number;
+  bottom: number;
+}
+
+/** Inputs for the pure dialogue placement math (task 23). */
+export interface DialoguePlacementInput {
+  /** The speaker's 1x1 body tile, world pixels. */
+  tileWorld: AABB;
+  camera: CameraView;
+  /** Canvas backing-store size (`canvas.width`/`height`). */
+  backing: { width: number; height: number };
+  /** Canvas CSS size (`clientWidth`/`clientHeight`). */
+  css: { width: number; height: number };
+  /** Canvas CSS offset (`getBoundingClientRect()` left/top). */
+  offset: { x: number; y: number };
+  /** Dialogue box CSS size (`offsetWidth`/`offsetHeight`). */
+  box: { width: number; height: number };
+  /** Gap between the box and the speaker tile, CSS px. */
+  gap: number;
+}
+
+/** Where to put an anchored dialogue box (task 23). */
+export interface DialoguePlacement {
+  /** Box top-left in page CSS px (the boxes are `position:fixed`). */
+  left: number;
+  top: number;
+  /** False → no usable anchor; the caller keeps the screen-space fallback. */
+  anchored: boolean;
+  /** The anchor tile's on-screen CSS rect (set when `anchored`). */
+  anchorRect?: CssRect;
+}
+
+/** Side margin kept between an anchored box and the canvas edge (CSS px). */
+const DIALOGUE_EDGE_MARGIN_PX = 8;
+
+/** Gap between an anchored box and the speaker tile (CSS px). */
+const DIALOGUE_ANCHOR_GAP_PX = 8;
+
+/**
+ * Where a dialogue box goes for a given speaker (task 23): just above the
+ * speaker's on-screen tile, flipping below it when there is no room on top,
+ * clamped inside the canvas, in *page CSS px* (the canvas may be CSS-scaled
+ * and centered, so backing px are converted with the CSS scale + rect offset).
+ * Pure so it stays unit-testable in the node (DOM-less) test environment.
+ */
+export function computeDialoguePlacement(input: DialoguePlacementInput): DialoguePlacement {
+  const { tileWorld, camera, backing, css, offset, box, gap } = input;
+  const degenerate: DialoguePlacement = { left: offset.x, top: offset.y, anchored: false };
+  if (
+    backing.width <= 0 ||
+    backing.height <= 0 ||
+    css.width <= 0 ||
+    css.height <= 0 ||
+    camera.zoom <= 0
+  ) {
+    return degenerate;
+  }
+  const scaleX = css.width / backing.width;
+  const scaleY = css.height / backing.height;
+  // Anchor points in backing px (world → viewport-relative → × zoom)...
+  const anchorX = (tileWorld.x + tileWorld.width / 2 - camera.viewport.x) * camera.zoom;
+  const tileLeft = (tileWorld.x - camera.viewport.x) * camera.zoom;
+  const tileRight = (tileWorld.x + tileWorld.width - camera.viewport.x) * camera.zoom;
+  const tileTop = (tileWorld.y - camera.viewport.y) * camera.zoom;
+  const tileBottom = (tileWorld.y + tileWorld.height - camera.viewport.y) * camera.zoom;
+  // The speaker must be fully on screen — a box clamped to an edge pointing
+  // at nothing reads worse than the plain fallback.
+  if (anchorX < 0 || anchorX > backing.width || tileTop < 0 || tileBottom > backing.height) {
+    return degenerate;
+  }
+  // ...then to page CSS px.
+  const anchorCssX = offset.x + anchorX * scaleX;
+  const topCss = offset.y + tileTop * scaleY;
+  const bottomCss = offset.y + tileBottom * scaleY;
+
+  const margin = DIALOGUE_EDGE_MARGIN_PX;
+  const maxLeft = offset.x + css.width - box.width - margin;
+  const left =
+    maxLeft >= offset.x + margin
+      ? Math.min(Math.max(anchorCssX - box.width / 2, offset.x + margin), maxLeft)
+      : offset.x;
+
+  const above = topCss - gap - box.height;
+  let top: number;
+  if (above >= offset.y + margin) {
+    top = above; // preferred: above the speaker's head
+  } else {
+    const below = bottomCss + gap; // flip below the tile near the screen top
+    top =
+      below + box.height + margin <= offset.y + css.height
+        ? below
+        : Math.min(
+            Math.max(above, offset.y),
+            Math.max(offset.y, offset.y + css.height - box.height),
+          );
+  }
+  return {
+    left,
+    top,
+    anchored: true,
+    anchorRect: {
+      left: offset.x + tileLeft * scaleX,
+      top: topCss,
+      right: offset.x + tileRight * scaleX,
+      bottom: bottomCss,
+    },
+  };
+}
+
 /** Held-key repeat delay for continuous movement (seconds). */
 const REPEAT_DELAY_SECONDS = 0.25;
 
@@ -159,7 +286,17 @@ export class MapScene implements Scene {
   private lastStepDir: InputDirection | null = null;
   private transferEventIds: string[] = [];
   private repeatAccum = 0;
-  private dialogueQueue: string[] = [];
+  private dialogueQueue: DialogueLine[] = [];
+  /** Last line's speaker, remembered so a choice box can anchor too (task 23). */
+  private lastDialogueSpeakerId: string | null = null;
+  /** Camera snapshot from the last rendered frame (dialogue anchoring, task 23). */
+  private cameraView: CameraView | null = null;
+  /** Whether the dialogue box currently sits above the speaker (task 23). */
+  private dialogueAnchored = false;
+  /** The anchor tile's on-screen rect while anchored (task 23, tests/E2E). */
+  private speakerAnchorCss: CssRect | null = null;
+  /** Last style signature written per overlay box (cached writes, task 23). */
+  private readonly boxStyleKeys = new WeakMap<HTMLElement, string>();
   private dialogueEl: HTMLElement | null = null;
   private pendingChoice: ChoicePrompt | null = null;
   private choiceEl: HTMLElement | null = null;
@@ -361,6 +498,9 @@ export class MapScene implements Scene {
     this.virtualInput?.dispose();
     this.virtualInput = null;
     this.dialogueQueue = [];
+    this.lastDialogueSpeakerId = null;
+    this.dialogueAnchored = false;
+    this.speakerAnchorCss = null;
     this.pendingChoice = null;
     this.step = null;
     this.lastStepDir = null;
@@ -390,7 +530,26 @@ export class MapScene implements Scene {
 
   /** The current dialogue line (or null). */
   get currentDialogueText(): string | null {
-    return this.dialogueQueue.length > 0 ? this.dialogueQueue[0]! : null;
+    return this.dialogueQueue.length > 0 ? (this.dialogueQueue[0]?.text ?? null) : null;
+  }
+
+  /** The current line's speaker entity id (task 23), or null when unknown. */
+  get currentDialogueSpeakerId(): string | null {
+    return this.dialogueQueue[0]?.speakerId ?? null;
+  }
+
+  /**
+   * Task 23: "speaker" while the dialogue box is anchored above the speaker's
+   * on-screen tile, "fallback" otherwise (bottom-center placement — headless,
+   * unknown/off-screen speaker).
+   */
+  get dialogueAnchorMode(): "speaker" | "fallback" {
+    return this.dialogueEl !== null && this.dialogueAnchored ? "speaker" : "fallback";
+  }
+
+  /** The anchor tile's on-screen CSS rect while anchored, else null (task 23). */
+  get speakerAnchorRect(): CssRect | null {
+    return this.dialogueAnchorMode === "speaker" ? this.speakerAnchorCss : null;
   }
 
   /** True while a choice list is showing (task 16). */
@@ -549,9 +708,15 @@ export class MapScene implements Scene {
   private addBusSubscriptions(): void {
     this.busUnsubscribers.push(
       this.bus.on("dialogue", (event) => {
-        this.dialogueQueue.push(event.text);
+        // Task 23: keep the speaker with the line — the interpreter emits the
+        // actor event id, behaviors the entity id — so the box can anchor
+        // above the speaker's on-screen tile instead of bottom-center.
+        this.dialogueQueue.push({ text: event.text, speakerId: event.speakerId });
+        if (event.speakerId !== undefined) {
+          this.lastDialogueSpeakerId = event.speakerId;
+        }
         this.renderDialogue();
-        this.logger.debug("dialogue: queued", { text: event.text });
+        this.logger.debug("dialogue: queued", { text: event.text, speakerId: event.speakerId });
       }),
       this.bus.on("choice", (event) => {
         // The core declares the question only; the runtime shows the options
@@ -885,12 +1050,14 @@ export class MapScene implements Scene {
     if (this.dialogueEl === null) {
       return;
     }
-    const text = this.dialogueQueue[0] ?? null;
+    const line = this.dialogueQueue[0];
+    const text = line?.text ?? null;
     const textEl = this.dialogueEl.querySelector('[data-testid="dialogue-text"]');
     if (textEl !== null) {
       textEl.textContent = text;
     }
     this.dialogueEl.style.display = text === null ? "none" : "block";
+    this.layoutDialogueBoxes();
   }
 
   /** Renders the open choice list (or hides it when none is pending; task 16). */
@@ -912,6 +1079,149 @@ export class MapScene implements Scene {
       this.choiceEl?.appendChild(entry);
     });
     this.choiceEl.style.display = "block";
+    this.layoutDialogueBoxes();
+  }
+
+  // ------------------------------------------------------------------
+  // Overlay placement (task 23): anchor dialogue above the speaker
+  // ------------------------------------------------------------------
+
+  /**
+   * Repositions the dialogue and choice boxes. Called when a line/choice
+   * opens AND every rendered frame — NPC behaviors can move a speaker while
+   * a dialogue is open, and box sizes change per line. Style writes are
+   * cached, so an unchanged placement costs one read and no writes.
+   */
+  private layoutDialogueBoxes(): void {
+    const dialogueOpen = this.isDialogueOpen;
+    const choiceOpen = this.isChoiceOpen;
+    const atRest = (el: HTMLElement | null): boolean =>
+      el === null || this.boxStyleKeys.get(el) === "fallback";
+    if (!dialogueOpen && !choiceOpen && atRest(this.dialogueEl) && atRest(this.choiceEl)) {
+      return; // closed and parked at the fallback spot — nothing to do
+    }
+    if (this.dialogueEl !== null) {
+      this.placeDialogueBox();
+    }
+    if (this.choiceEl !== null) {
+      this.placeChoiceBox(dialogueOpen);
+    }
+  }
+
+  private placeDialogueBox(): void {
+    const el = this.dialogueEl;
+    if (el === null) {
+      return;
+    }
+    const placement = this.speakerPlacement(this.currentDialogueSpeakerId, el);
+    this.applyBoxPlacement(el, placement, "10rem");
+    this.dialogueAnchored = placement.anchored;
+    this.speakerAnchorCss = placement.anchorRect ?? null;
+  }
+
+  /**
+   * The choice box follows the dialogue (task 23): stacked just above it —
+   * today's relative order — while a dialogue is open; a choice with no
+   * dialogue open anchors to the last speaker's tile itself. No anchor →
+   * fallback (bottom-center, `bottom:13rem`).
+   */
+  private placeChoiceBox(dialogueOpen: boolean): void {
+    const el = this.choiceEl;
+    if (el === null) {
+      return;
+    }
+    let placement: DialoguePlacement = { left: 0, top: 0, anchored: false };
+    const dialogue = this.dialogueEl;
+    if (dialogueOpen && dialogue !== null && this.dialogueAnchored) {
+      const rect = this.canvasRect();
+      const dRect = dialogue.getBoundingClientRect();
+      const width = el.offsetWidth;
+      const height = el.offsetHeight;
+      const margin = DIALOGUE_EDGE_MARGIN_PX;
+      const maxLeft = rect.left + this.canvas.clientWidth - width - margin;
+      const left =
+        maxLeft >= rect.left + margin
+          ? Math.min(
+              Math.max(dRect.left + dRect.width / 2 - width / 2, rect.left + margin),
+              maxLeft,
+            )
+          : rect.left;
+      const top = Math.max(rect.top + margin, dRect.top - DIALOGUE_ANCHOR_GAP_PX - height);
+      placement = { left, top, anchored: true };
+    } else {
+      placement = this.speakerPlacement(this.lastDialogueSpeakerId, el);
+    }
+    this.applyBoxPlacement(el, placement, "13rem");
+  }
+
+  /** Placement of a box anchored to a speaker entity's tile (task 23). */
+  private speakerPlacement(speakerId: string | null, el: HTMLElement): DialoguePlacement {
+    const tileWorld = speakerId !== null ? this.speakerTileWorld(speakerId) : null;
+    if (tileWorld === null || this.cameraView === null) {
+      return { left: 0, top: 0, anchored: false };
+    }
+    const rect = this.canvasRect();
+    return computeDialoguePlacement({
+      tileWorld,
+      camera: this.cameraView,
+      backing: { width: this.canvas.width, height: this.canvas.height },
+      css: { width: this.canvas.clientWidth, height: this.canvas.clientHeight },
+      offset: { x: rect.left, y: rect.top },
+      box: { width: el.offsetWidth, height: el.offsetHeight },
+      gap: DIALOGUE_ANCHOR_GAP_PX,
+    });
+  }
+
+  /** The speaker's 1x1 body tile in world px (task-19 live-transform rule). */
+  private speakerTileWorld(speakerId: string): AABB | null {
+    const transform = this.sceneGraph.getEntityById(speakerId)?.getComponent("transform") ?? null;
+    if (transform === null) {
+      return null;
+    }
+    const tileSize = this.map.tileSize;
+    return {
+      x: Math.round(transform.x) * tileSize,
+      y: Math.round(transform.y) * tileSize,
+      width: tileSize,
+      height: tileSize,
+    };
+  }
+
+  private canvasRect(): { left: number; top: number } {
+    // Guarded: JoiPlay-type WebViews and test stubs may lack the API.
+    const rect =
+      typeof this.canvas.getBoundingClientRect === "function"
+        ? this.canvas.getBoundingClientRect()
+        : { left: 0, top: 0 };
+    return { left: rect.left, top: rect.top };
+  }
+
+  /** Writes a placement into the box's style; fallback restores today's CSS. */
+  private applyBoxPlacement(
+    el: HTMLElement,
+    placement: DialoguePlacement,
+    fallbackBottom: string,
+  ): void {
+    const key = placement.anchored
+      ? `anchor:${placement.left.toFixed(1)},${placement.top.toFixed(1)}`
+      : "fallback";
+    if (this.boxStyleKeys.get(el) === key) {
+      return;
+    }
+    this.boxStyleKeys.set(el, key);
+    if (placement.anchored) {
+      el.style.left = `${placement.left}px`;
+      el.style.top = `${placement.top}px`;
+      el.style.right = "";
+      el.style.bottom = "";
+      el.style.transform = "none";
+    } else {
+      el.style.left = "50%";
+      el.style.top = "";
+      el.style.right = "";
+      el.style.bottom = fallbackBottom;
+      el.style.transform = "translateX(-50%)";
+    }
   }
 
   private tryInteract(): boolean {
@@ -1022,6 +1332,9 @@ export class MapScene implements Scene {
     renderer.beginFrame();
     const viewport = this.computeCameraViewport(mapPx);
     renderer.setCamera(viewport, viewport.zoom);
+    // Remembered for overlay anchoring (task 23): dialogue/choice boxes
+    // convert world anchors through this exact viewport each frame.
+    this.cameraView = { viewport, zoom: viewport.zoom };
 
     // Ground.
     renderer.drawRect(0, 0, mapPx.x, mapPx.y, "#22332a");
@@ -1087,6 +1400,10 @@ export class MapScene implements Scene {
         );
       }
     }
+
+    // Overlay placement runs after the camera each frame (task 23): the
+    // speaker may have moved (behaviors) and box sizes change per line.
+    this.layoutDialogueBoxes();
 
     renderer.endFrame();
   }

@@ -5,6 +5,38 @@ Date format: `YYYY-MM-DD`.
 
 ---
 
+## 2026-09-02 — Task 23: dialogue boxes anchor above the speaker
+
+Owner follow-up play-test feedback ("对话应该在说话的人头上，而不是统一在中间
+下方", [discussion/2026-09-02-dialogue-above-speaker.md](./discussion/2026-09-02-dialogue-above-speaker.md)):
+the dialogue box was hard-coded `left:50%; bottom:10rem` even though the bus
+`dialogue` event already carries the speaker id — the scene discarded it
+([task doc](./task/23-dialogue-above-speaker.md)):
+
+- **Speaker-aware queue:** `dialogueQueue` keeps `{ text, speakerId }`; the
+  interpreter's `Say` command emits the actor event id and behaviors the
+  entity id, so every line knows who is talking.
+- **World-anchored placement:** a pure `computeDialoguePlacement()` converts
+  the speaker's live 1x1 tile (task-19 transform rule) through the frame's
+  camera viewport, the zoom, the canvas CSS scale, and the canvas page offset
+  into a fixed-position box coordinate. Above the head by default (8 px gap),
+  flips below the tile when the speaker is near the screen top, clamped
+  inside the canvas; off-screen or unresolvable speakers fall back to the
+  unchanged bottom-center spot.
+- **Choices follow:** the choice box stacks just above the anchored dialogue
+  box (today's relative order); a choice with no dialogue open anchors to the
+  last speaker's tile itself.
+- **Always in place:** placement re-runs every rendered frame (NPC behaviors
+  can move a speaker mid-dialogue; box size changes per line) with cached
+  style writes.
+- **Observable:** `scene.currentDialogueSpeakerId` / `dialogueAnchorMode` /
+  `speakerAnchorRect` getters; the quest E2E asserts the visible box's bottom
+  edge sits above the speaker tile while talking to Elder Rowan.
+
+Rejected-for-now: speech-bubble tails (needs the real art pass), dialogue
+history, typewriter effects. Quest E2E **79/79** (anchor step added); unit
+**314 green ×2**; baseline E2E 21/21; multiplayer smoke 13/13; ctest 41/41.
+
 ## 2026-09-01 — Task 22: playability pass — zoom + camera follow, smooth walking, world readability
 
 Owner play-test feedback ("东西看起来都太小了…移动卡顿太严重了", recorded

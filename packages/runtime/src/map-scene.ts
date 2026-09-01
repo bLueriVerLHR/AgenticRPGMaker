@@ -13,6 +13,9 @@
  *   interpreter's active page (showText/setVariable/setSwitch/playSound/walk),
  *   and `dialogue` bus events are queued into a DOM dialogue box
  *   (advance/close with confirm).
+ * - **Choices**: a `showChoices` command opens a selectable option list
+ *   (up/down to move, confirm to answer, cancel for `-1`); the chosen index is
+ *   written into the prompt's variable so pages can branch on it (task 16).
  * - **Saves**: `save()`/`load()` via the Storage adapter (core `save` schema).
  * - **Network**: forwards local state (players only, D16) and renders remote
  *   players with interpolation.
@@ -88,6 +91,17 @@ interface Step {
   t: number;
 }
 
+/**
+ * A `showChoices` prompt awaiting the player's answer (task 16). The runtime
+ * writes the chosen index into `variable` (or `-1` on cancel); pages branch on
+ * that variable via variable conditions (task 15) on the NEXT interaction.
+ */
+interface ChoicePrompt {
+  variable: string;
+  options: string[];
+  selected: number;
+}
+
 /** Held-key repeat delay for continuous movement (seconds). */
 const REPEAT_DELAY_SECONDS = 0.25;
 
@@ -138,6 +152,8 @@ export class MapScene implements Scene {
   private repeatAccum = 0;
   private dialogueQueue: string[] = [];
   private dialogueEl: HTMLElement | null = null;
+  private pendingChoice: ChoicePrompt | null = null;
+  private choiceEl: HTMLElement | null = null;
   private hud: HudElements | null = null;
   private saveToastEl: HTMLElement | null = null;
   private entered = false;
@@ -204,15 +220,58 @@ export class MapScene implements Scene {
 
   update(dt: number): void {
     this.advanceStep(dt);
-    this.handleMovement(dt);
-    this.handleConfirm();
-    this.handleCancel();
+    if (this.pendingChoice !== null) {
+      // While a choice is open, input routes to the choice list and
+      // movement/dialogue are frozen (task 16).
+      this.handleChoiceInput();
+    } else {
+      this.handleMovement(dt);
+      this.handleConfirm();
+      this.handleCancel();
+    }
     this.updateBehaviors(dt);
     this.network?.update(dt);
     if (this.network !== null) {
       this.sendLocalState();
     }
     this.updateHud();
+  }
+
+  /**
+   * Choice-list input (task 16): up/down wrap the selection, confirm writes
+   * the selected index into the prompt's variable, cancel writes `-1`.
+   */
+  private handleChoiceInput(): void {
+    const prompt = this.pendingChoice;
+    if (prompt === null) {
+      return;
+    }
+    const edge = this.consumeDirectionEdge();
+    if (edge === "up" || edge === "down") {
+      const delta = edge === "up" ? -1 : 1;
+      prompt.selected = (prompt.selected + delta + prompt.options.length) % prompt.options.length;
+      this.renderChoice();
+      return;
+    }
+    if (this.consumeConfirm()) {
+      this.answerChoice(prompt.selected);
+      return;
+    }
+    if (this.consumeCancel()) {
+      this.answerChoice(-1);
+    }
+  }
+
+  /** Writes the answer into the prompt's variable and closes the list. */
+  private answerChoice(index: number): void {
+    const prompt = this.pendingChoice;
+    if (prompt === null) {
+      return;
+    }
+    this.pendingChoice = null;
+    this.state.setVariable(prompt.variable, index);
+    this.renderChoice();
+    this.logger.info("choice: answered", { variable: prompt.variable, index });
   }
 
   /**
@@ -289,6 +348,7 @@ export class MapScene implements Scene {
     this.virtualInput?.dispose();
     this.virtualInput = null;
     this.dialogueQueue = [];
+    this.pendingChoice = null;
     this.step = null;
     this.lastStepDir = null;
     this.repeatAccum = 0;
@@ -318,6 +378,22 @@ export class MapScene implements Scene {
   /** The current dialogue line (or null). */
   get currentDialogueText(): string | null {
     return this.dialogueQueue.length > 0 ? this.dialogueQueue[0]! : null;
+  }
+
+  /** True while a choice list is showing (task 16). */
+  get isChoiceOpen(): boolean {
+    return this.pendingChoice !== null;
+  }
+
+  /** The open choice prompt (variable/options/selected), or null (headless tests). */
+  get currentChoice(): { variable: string; options: string[]; selected: number } | null {
+    return this.pendingChoice !== null
+      ? {
+          variable: this.pendingChoice.variable,
+          options: [...this.pendingChoice.options],
+          selected: this.pendingChoice.selected,
+        }
+      : null;
   }
 
   /** The scene's renderer backend label (HUD). */
@@ -443,6 +519,13 @@ export class MapScene implements Scene {
         this.renderDialogue();
         this.logger.debug("dialogue: queued", { text: event.text });
       }),
+      this.bus.on("choice", (event) => {
+        // The core declares the question only; the runtime shows the options
+        // and answers by writing the variable (task 16).
+        this.pendingChoice = { variable: event.variable, options: [...event.options], selected: 0 };
+        this.renderChoice();
+        this.logger.debug("choice: opened", { variable: event.variable });
+      }),
       this.bus.on("sound", (event) => {
         this.logger.debug("sound: requested (no audio in MVP)", { ref: event.ref });
       }),
@@ -532,6 +615,29 @@ export class MapScene implements Scene {
       dialogue.remove();
       hud.remove();
     });
+
+    // Choice list (task 16) — dialogue-box styling, one entry per option.
+    const choice = document.createElement("div");
+    choice.dataset.testid = "choice-box";
+    choice.className = "agenticrpg-choice";
+    choice.style.cssText = [
+      "position:fixed",
+      "left:50%",
+      "bottom:13rem",
+      "transform:translateX(-50%)",
+      "min-width:12rem",
+      "padding:0.4rem 0.8rem",
+      "background:rgba(20,20,30,0.92)",
+      "color:#fff",
+      "border:1px solid #888",
+      "border-radius:0.5rem",
+      "font:14px/1.5 system-ui,sans-serif",
+      "z-index:70",
+      "display:none",
+    ].join(";");
+    this.uiRoot.appendChild(choice);
+    this.choiceEl = choice;
+    this.domCleanup.push(() => choice.remove());
 
     // Save/load toast
     const toast = document.createElement("div");
@@ -741,6 +847,27 @@ export class MapScene implements Scene {
       textEl.textContent = text;
     }
     this.dialogueEl.style.display = text === null ? "none" : "block";
+  }
+
+  /** Renders the open choice list (or hides it when none is pending; task 16). */
+  private renderChoice(): void {
+    if (this.choiceEl === null) {
+      return;
+    }
+    this.choiceEl.replaceChildren();
+    const prompt = this.pendingChoice;
+    if (prompt === null) {
+      this.choiceEl.style.display = "none";
+      return;
+    }
+    prompt.options.forEach((option, index) => {
+      const entry = document.createElement("div");
+      entry.dataset.testid = "choice-option";
+      entry.dataset.index = String(index);
+      entry.textContent = `${index === prompt.selected ? "▶" : "　"} ${option}`;
+      this.choiceEl?.appendChild(entry);
+    });
+    this.choiceEl.style.display = "block";
   }
 
   private tryInteract(): boolean {

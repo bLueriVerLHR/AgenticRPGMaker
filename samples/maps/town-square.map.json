@@ -154,6 +154,74 @@
       }
     },
     {
+      "id": "evt_riddle_keeper",
+      "name": "Riddle Keeper",
+      "x": 4,
+      "y": 2,
+      "sprite": "characters/npc_scholar",
+      "pages": [
+        {
+          "condition": {
+            "variableId": "choice_riddle",
+            "op": "eq",
+            "value": 0
+          },
+          "commands": [
+            {
+              "cmd": "showText",
+              "args": ["A clock! Well answered — take these 5 gold."]
+            },
+            {
+              "cmd": "setVariable",
+              "args": ["gold", "add", 5]
+            }
+          ]
+        },
+        {
+          "condition": {
+            "variableId": "choice_riddle",
+            "op": "eq",
+            "value": 1
+          },
+          "commands": [
+            {
+              "cmd": "showText",
+              "args": ["A coin has no hands. Think again... or answer right next time."]
+            }
+          ]
+        },
+        {
+          "condition": {
+            "switchId": "sw_asked_riddle",
+            "value": true
+          },
+          "commands": [
+            {
+              "cmd": "showText",
+              "args": ["You walked away without answering. The riddle stands!"]
+            }
+          ]
+        },
+        {
+          "condition": null,
+          "commands": [
+            {
+              "cmd": "showText",
+              "args": ["Riddle me this: what has hands but cannot clap?"]
+            },
+            {
+              "cmd": "setSwitch",
+              "args": ["sw_asked_riddle", true]
+            },
+            {
+              "cmd": "showChoices",
+              "args": ["choice_riddle", "A clock.", "A coin."]
+            }
+          ]
+        }
+      ]
+    },
+    {
       "id": "evt_sign",
       "name": "Signpost",
       "x": 1,
@@ -195,10 +263,12 @@
     }
   ],
   "variables": {
-    "gold": 0
+    "gold": 0,
+    "choice_riddle": -1
   },
   "switches": {
     "sw_met_inn_owner": false,
-    "sw_met_merchant": false
+    "sw_met_merchant": false,
+    "sw_asked_riddle": false
   }
 }

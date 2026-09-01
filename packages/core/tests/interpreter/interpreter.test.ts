@@ -313,6 +313,48 @@ describe("event interpreter transfer command (task 14)", () => {
   });
 });
 
+describe("event interpreter showChoices command (task 16)", () => {
+  it("emits a choice event and records a choice effect", () => {
+    const bus = new TypedEventBus();
+    const interpreter = new EventInterpreter({ bus, scene: new SceneGraph() });
+    const choices: Array<{ variable: string; options: string[] }> = [];
+    bus.on("choice", (e) => choices.push(e));
+
+    const event: MapEvent = {
+      id: "evt_riddle",
+      name: "Riddle Keeper",
+      x: 3,
+      y: 0,
+      pages: [
+        {
+          condition: null,
+          commands: [{ cmd: "showChoices", args: ["choice_riddle", "A clock.", "A coin."] }],
+        },
+      ],
+    };
+    const result = interpreter.runEvent(event);
+
+    expect(choices).toEqual([{ variable: "choice_riddle", options: ["A clock.", "A coin."] }]);
+    expect(result.effects).toContainEqual({
+      kind: "choice",
+      variable: "choice_riddle",
+      options: ["A clock.", "A coin."],
+    });
+  });
+
+  it("throws UnknownCommandError for fewer than two options", () => {
+    const interpreter = new EventInterpreter({ scene: new SceneGraph() });
+    const event: MapEvent = {
+      id: "evt_bad_choice",
+      name: "Bad Choice",
+      x: 0,
+      y: 0,
+      pages: [{ condition: null, commands: [{ cmd: "showChoices", args: ["v", "Only one"] }] }],
+    };
+    expect(() => interpreter.runEvent(event)).toThrow(UnknownCommandError);
+  });
+});
+
 describe("event interpreter variable conditions (task 15)", () => {
   it("evaluates every variable operator with true and false cases", () => {
     const state = new GameState({ variables: { gold: 10 }, switches: {} });

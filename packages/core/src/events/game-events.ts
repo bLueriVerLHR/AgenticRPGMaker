@@ -61,6 +61,18 @@ export interface SoundEvent {
 export type TransferDirection = "up" | "down" | "left" | "right";
 
 /**
+ * A `showChoices` command presented dialogue options (task 16). The core only
+ * declares the question (it never renders UI) — the runtime shows the options
+ * and writes the chosen index into `variable` (`-1` when cancelled).
+ */
+export interface ChoiceEvent {
+  /** Variable the chosen option index (0-based) is written to on answer. */
+  variable: string;
+  /** Options presented to the player, in order (≥2). */
+  options: string[];
+}
+
+/**
  * A `transfer` command requested a map change (task 14). The core only
  * declares the intent (it never loads maps) — the runtime listens and switches
  * the playable scene to the target map, placing the player at `x`/`y`.
@@ -88,4 +100,5 @@ export interface GameEventMap {
   variable_changed: VariableChangedEvent;
   sound: SoundEvent;
   transfer: TransferEvent;
+  choice: ChoiceEvent;
 }

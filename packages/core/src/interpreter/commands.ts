@@ -43,7 +43,8 @@ export type GameEffect =
       x?: number;
       y?: number;
       direction?: TransferDirection;
-    };
+    }
+  | { kind: "choice"; variable: string; options: string[] };
 
 /** Everything a command may read and mutate while executing. */
 export interface CommandContext {
@@ -245,6 +246,27 @@ export class TransferCommand implements Command {
   }
 }
 
+/**
+ * `showChoices variable option...` — presents dialogue options (task 16). Core
+ * declares the question only (never renders UI): records a `choice` effect and
+ * publishes a `choice` bus event. The runtime shows the options and writes the
+ * chosen index into `variable` (`-1` on cancel); pages then branch on that
+ * variable via variable conditions (task 15).
+ */
+export class ShowChoicesCommand implements Command {
+  readonly cmd: string = "showChoices";
+  constructor(
+    readonly variable: string,
+    readonly options: string[],
+  ) {}
+
+  execute(ctx: CommandContext): void {
+    const event = { variable: this.variable, options: this.options };
+    ctx.effects.push({ kind: "choice", ...event });
+    ctx.bus.emit("choice", event);
+  }
+}
+
 // ---------------------------------------------------------------------------
 // Command registry: built-in commands + author-registered custom commands
 // ---------------------------------------------------------------------------
@@ -338,6 +360,19 @@ const builtInFactories: ReadonlyArray<readonly [string, CommandFactory]> = [
           ? (command.args[3] as TransferDirection)
           : undefined;
       return new TransferCommand(mapId, x, y, direction);
+    },
+  ],
+  [
+    "showChoices",
+    (command) => {
+      const variable = asString(command.args[0], "showChoices");
+      const options = command.args.slice(1).map((option) => asString(option, "showChoices"));
+      if (options.length < 2) {
+        throw new UnknownCommandError(
+          `showChoices: a choice needs at least two options, got ${options.length}`,
+        );
+      }
+      return new ShowChoicesCommand(variable, options);
     },
   ],
 ];

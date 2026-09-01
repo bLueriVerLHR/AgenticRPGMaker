@@ -5,6 +5,32 @@ Date format: `YYYY-MM-DD`.
 
 ---
 
+## 2026-08-31 — Task 16: dialogue choices (`showChoices`) close the question → answer → branch loop
+
+The interaction loop is no longer one-way (task 16, status `done`, QA gate green):
+
+- **Core** — `ShowChoicesCommand` (cmd `"showChoices"`, args `[variable, ...options]`,
+  fail-fast below two options) records a `choice` effect and publishes a
+  `ChoiceEvent` (`{ variable, options }`) on the bus; the core declares the
+  question only, it never renders UI.
+- **Runtime** — `MapScene` subscribes to `choice`: a DOM option list
+  (`data-testid="choice-box"`, dialogue-box styling) opens with the selection at
+  index 0; while open, up/down wrap the selection, confirm writes the selected
+  index into the variable, cancel writes `-1`, and movement/dialogue input is
+  frozen. Headless tests observe `isChoiceOpen` / `currentChoice`.
+- **Sample** — a `Riddle Keeper` NPC in town-square demonstrates the full loop
+  (ask → answer → branch): correct answer +5 gold, wrong answer rebuffs,
+  cancel leaves the riddle standing. Implementation note now recorded in the
+  task doc: `selectPage` is first-match and `null` always matches, so branch
+  pages must precede the ask page.
+- **Page model** — `showChoices` is an async UI: put it last in a page; the
+  question text stays visible while choosing and is dismissed with one confirm;
+  the answer is read on the next interaction via variable conditions (task 15).
+  A suspend/resume interpreter remains future work.
+
+Test counts: **284 web** (core 116 + renderer 68 + runtime 100) + C++ ctest (41)
+green; `pnpm validate` green on 4 sample documents.
+
 ## 2026-08-31 — Engine optimization batch 2 (tasks 14–15): map transfer + variable conditions
 
 Continuing the goal-driven optimization session (`goal-116db185`), WAL-following

@@ -18,4 +18,5 @@ export {
   type SoundEvent,
   type TransferDirection,
   type TransferEvent,
+  type ChoiceEvent,
 } from "./game-events.js";

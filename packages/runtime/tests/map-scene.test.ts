@@ -36,8 +36,10 @@ interface Harness {
   dialogues: string[];
 }
 
-function buildHarness(options: { playerX?: number; playerY?: number } = {}): Harness {
-  const map = fixtureMap();
+function buildHarness(
+  options: { playerX?: number; playerY?: number; map?: MapData } = {},
+): Harness {
+  const map = options.map ?? fixtureMap();
   const bus: GameEventBus = new TypedEventBus<GameEventMap>();
   const state = new GameState({ variables: map.variables, switches: map.switches }, bus);
   const sceneGraph = SceneGraph.fromMap(map, {
@@ -227,6 +229,124 @@ describe("MapScene dialogue (interpreter integration)", () => {
     input.queueConfirm();
     scene.update(0.016);
     expect(scene.isDialogueOpen).toBe(false);
+  });
+});
+
+describe("MapScene choices (task 16)", () => {
+  /** A riddle NPC whose pages form the loop: ask → showChoices → branch on the answer. */
+  function riddleMap(): MapData {
+    const map = fixtureMap();
+    map.events.push({
+      id: "evt_riddle",
+      name: "Riddle Keeper",
+      x: 4,
+      y: 2, // left of the innkeeper; the player faces right at it from (3,2)
+      sprite: "characters/npc_riddle",
+      pages: [
+        {
+          condition: { variableId: "choice_riddle", op: "eq", value: 0 },
+          commands: [{ cmd: "showText", args: ["A clock it is — take this coin."] }],
+        },
+        {
+          condition: { variableId: "choice_riddle", op: "eq", value: 1 },
+          commands: [{ cmd: "showText", args: ["A coin? No — it was a clock."] }],
+        },
+        {
+          condition: null,
+          commands: [
+            { cmd: "showText", args: ["What has hands but cannot clap?"] },
+            { cmd: "showChoices", args: ["choice_riddle", "A clock.", "A coin."] },
+          ],
+        },
+      ],
+    });
+    map.variables = { ...map.variables, choice_riddle: -1 };
+    return map;
+  }
+
+  /** Walks the player from (1,2) to (3,2) facing the riddle keeper at (4,2). */
+  function faceRiddleKeeper(harness: { scene: MapScene; input: Input }): void {
+    const { scene, input } = harness;
+    for (let i = 0; i < 2; i++) {
+      input.pressDirection("right");
+      waitForStep(scene);
+      input.releaseDirection("right");
+    }
+    expect(scene.playerPosition).toEqual({ x: 3, y: 2 });
+  }
+
+  it("opens a choice from the bus and wraps the selection with up/down", () => {
+    const { bus, scene } = buildHarness();
+    bus.emit("choice", { variable: "choice_riddle", options: ["A clock.", "A coin."] });
+    expect(scene.isChoiceOpen).toBe(true);
+    expect(scene.currentChoice).toEqual({
+      variable: "choice_riddle",
+      options: ["A clock.", "A coin."],
+      selected: 0,
+    });
+  });
+
+  it("freezes movement while a choice is open", () => {
+    const { bus, scene, input } = buildHarness();
+    bus.emit("choice", { variable: "v", options: ["a", "b"] });
+    input.pressDirection("right");
+    waitForStep(scene);
+    input.releaseDirection("right");
+    expect(scene.playerPosition).toEqual({ x: 1, y: 2 });
+  });
+
+  it("writes the chosen index into the variable on confirm", () => {
+    const { bus, scene, input, state } = buildHarness();
+    bus.emit("choice", { variable: "choice_riddle", options: ["A clock.", "A coin."] });
+    input.pressDirection("down"); // selection wraps 0 → 1
+    scene.update(0.016);
+    input.releaseDirection("down");
+    expect(scene.currentChoice?.selected).toBe(1);
+    input.queueConfirm();
+    scene.update(0.016);
+    expect(scene.isChoiceOpen).toBe(false);
+    expect(state.getVariable("choice_riddle")).toBe(1);
+  });
+
+  it("writes -1 into the variable on cancel", () => {
+    const { bus, scene, input, state } = buildHarness();
+    bus.emit("choice", { variable: "choice_riddle", options: ["A clock.", "A coin."] });
+    input.queueCancel();
+    scene.update(0.016);
+    expect(scene.isChoiceOpen).toBe(false);
+    expect(state.getVariable("choice_riddle")).toBe(-1);
+  });
+
+  it("runs the full loop: ask → answer → branch on the answer next interaction", () => {
+    const harness = buildHarness({ map: riddleMap() });
+    const { scene, input, dialogues, state } = harness;
+    faceRiddleKeeper(harness);
+
+    // First interaction: the ask page (question + choices).
+    input.queueConfirm();
+    scene.update(0.016);
+    expect(scene.isDialogueOpen).toBe(true);
+    expect(scene.currentDialogueText).toBe("What has hands but cannot clap?");
+    expect(scene.isChoiceOpen).toBe(true);
+
+    // Answer "A coin." (index 1): movement is frozen, dialogue frozen.
+    input.pressDirection("down");
+    scene.update(0.016);
+    input.releaseDirection("down");
+    input.queueConfirm();
+    scene.update(0.016);
+    expect(scene.isChoiceOpen).toBe(false);
+    expect(state.getVariable("choice_riddle")).toBe(1);
+
+    // Second interaction: confirm once dismisses the lingering question, then
+    // re-interact — the eq-1 branch answers.
+    input.queueConfirm();
+    scene.update(0.016);
+    expect(scene.isDialogueOpen).toBe(false);
+    input.queueConfirm();
+    scene.update(0.016);
+    expect(scene.currentDialogueText).toBe("A coin? No — it was a clock.");
+    expect(dialogues).toContain("A coin? No — it was a clock.");
   });
 });
 
